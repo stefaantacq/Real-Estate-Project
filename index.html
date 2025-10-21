@@ -1,11 +1,542 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aira Estate - AI-Powered Real Estate Management Platform</title>
+  <meta name="description" content="Transform your real estate business with Aira Estate. AI-powered platform that automates admin tasks, centralizes client data, and helps you close more deals. Save 10+ hours per week." />
+  <meta name="author" content="Aira Estate" />
+
+  <meta property="og:title" content="Aira Estate - AI-Powered Real Estate Assistant" />
+  <meta property="og:description" content="Centralize your listings, automate admin work, and give clients the seamless experience they expect. The all-in-one platform for modern real estate agents." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:site" content="@lovable_dev" />
+  <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --background: hsl(0, 0%, 100%);
+      --foreground: hsl(210, 20%, 15%);
+      --primary: hsl(210, 70%, 25%);
+      --primary-foreground: hsl(0, 0%, 100%);
+      --secondary: hsl(210, 40%, 96%);
+      --muted-foreground: hsl(210, 15%, 45%);
+      --accent: hsl(142, 70%, 45%);
+      --accent-foreground: hsl(0, 0%, 100%);
+      --destructive: hsl(0, 84%, 60%);
+      --border: hsl(210, 20%, 90%);
+      --hero-gradient-start: hsl(210, 80%, 30%);
+      --hero-gradient-end: hsl(210, 70%, 20%);
+      --section-bg: hsl(210, 30%, 98%);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: var(--foreground);
+      background: var(--background);
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 1rem;
+    }
+
+    /* Hero Section */
+    .hero {
+      background: linear-gradient(135deg, var(--hero-gradient-start), var(--hero-gradient-end));
+      color: white;
+      padding: 5rem 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS1vcGFjaXR5PSIwLjA1IiBzdHJva2Utd2lkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=');
+      opacity: 0.4;
+    }
+
+    .hero .container {
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero-grid {
+      display: grid;
+      gap: 3rem;
+      align-items: center;
+    }
+
+    .hero-content {
+      text-align: center;
+    }
+
+    .hero h1 {
+      font-size: 2.5rem;
+      font-weight: bold;
+      line-height: 1.2;
+      margin-bottom: 1.5rem;
+    }
+
+    .hero p {
+      font-size: 1.25rem;
+      opacity: 0.9;
+      margin-bottom: 2rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.875rem 2rem;
+      font-size: 1rem;
+      font-weight: 600;
+      border-radius: 0.75rem;
+      border: none;
+      cursor: pointer;
+      transition: all 0.3s;
+      text-decoration: none;
+    }
+
+    .btn-cta {
+      background: var(--accent);
+      color: var(--accent-foreground);
+      box-shadow: 0 10px 30px -10px hsla(142, 70%, 45%, 0.4);
+    }
+
+    .btn-cta:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 40px -10px hsla(142, 70%, 45%, 0.5);
+    }
+
+    .hero-image {
+      position: relative;
+    }
+
+    .hero-image img {
+      width: 100%;
+      border-radius: 0.5rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Section Styles */
+    section {
+      padding: 5rem 0;
+    }
+
+    .section-alt {
+      background: var(--section-bg);
+    }
+
+    .section-primary {
+      background: var(--primary);
+      color: var(--primary-foreground);
+    }
+
+    .section-header {
+      text-align: center;
+      margin-bottom: 4rem;
+    }
+
+    .section-header h2 {
+      font-size: 2.5rem;
+      font-weight: bold;
+      margin-bottom: 1rem;
+    }
+
+    .section-header p {
+      font-size: 1.125rem;
+      color: var(--muted-foreground);
+      max-width: 42rem;
+      margin: 0 auto;
+    }
+
+    .section-primary .section-header p {
+      opacity: 0.9;
+      color: inherit;
+    }
+
+    /* Card Grid */
+    .card-grid {
+      display: grid;
+      gap: 2rem;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    }
+
+    .card {
+      background: white;
+      border-radius: 0.75rem;
+      padding: 2rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
+      transition: all 0.3s;
+    }
+
+    .card:hover {
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.12);
+    }
+
+    .card-bordered {
+      border: 2px solid var(--border);
+    }
+
+    .card-bordered:hover {
+      border-color: var(--primary);
+    }
+
+    .card-icon {
+      width: 3.5rem;
+      height: 3.5rem;
+      border-radius: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .icon-primary {
+      background: hsla(210, 70%, 25%, 0.1);
+      color: var(--primary);
+    }
+
+    .icon-destructive {
+      background: hsla(0, 84%, 60%, 0.1);
+      color: var(--destructive);
+    }
+
+    .card h3 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
+
+    .card p {
+      color: var(--muted-foreground);
+      line-height: 1.7;
+    }
+
+    /* How It Works */
+    .steps {
+      max-width: 56rem;
+      margin: 0 auto;
+    }
+
+    .step {
+      display: flex;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .step-number {
+      flex-shrink: 0;
+      width: 3rem;
+      height: 3rem;
+      border-radius: 50%;
+      background: var(--accent);
+      color: var(--accent-foreground);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 1.25rem;
+    }
+
+    .step-content h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .step-icon {
+      color: var(--primary);
+    }
+
+    .step-content p {
+      color: var(--muted-foreground);
+    }
+
+    /* Footer */
+    footer {
+      padding: 2rem 0;
+      border-top: 1px solid var(--border);
+    }
+
+    .footer-content {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      align-items: center;
+      text-align: center;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 1.5rem;
+    }
+
+    .footer-links a {
+      color: var(--muted-foreground);
+      text-decoration: none;
+      transition: color 0.3s;
+    }
+
+    .footer-links a:hover {
+      color: var(--primary);
+    }
+
+    .footer-text {
+      color: var(--muted-foreground);
+      font-size: 0.875rem;
+    }
+
+    /* Icons */
+    .icon {
+      width: 1.5rem;
+      height: 1.5rem;
+      display: inline-block;
+      vertical-align: middle;
+    }
+
+    /* Responsive */
+    @media (min-width: 768px) {
+      .hero-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .hero-content {
+        text-align: left;
+      }
+
+      .hero h1 {
+        font-size: 3.5rem;
+      }
+
+      .footer-content {
+        flex-direction: row;
+        justify-content: space-between;
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .hero h1 {
+        font-size: 4rem;
+      }
+    }
+  </style>
 </head>
+
 <body>
-    
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-grid">
+        <div class="hero-content">
+          <h1>Work Smarter, Not Harder. Your AI-Powered Real Estate Assistant.</h1>
+          <p>Aira Estate centralizes your listings, clients, and communication. Automate your admin and give your clients the seamless experience they expect.</p>
+          <button class="btn btn-cta" onclick="handleDemoRequest()">
+            Request a Demo
+            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+          </button>
+        </div>
+        
+        <div class="hero-image">
+          <img src="src/assets/hero-dashboard.jpg" alt="Aira Estate Dashboard showing centralized property management interface" />
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Problem Section -->
+  <section class="section-alt">
+    <div class="container">
+      <div class="section-header">
+        <h2>Drowning in Chaos?</h2>
+        <p>We understand the daily challenges you face as a real estate professional.</p>
+      </div>
+      
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-icon icon-destructive">
+            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
+            </svg>
+          </div>
+          <h3>Scattered Information</h3>
+          <p>Juggling between your CRM, email, calendar, and spreadsheets to keep track of a single deal?</p>
+        </div>
+
+        <div class="card">
+          <div class="card-icon icon-destructive">
+            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+          </div>
+          <h3>Repetitive Admin Tasks</h3>
+          <p>Spending hours on manual data entry, scheduling viewings, and preparing documents instead of focusing on clients?</p>
+        </div>
+
+        <div class="card">
+          <div class="card-icon icon-destructive">
+            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+            </svg>
+          </div>
+          <h3>Unhappy Clients</h3>
+          <p>Struggling to provide the proactive updates and transparency your clients expect in a digital world?</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Solution/Features Section -->
+  <section>
+    <div class="container">
+      <div class="section-header">
+        <h2>Your All-in-One Command Center</h2>
+        <p>Everything you need to run your real estate business efficiently, all in one place.</p>
+      </div>
+      
+      <div class="card-grid">
+        <div class="card card-bordered">
+          <div class="card-icon icon-primary">
+            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+            </svg>
+          </div>
+          <h3>Smart Dashboard</h3>
+          <p>Get a complete overview of your day. See active properties, upcoming appointments, and client messages in one central place.</p>
+        </div>
+
+        <div class="card card-bordered">
+          <div class="card-icon icon-primary">
+            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+            </svg>
+          </div>
+          <h3>Effortless Client Management</h3>
+          <p>Manage all your clients and leads from a simple CRM. Track every interaction and never miss a follow-up.</p>
+        </div>
+
+        <div class="card card-bordered">
+          <div class="card-icon icon-primary">
+            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+            </svg>
+          </div>
+          <h3>Centralized Property Files</h3>
+          <p>Every document, photo, and detail for each property is organized in one secure digital file. Accessible anytime, anywhere.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works Section -->
+  <section class="section-alt">
+    <div class="container">
+      <div class="section-header">
+        <h2>Get Started in 3 Simple Steps</h2>
+        <p>From setup to automation in minutes, not hours.</p>
+      </div>
+      
+      <div class="steps">
+        <div class="step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h3>
+              <svg class="icon step-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+              </svg>
+              Connect Your Tools
+            </h3>
+            <p>Securely link your calendar and email. Our AI integrates seamlessly with your existing workflow.</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h3>
+              <svg class="icon step-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+              </svg>
+              Let AI Organize
+            </h3>
+            <p>Our AI automatically sorts your data and suggests next steps, learning from your preferences.</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h3>
+              <svg class="icon step-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              Focus on What Matters
+            </h3>
+            <p>Enjoy an automated workflow and more time for your clients. Close more deals with less effort.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Final CTA Section -->
+  <section class="section-primary">
+    <div class="container" style="text-align: center;">
+      <h2 style="font-size: 2.5rem; font-weight: bold; margin-bottom: 1rem;">
+        Ready to Transform Your Real Estate Business?
+      </h2>
+      <p style="font-size: 1.125rem; margin-bottom: 2rem; opacity: 0.9; max-width: 42rem; margin-left: auto; margin-right: auto;">
+        See how Aira Estate can save you 10+ hours a week and help you close more deals.
+      </p>
+      <button class="btn btn-cta" onclick="handleDemoRequest()">
+        Request a Free Demo
+        <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+      </button>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-text">
+          © 2025 Aira Estate. All rights reserved.
+        </div>
+        <div class="footer-links">
+          <a href="#product">Product</a>
+          <a href="#contact">Contact</a>
+          <a href="#privacy">Privacy Policy</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    function handleDemoRequest() {
+      alert('Thank you for your interest! A demo request form would typically open here.');
+      console.log('Demo requested');
+    }
+  </script>
 </body>
 </html>
