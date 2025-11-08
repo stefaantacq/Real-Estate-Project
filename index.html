@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CompromisAI - Slimme Software voor Vastgoedmakelaars</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#0A66C2',
+                        secondary: '#1E3A5F',
+                        accent: '#00A8E8',
+                        background: '#0F0F0F',
+                        surface: '#1A1A1A',
+                        muted: '#2A2A2A',
+                        text: '#FFFFFF',
+                        'text-secondary': '#A0A0A0',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body class="bg-background text-text font-sans antialiased">
+    
+    <!-- Navigation -->
+    <nav class="border-b border-muted backdrop-blur-sm bg-background/80 fixed w-full top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-2">
+                    <svg class="w-8 h-8 text-primary" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5zm0 18.5c-3.25-.94-6-4.62-6-8.5V8.3l6-3.11v15.31z"/>
+                    </svg>
+                    <span class="text-xl font-bold">Compromis<span class="text-primary">AI</span></span>
+                </div>
+                <div class="hidden md:flex items-center gap-8">
+                    <a href="#features" class="text-text-secondary hover:text-text transition-colors">Functionaliteiten</a>
+                    <a href="#how-it-works" class="text-text-secondary hover:text-text transition-colors">Hoe het werkt</a>
+                    <a href="#pricing" class="text-text-secondary hover:text-text transition-colors">Prijzen</a>
+                    <button class="px-6 py-2 bg-white text-background rounded-lg font-medium hover:bg-gray-100 transition-colors">
+                        Start nu
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center max-w-4xl mx-auto">
+                <div class="inline-block px-4 py-2 bg-primary/10 text-primary rounded-full text-sm font-medium mb-6">
+                    AI-gedreven compromissen voor makelaars
+                </div>
+                <h1 class="text-5xl md:text-7xl font-bold mb-6 leading-tight text-balance">
+                    Stel verkoopscompromissen op in een fractie van de tijd
+                </h1>
+                <p class="text-xl text-text-secondary mb-10 leading-relaxed text-pretty max-w-3xl mx-auto">
+                    CompromisAI combineert slimme templates met AI-technologie om documenten te scannen en alle benodigde informatie gestructureerd aan te leveren voor uw compromissen.
+                </p>
+                <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                    <button class="px-8 py-4 bg-white text-background rounded-lg font-semibold hover:bg-gray-100 transition-all hover:scale-105">
+                        Gratis proberen →
+                    </button>
+                    <button class="px-8 py-4 bg-transparent border-2 border-muted text-text rounded-lg font-semibold hover:border-primary transition-colors">
+                        Bekijk demo
+                    </button>
+                </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-8 mt-24 max-w-5xl mx-auto">
+                <div class="text-center p-6 bg-surface rounded-xl border border-muted">
+                    <div class="text-4xl font-bold text-primary mb-2">75%</div>
+                    <div class="text-text-secondary text-sm">Tijdsbesparing</div>
+                </div>
+                <div class="text-center p-6 bg-surface rounded-xl border border-muted">
+                    <div class="text-4xl font-bold text-primary mb-2">500+</div>
+                    <div class="text-text-secondary text-sm">Makelaars</div>
+                </div>
+                <div class="text-center p-6 bg-surface rounded-xl border border-muted">
+                    <div class="text-4xl font-bold text-primary mb-2">98%</div>
+                    <div class="text-text-secondary text-sm">Nauwkeurigheid</div>
+                </div>
+                <div class="text-center p-6 bg-surface rounded-xl border border-muted">
+                    <div class="text-4xl font-bold text-primary mb-2">24/7</div>
+                    <div class="text-text-secondary text-sm">Beschikbaar</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-20 px-4 sm:px-6 lg:px-8 bg-surface/30">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl md:text-5xl font-bold mb-4">Krachtige functionaliteiten</h2>
+                <p class="text-xl text-text-secondary max-w-2xl mx-auto">
+                    Alles wat u nodig heeft om professionele compromissen op te stellen
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-8">
+                <!-- Feature 1 -->
+                <div class="p-8 bg-surface rounded-2xl border border-muted hover:border-primary transition-colors">
+                    <div class="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-6">
+                        <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-2xl font-semibold mb-3">Slimme Templates</h3>
+                    <p class="text-text-secondary leading-relaxed">
+                        Gebruik uw eigen templates of kies uit onze bibliotheek. Pas ze eenvoudig aan voor specifieke situaties en wetgeving.
+                    </p>
+                </div>
+
+                <!-- Feature 2 -->
+                <div class="p-8 bg-surface rounded-2xl border border-muted hover:border-primary transition-colors">
+                    <div class="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-6">
+                        <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-2xl font-semibold mb-3">AI Document Scan</h3>
+                    <p class="text-text-secondary leading-relaxed">
+                        Upload alle documenten en laat onze AI de relevante informatie extraheren. Van EPC-certificaten tot kadastrale gegevens.
+                    </p>
+                </div>
+
+                <!-- Feature 3 -->
+                <div class="p-8 bg-surface rounded-2xl border border-muted hover:border-primary transition-colors">
+                    <div class="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-6">
+                        <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-2xl font-semibold mb-3">Snelle Workflow</h3>
+                    <p class="text-text-secondary leading-relaxed">
+                        Krijg per sectie van uw compromis direct de juiste informatie voorgeschoteld. Geen zoeken meer door stapels documenten.
+                    </p>
+                </div>
+
+                <!-- Feature 4 -->
+                <div class="p-8 bg-surface rounded-2xl border border-muted hover:border-primary transition-colors">
+                    <div class="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-6">
+                        <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-2xl font-semibold mb-3">Juridisch Conform</h3>
+                    <p class="text-text-secondary leading-relaxed">
+                        Blijf up-to-date met de laatste wetgeving. Onze templates worden automatisch aangepast aan nieuwe regelgeving.
+                    </p>
+                </div>
+
+                <!-- Feature 5 -->
+                <div class="p-8 bg-surface rounded-2xl border border-muted hover:border-primary transition-colors">
+                    <div class="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-6">
+                        <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-2xl font-semibold mb-3">Samenwerking</h3>
+                    <p class="text-text-secondary leading-relaxed">
+                        Werk naadloos samen met collega's en notarissen. Deel documenten veilig en houd iedereen op de hoogte.
+                    </p>
+                </div>
+
+                <!-- Feature 6 -->
+                <div class="p-8 bg-surface rounded-2xl border border-muted hover:border-primary transition-colors">
+                    <div class="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-6">
+                        <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-2xl font-semibold mb-3">Aanpasbaar</h3>
+                    <p class="text-text-secondary leading-relaxed">
+                        Voeg uw eigen clausules toe, pas de lay-out aan en creëer templates die perfect passen bij uw kantoor.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How it Works -->
+    <section id="how-it-works" class="py-20 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl md:text-5xl font-bold mb-4">Hoe het werkt</h2>
+                <p class="text-xl text-text-secondary max-w-2xl mx-auto">
+                    Van documenten tot compleet compromis in drie eenvoudige stappen
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-12 max-w-6xl mx-auto">
+                <!-- Step 1 -->
+                <div class="relative">
+                    <div class="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mb-6 border-4 border-primary">
+                        <span class="text-2xl font-bold text-primary">1</span>
+                    </div>
+                    <h3 class="text-2xl font-semibold mb-4">Upload Documenten</h3>
+                    <p class="text-text-secondary leading-relaxed">
+                        Sleep alle relevante documenten naar het platform: identiteitskaarten, kadastrale plannen, EPC-certificaten, stedenbouwkundige info, etc.
+                    </p>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="relative">
+                    <div class="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mb-6 border-4 border-primary">
+                        <span class="text-2xl font-bold text-primary">2</span>
+                    </div>
+                    <h3 class="text-2xl font-semibold mb-4">AI Analyseert</h3>
+                    <p class="text-text-secondary leading-relaxed">
+                        Onze AI scant alle documenten en extraheert automatisch de relevante informatie. Dit gebeurt in seconden, volledig veilig en gestructureerd.
+                    </p>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="relative">
+                    <div class="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mb-6 border-4 border-primary">
+                        <span class="text-2xl font-bold text-primary">3</span>
+                    </div>
+                    <h3 class="text-2xl font-semibold mb-4">Stel Op & Exporteer</h3>
+                    <p class="text-text-secondary leading-relaxed">
+                        Werk sectie per sectie met vooraf ingevulde informatie. Pas aan waar nodig en exporteer uw professionele compromis naar Word of PDF.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Visual Example -->
+            <div class="mt-20 bg-surface p-8 md:p-12 rounded-3xl border border-muted">
+                <div class="grid md:grid-cols-2 gap-12 items-center">
+                    <div>
+                        <div class="inline-block px-3 py-1 bg-accent/10 text-accent rounded-full text-sm font-medium mb-4">
+                            Voorbeeld
+                        </div>
+                        <h3 class="text-3xl font-bold mb-4">Intelligente Suggesties</h3>
+                        <p class="text-text-secondary mb-6 leading-relaxed">
+                            Bij elke sectie van uw compromis krijgt u niet alleen de geëxtraheerde data, maar ook contextuele tips en suggesties op basis van best practices en juridische vereisten.
+                        </p>
+                        <ul class="space-y-3">
+                            <li class="flex items-start gap-3">
+                                <svg class="w-6 h-6 text-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                </svg>
+                                <span class="text-text-secondary">Automatische controle op ontbrekende gegevens</span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <svg class="w-6 h-6 text-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                </svg>
+                                <span class="text-text-secondary">Waarschuwingen bij mogelijke inconsistenties</span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <svg class="w-6 h-6 text-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                </svg>
+                                <span class="text-text-secondary">Voorgestelde clausules op basis van situatie</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="bg-muted p-8 rounded-2xl">
+                        <div class="space-y-4">
+                            <div class="bg-background p-4 rounded-lg">
+                                <div class="text-sm text-primary font-semibold mb-2">Sectie 3: Omschrijving Goed</div>
+                                <div class="text-text-secondary text-sm">
+                                    <p class="mb-2"><strong class="text-text">Adres:</strong> Kerkstraat 45, 9000 Gent</p>
+                                    <p class="mb-2"><strong class="text-text">Kadaster:</strong> Afdeling 3, Sectie A, Nr. 125/B</p>
+                                    <p><strong class="text-text">Opp.:</strong> 175 m² (grond), 120 m² (bewoonbaar)</p>
+                                </div>
+                            </div>
+                            <div class="bg-accent/5 border border-accent/20 p-4 rounded-lg">
+                                <div class="flex gap-2 mb-2">
+                                    <svg class="w-5 h-5 text-accent flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                                    </svg>
+                                    <div class="text-sm">
+                                        <strong class="text-accent">Tip:</strong> <span class="text-text-secondary">Controleer of het kadastraal plan overeenkomt met de werkelijke situatie.</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials -->
+    <section class="py-20 px-4 sm:px-6 lg:px-8 bg-surface/30">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl md:text-5xl font-bold mb-4">Wat makelaars zeggen</h2>
+                <p class="text-xl text-text-secondary">
+                    Ontdek hoe CompromisAI makelaars helpt hun werk efficiënter te maken
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-8">
+                <div class="bg-surface p-8 rounded-2xl border border-muted">
+                    <div class="flex gap-1 mb-4">
+                        <svg class="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                        </svg>
+                        <svg class="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                        </svg>
+                        <svg class="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                        </svg>
+                        <svg class="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                        </svg>
+                        <svg class="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                        </svg>
+                    </div>
+                    <p class="text-text-secondary mb-6 leading-relaxed">
+                        "CompromisAI heeft onze werkwijze volledig veranderd. Wat vroeger uren duurde, is nu een kwestie van minuten. Onmisbaar!"
+                    </p>
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center font-semibold text-primary">
+                            SV
+                        </div>
+                        <div>
+                            <div class="font-semibold">Sophie Vermeulen</div>
+                            <div class="text-sm text-text-secondary">Immokantoor Gent</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-surface p-8 rounded-2xl border border-muted">
+                    <div class="flex gap-1 mb-4">
+                        <svg class="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                        </svg>
+                        <svg class="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                        </svg>
+                        <svg class="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                        </svg>
+                        <svg class="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                        </svg>
+                        <svg class="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                        </svg>
+                    </div>
+                    <p class="text-text-secondary mb-6 leading-relaxed">
+                        "De AI-scanning werkt verbluffend goed. Het herkent zelfs handgeschreven notities op documenten. Zeer indrukwekkend."
+                    </p>
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center font-semibold text-primary">
+                            MD
+                        </div>
+                        <div>
+                            <div class="font-semibold">Marc Devos</div>
+                            <div class="text-sm text-text-secondary">ERA Vastgoed Antwerpen</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-surface p-8 rounded-2xl border border-muted">
+                    <div class="flex gap-1 mb-4">
+                        <svg class="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                        </svg>
+                        <svg class="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                        </svg>
+                        <svg class="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                        </svg>
+                        <svg class="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                        </svg>
+                        <svg class="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                        </svg>
+                    </div>
+                    <p class="text-text-secondary mb-6 leading-relaxed">
+                        "Als nieuwere makelaar helpt deze tool me enorm om professionele compromissen op te maken. Ik voel me veel zekerder."
+                    </p>
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center font-semibold text-primary">
+                            LJ
+                        </div>
+                        <div>
+                            <div class="font-semibold">Lisa Janssens</div>
+                            <div class="text-sm text-text-secondary">Dewaele Vastgoed Brugge</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing -->
+    <section id="pricing" class="py-20 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl md:text-5xl font-bold mb-4">Transparante prijzen</h2>
+                <p class="text-xl text-text-secondary">
+                    Kies het plan dat bij uw kantoor past
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+                <!-- Starter Plan -->
+                <div class="bg-surface p-8 rounded-2xl border border-muted">
+                    <div class="text-lg font-semibold text-text-secondary mb-2">Starter</div>
+                    <div class="mb-6">
+                        <span class="text-5xl font-bold">€49</span>
+                        <span class="text-text-secondary">/maand</span>
+                    </div>
+                    <p class="text-text-secondary mb-6">Perfect voor zelfstandige makelaars</p>
+                    <ul class="space-y-4 mb-8">
+                        <li class="flex items-start gap-3">
+                            <svg class="w-6 h-6 text-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            <span class="text-text-secondary">Tot 15 compromissen/maand</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <svg class="w-6 h-6 text-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            <span class="text-text-secondary">AI document scanning</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <svg class="w-6 h-6 text-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            <span class="text-text-secondary">Basis templates</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <svg class="w-6 h-6 text-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            <span class="text-text-secondary">Email support</span>
+                        </li>
+                    </ul>
+                    <button class="w-full px-6 py-3 bg-transparent border-2 border-muted text-text rounded-lg font-semibold hover:border-primary transition-colors">
+                        Start gratis trial
+                    </button>
+                </div>
+
+                <!-- Professional Plan (Featured) -->
+                <div class="bg-surface p-8 rounded-2xl border-2 border-primary relative">
+                    <div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary px-4 py-1 rounded-full text-sm font-semibold">
+                        Populair
+                    </div>
+                    <div class="text-lg font-semibold text-primary mb-2">Professional</div>
+                    <div class="mb-6">
+                        <span class="text-5xl font-bold">€99</span>
+                        <span class="text-text-secondary">/maand</span>
+                    </div>
+                    <p class="text-text-secondary mb-6">Voor professionele makelaars</p>
+                    <ul class="space-y-4 mb-8">
+                        <li class="flex items-start gap-3">
+                            <svg class="w-6 h-6 text-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            <span class="text-text-secondary">Onbeperkte compromissen</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <svg class="w-6 h-6 text-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            <span class="text-text-secondary">Geavanceerde AI functies</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <svg class="w-6 h-6 text-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            <span class="text-text-secondary">Aangepaste templates</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <svg class="w-6 h-6 text-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            <span class="text-text-secondary">Prioriteit support</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <svg class="w-6 h-6 text-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            <span class="text-text-secondary">Team samenwerking</span>
+                        </li>
+                    </ul>
+                    <button class="w-full px-6 py-3 bg-white text-background rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+                        Start nu
+                    </button>
+                </div>
+
+                <!-- Enterprise Plan -->
+                <div class="bg-surface p-8 rounded-2xl border border-muted">
+                    <div class="text-lg font-semibold text-text-secondary mb-2">Enterprise</div>
+                    <div class="mb-6">
+                        <span class="text-5xl font-bold">Custom</span>
+                    </div>
+                    <p class="text-text-secondary mb-6">Voor grote kantoren en netwerken</p>
+                    <ul class="space-y-4 mb-8">
+                        <li class="flex items-start gap-3">
+                            <svg class="w-6 h-6 text-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            <span class="text-text-secondary">Alles van Professional</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <svg class="w-6 h-6 text-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            <span class="text-text-secondary">Onbeperkte gebruikers</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <svg class="w-6 h-6 text-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            <span class="text-text-secondary">Dedicated account manager</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <svg class="w-6 h-6 text-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            <span class="text-text-secondary">API toegang</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <svg class="w-6 h-6 text-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            <span class="text-text-secondary">Custom integraties</span>
+                        </li>
+                    </ul>
+                    <button class="w-full px-6 py-3 bg-transparent border-2 border-muted text-text rounded-lg font-semibold hover:border-primary transition-colors">
+                        Contacteer ons
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="py-20 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-5xl mx-auto">
+            <div class="bg-gradient-to-br from-primary to-accent p-12 md:p-16 rounded-3xl text-center">
+                <h2 class="text-4xl md:text-5xl font-bold mb-6">Klaar om te starten?</h2>
+                <p class="text-xl mb-10 opacity-90 max-w-2xl mx-auto">
+                    Sluit u aan bij honderden makelaars die hun workflow al hebben geoptimaliseerd met CompromisAI. Start vandaag nog gratis.
+                </p>
+                <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                    <button class="px-8 py-4 bg-white text-primary rounded-lg font-semibold hover:bg-gray-100 transition-all hover:scale-105">
+                        Start 14 dagen gratis →
+                    </button>
+                    <button class="px-8 py-4 bg-transparent border-2 border-white/30 text-white rounded-lg font-semibold hover:border-white transition-colors">
+                        Plan een demo
+                    </button>
+                </div>
+                <p class="text-sm mt-6 opacity-75">Geen kredietkaart vereist • Annuleer op elk moment</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="border-t border-muted py-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="grid md:grid-cols-4 gap-8 mb-8">
+                <div>
+                    <div class="flex items-center gap-2 mb-4">
+                        <svg class="w-8 h-8 text-primary" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5zm0 18.5c-3.25-.94-6-4.62-6-8.5V8.3l6-3.11v15.31z"/>
+                        </svg>
+                        <span class="text-xl font-bold">Compromis<span class="text-primary">AI</span></span>
+                    </div>
+                    <p class="text-text-secondary text-sm">
+                        Maak verkoopscompromissen sneller en accurater met AI-technologie.
+                    </p>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Product</h4>
+                    <ul class="space-y-2 text-sm text-text-secondary">
+                        <li><a href="#" class="hover:text-text transition-colors">Functies</a></li>
+                        <li><a href="#" class="hover:text-text transition-colors">Prijzen</a></li>
+                        <li><a href="#" class="hover:text-text transition-colors">Testimonials</a></li>
+                        <li><a href="#" class="hover:text-text transition-colors">Updates</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Bedrijf</h4>
+                    <ul class="space-y-2 text-sm text-text-secondary">
+                        <li><a href="#" class="hover:text-text transition-colors">Over ons</a></li>
+                        <li><a href="#" class="hover:text-text transition-colors">Carrières</a></li>
+                        <li><a href="#" class="hover:text-text transition-colors">Blog</a></li>
+                        <li><a href="#" class="hover:text-text transition-colors">Contact</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Juridisch</h4>
+                    <ul class="space-y-2 text-sm text-text-secondary">
+                        <li><a href="#" class="hover:text-text transition-colors">Privacybeleid</a></li>
+                        <li><a href="#" class="hover:text-text transition-colors">Algemene voorwaarden</a></li>
+                        <li><a href="#" class="hover:text-text transition-colors">Cookie beleid</a></li>
+                        <li><a href="#" class="hover:text-text transition-colors">GDPR</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-muted pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+                <p class="text-sm text-text-secondary">
+                    © 2025 CompromisAI. Alle rechten voorbehouden.
+                </p>
+                <div class="flex gap-6">
+                    <a href="#" class="text-text-secondary hover:text-text transition-colors">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z"/>
+                        </svg>
+                    </a>
+                    <a href="#" class="text-text-secondary hover:text-text transition-colors">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
+                        </svg>
+                    </a>
+                    <a href="#" class="text-text-secondary hover:text-text transition-colors">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                        </svg>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>
