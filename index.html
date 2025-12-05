@@ -1,191 +1,60 @@
 <!DOCTYPE html>
-<html lang="nl">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CompromisAI - Van documenten tot compleet compromis</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
-    }
-  </style>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CompromisAI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+            },
+            colors: {
+              brand: {
+                50: '#f0f9ff',
+                100: '#e0f2fe',
+                500: '#0ea5e9',
+                600: '#0284c7', // Primary Blue
+                700: '#0369a1',
+                800: '#075985',
+                900: '#0f172a', // Dark Background
+                950: '#020617',
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      /* Custom scrollbar for dark mode integration */
+      .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+      }
+      .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.556.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "react": "https://aistudiocdn.com/react@^19.2.1",
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.10.1"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
 </head>
-<body class="bg-[#0a0a0a] text-white">
-  
-  <!-- Header -->
-  <header class="border-b border-gray-800">
-    <nav class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-      <div class="flex items-center gap-2">
-        <div class="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">
-          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-          </svg>
-        </div>
-        <span class="text-xl font-semibold">Compromis<span class="text-blue-500">AI</span></span>
-      </div>
-      
-      <div class="hidden md:flex items-center gap-8">
-        <a href="#functionaliteiten" class="text-gray-300 hover:text-white transition">Functionaliteiten</a>
-        <a href="#hoe-het-werkt" class="text-gray-300 hover:text-white transition">Hoe het werkt</a>
-        <a href="#prijzen" class="text-gray-300 hover:text-white transition">Prijzen</a>
-        <button class="bg-white text-black px-6 py-2 rounded-lg font-medium hover:bg-gray-100 transition">
-          Start nu
-        </button>
-      </div>
-    </nav>
-  </header>
-
-  <!-- Hero Section -->
-  <section class="max-w-7xl mx-auto px-6 py-16 text-center">
-    <h1 class="text-4xl md:text-5xl font-bold mb-4 text-balance">
-      Van documenten tot compleet compromis in drie eenvoudige stappen
-    </h1>
-  </section>
-
-  <!-- Three Steps Section -->
-  <section id="hoe-het-werkt" class="max-w-7xl mx-auto px-6 py-12">
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-12">
-      
-      <!-- Step 1 -->
-      <div class="flex flex-col items-start">
-        <div class="w-16 h-16 rounded-full border-4 border-blue-600 flex items-center justify-center text-2xl font-bold mb-6">
-          1
-        </div>
-        <h2 class="text-2xl font-bold mb-4">Upload Documenten</h2>
-        <p class="text-gray-400 leading-relaxed">
-          Sleep alle relevante documenten naar het platform: identiteitskaarten, kadastrale plannen, EPC-certificaten, stedenbouwkundige info, etc.
-        </p>
-      </div>
-
-      <!-- Step 2 -->
-      <div class="flex flex-col items-start">
-        <div class="w-16 h-16 rounded-full border-4 border-blue-600 flex items-center justify-center text-2xl font-bold mb-6">
-          2
-        </div>
-        <h2 class="text-2xl font-bold mb-4">AI Analyseert</h2>
-        <p class="text-gray-400 leading-relaxed">
-          Onze AI scant alle documenten en extraheert automatisch de relevante informatie. Dit gebeurt in seconden, volledig veilig en gestructureerd.
-        </p>
-      </div>
-
-      <!-- Step 3 -->
-      <div class="flex flex-col items-start">
-        <div class="w-16 h-16 rounded-full border-4 border-blue-600 flex items-center justify-center text-2xl font-bold mb-6">
-          3
-        </div>
-        <h2 class="text-2xl font-bold mb-4">Stel Op & Exporteer</h2>
-        <p class="text-gray-400 leading-relaxed">
-          Werk sectie per sectie met vooraf ingevulde informatie. Pas aan waar nodig en exporteer uw professionele compromis naar Word of PDF.
-        </p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Example Section -->
-  <section class="max-w-7xl mx-auto px-6 py-16">
-    <div class="bg-[#1a1a1a] rounded-2xl p-8 md:p-12">
-      <div class="mb-8">
-        <span class="text-blue-500 font-semibold">Voorbeeld</span>
-        <h2 class="text-3xl font-bold mt-2">Intelligente Suggesties</h2>
-      </div>
-      
-      <p class="text-gray-400 leading-relaxed mb-8 max-w-3xl">
-        Bij elke sectie van uw compromis krijgt u niet alleen de geëxtraheerde data, maar ook contextuele tips en suggesties op basis van best practices en juridische vereisten.
-      </p>
-
-      <!-- Preview Card -->
-      <div class="bg-[#0f0f0f] rounded-xl p-6 md:p-8 border border-gray-800">
-        <div class="mb-6">
-          <h3 class="text-xl font-bold text-blue-500 mb-4">Sectie 3: Omschrijving Goed</h3>
-          
-          <div class="space-y-3 text-gray-300">
-            <div>
-              <span class="font-semibold">Adres:</span> 
-              <span class="ml-2">Kerkstraat 45, 9000 Gent</span>
-            </div>
-            <div>
-              <span class="font-semibold">Kadaster:</span> 
-              <span class="ml-2">Afdeling 3, Sectie A, Nr. 125/B</span>
-            </div>
-            <div>
-              <span class="font-semibold">Opp.:</span> 
-              <span class="ml-2">175 m² (grond), 120 m² (bewoonbaar)</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Features Section -->
-  <section id="functionaliteiten" class="max-w-7xl mx-auto px-6 py-16">
-    <h2 class="text-3xl md:text-4xl font-bold text-center mb-12">Functionaliteiten</h2>
-    
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-      
-      <div class="bg-[#1a1a1a] rounded-xl p-6 border border-gray-800">
-        <h3 class="text-xl font-bold mb-3">📋 Contextuele Checklist</h3>
-        <p class="text-gray-400 leading-relaxed">
-          Automatisch aangepaste checklist per type pand - appartement, huis, grond - om niets te vergeten.
-        </p>
-      </div>
-
-      <div class="bg-[#1a1a1a] rounded-xl p-6 border border-gray-800">
-        <h3 class="text-xl font-bold mb-3">🚩 Red Flags Detectie</h3>
-        <p class="text-gray-400 leading-relaxed">
-          Proactieve waarschuwingen bij ontbrekende attesten, inconsistenties of verplichte documenten.
-        </p>
-      </div>
-
-      <div class="bg-[#1a1a1a] rounded-xl p-6 border border-gray-800">
-        <h3 class="text-xl font-bold mb-3">🔍 Bronverificatie</h3>
-        <p class="text-gray-400 leading-relaxed">
-          Klik op elke gegevens om direct naar de bron in het document te navigeren - volledige transparantie.
-        </p>
-      </div>
-
-      <div class="bg-[#1a1a1a] rounded-xl p-6 border border-gray-800">
-        <h3 class="text-xl font-bold mb-3">🤝 Samenwerking met Notarissen</h3>
-        <p class="text-gray-400 leading-relaxed">
-          Real-time samenwerken in hetzelfde document met voorkeursclausules van uw notaris.
-        </p>
-      </div>
-
-      <div class="bg-[#1a1a1a] rounded-xl p-6 border border-gray-800">
-        <h3 class="text-xl font-bold mb-3">📤 Flexibele Export</h3>
-        <p class="text-gray-400 leading-relaxed">
-          Exporteer naar Word, Google Docs of PDF - compatibel met uw bestaande workflow.
-        </p>
-      </div>
-
-      <div class="bg-[#1a1a1a] rounded-xl p-6 border border-gray-800">
-        <h3 class="text-xl font-bold mb-3">🎯 CIB Templates</h3>
-        <p class="text-gray-400 leading-relaxed">
-          Standaard ondersteuning voor CIB modeldocumenten, met optie voor eigen templates.
-        </p>
-      </div>
-      
-    </div>
-  </section>
-
-  <!-- CTA Section -->
-  <section class="max-w-4xl mx-auto px-6 py-16 text-center">
-    <h2 class="text-3xl md:text-4xl font-bold mb-6">Klaar om uren te besparen?</h2>
-    <p class="text-gray-400 text-lg mb-8 leading-relaxed">
-      Begin vandaag nog met het automatiseren van uw compromissen en focus op wat echt belangrijk is.
-    </p>
-    <button class="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold text-lg hover:bg-blue-700 transition">
-      Probeer gratis
-    </button>
-  </section>
-
-  <!-- Footer -->
-  <footer class="border-t border-gray-800 mt-16">
-    <div class="max-w-7xl mx-auto px-6 py-8 text-center text-gray-500">
-      <p>&copy; 2025 CompromisAI. Alle rechten voorbehouden.</p>
-    </div>
-  </footer>
-
+  <body class="bg-gray-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-200">
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
 </body>
 </html>
