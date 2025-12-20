@@ -1,7 +1,9 @@
+
 import React, { useState } from 'react';
-import { Upload, FileText, X, Home, Building2, Check, AlertCircle, Wand2 } from 'lucide-react';
+import { Upload, FileText, X, Home, Building2, Check, AlertCircle, Wand2, ArrowRight } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS, MOCK_TEMPLATES } from '../constants';
+import { ExtractionLoading } from './ExtractionLoading';
 
 interface NewCompromiseProps {
   lang: Language;
@@ -11,13 +13,19 @@ interface NewCompromiseProps {
 
 export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, onComplete }) => {
   const t = TRANSLATIONS[lang];
-  const [step, setStep] = useState(1);
+  const [isExtracting, setIsExtracting] = useState(false);
   const [dossierName, setDossierName] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [remarks, setRemarks] = useState('');
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
 
-  // Mock required documents
-  const requiredDocs = ['EPC', 'Kadaster', 'Bodemattest', 'Elektrische Keuring'];
+  // Expanded list of docs and synonyms mapping
+  const requiredDocs = [
+    { id: 'EPC', label: 'EPC', synonyms: ['epc', 'energie', 'prestatie'] },
+    { id: 'Kadaster', label: 'Kadaster', synonyms: ['kadaster', 'kadastraal', 'uittreksel'] },
+    { id: 'Bodemattest', label: 'Bodemattest', synonyms: ['bodem', 'ovam'] },
+    { id: 'Elektrische Keuring', label: 'Elektrische Keuring', synonyms: ['elek', 'keuring', 'installatie'] }
+  ];
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -29,178 +37,215 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
     setFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  const getDocStatus = (docName: string) => {
-      const found = files.some(f => f.name.toLowerCase().includes(docName.toLowerCase()));
-      return found;
+  const getDocStatus = (docDef: { id: string, synonyms: string[] }) => {
+    // Check if any uploaded file matches any synonym
+    return files.some(f => {
+      const fname = f.name.toLowerCase();
+      return docDef.synonyms.some(s => fname.includes(s));
+    });
   };
 
-  const renderStep1 = () => (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-       <div className="mb-6">
-         <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{t.step1Title}</h2>
-         <p className="text-slate-600 dark:text-slate-400">{t.step1Desc}</p>
-       </div>
+  const handleGenerate = () => {
+    if (!dossierName || !selectedTemplateId) return;
+    setIsExtracting(true);
+  };
 
-       <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 p-6 space-y-6">
-         {/* Name Input */}
-         <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              {t.compName}
-            </label>
-            <input 
-              type="text" 
-              className="w-full bg-gray-50 dark:bg-slate-950 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none"
-              placeholder={t.compNamePlaceholder}
-              value={dossierName}
-              onChange={(e) => setDossierName(e.target.value)}
-            />
-         </div>
-
-         {/* Upload Area */}
-         <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              {t.uploadTitle}
-            </label>
-            <div className="border-2 border-dashed border-gray-300 dark:border-slate-700 rounded-xl p-8 text-center hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors relative cursor-pointer">
-               <input 
-                 type="file" 
-                 multiple 
-                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                 onChange={handleFileChange}
-               />
-               <div className="flex flex-col items-center pointer-events-none">
-                 <Upload className="w-10 h-10 text-slate-400 mb-4" />
-                 <p className="text-slate-900 dark:text-white font-medium">{t.dropzone}</p>
-                 <p className="text-slate-500 text-sm mt-1">{t.dropzoneSub}</p>
-               </div>
-            </div>
-         </div>
-
-         {/* Classification Visualization */}
-         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-             {/* Classified List */}
-             <div className="bg-gray-50 dark:bg-slate-800/50 rounded-lg p-4 border border-gray-200 dark:border-slate-700">
-                <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">{t.classifiedDocs}</h4>
-                <div className="space-y-2">
-                    {requiredDocs.map(doc => {
-                        const isPresent = getDocStatus(doc);
-                        return (
-                            <div key={doc} className="flex items-center justify-between text-sm">
-                                <span className={isPresent ? "text-slate-900 dark:text-white" : "text-slate-400"}>{doc}</span>
-                                {isPresent ? <Check className="w-4 h-4 text-green-500" /> : <X className="w-4 h-4 text-red-400" />}
-                            </div>
-                        )
-                    })}
-                </div>
-             </div>
-
-             {/* Unclassified / Files List */}
-             <div className="bg-gray-50 dark:bg-slate-800/50 rounded-lg p-4 border border-gray-200 dark:border-slate-700">
-                 <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">{t.otherDocs}</h4>
-                 <div className="space-y-2 max-h-40 overflow-y-auto">
-                    {files.map((file, i) => (
-                        <div key={i} className="flex items-center justify-between p-2 bg-white dark:bg-slate-800 rounded border border-gray-200 dark:border-slate-700">
-                             <div className="flex items-center truncate">
-                                <FileText className="w-4 h-4 text-brand-500 mr-2 flex-shrink-0" />
-                                <span className="text-sm truncate text-slate-700 dark:text-slate-200">{file.name}</span>
-                             </div>
-                             <button onClick={() => removeFile(i)} className="text-slate-400 hover:text-red-500 ml-2">
-                                <X className="w-4 h-4" />
-                             </button>
-                        </div>
-                    ))}
-                    {files.length === 0 && <p className="text-xs text-slate-400 italic">Geen documenten geupload</p>}
-                 </div>
-             </div>
-         </div>
-
-         <button 
-           onClick={() => setStep(2)}
-           disabled={!dossierName}
-           className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 rounded-lg font-medium transition-colors"
-         >
-           {t.continue}
-         </button>
-       </div>
-    </div>
-  );
-
-  const renderStep2 = () => (
-    <div className="animate-in fade-in slide-in-from-right-8 duration-500">
-      <div className="flex items-center mb-6">
-        <button onClick={() => setStep(1)} className="text-slate-500 hover:text-slate-900 dark:hover:text-white mr-4">
-          <span className="text-2xl">←</span>
-        </button>
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{t.chooseTemplate}</h2>
-          <p className="text-slate-600 dark:text-slate-400">{t.chooseTemplateDesc}</p>
-        </div>
-      </div>
-
-      <div className="space-y-8">
-          {/* AI Suggestions */}
-          <div>
-              <div className="flex items-center mb-4 text-brand-600 dark:text-brand-400">
-                  <Wand2 className="w-5 h-5 mr-2" />
-                  <h3 className="font-bold uppercase tracking-wider text-sm">{t.aiSuggestions}</h3>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {MOCK_TEMPLATES.filter(t => t.isAiSuggested).map(template => (
-                      <div key={template.id} onClick={onComplete} className="bg-gradient-to-br from-brand-50 to-white dark:from-brand-900/20 dark:to-slate-900 border-2 border-brand-500/30 dark:border-brand-500/30 rounded-xl p-6 cursor-pointer hover:border-brand-500 transition-all relative overflow-hidden group">
-                           <div className="absolute top-0 right-0 bg-brand-500 text-white text-xs px-2 py-1 rounded-bl-lg font-medium">98% Match</div>
-                           <div className="w-12 h-12 rounded-lg bg-brand-100 dark:bg-brand-900/50 flex items-center justify-center mb-4 text-brand-600 dark:text-brand-400">
-                                <Home className="w-6 h-6" />
-                           </div>
-                           <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">{template.name}</h3>
-                           <p className="text-sm text-slate-500 mb-4">{template.description}</p>
-                      </div>
-                  ))}
-              </div>
-          </div>
-
-          {/* Other Templates */}
-          <div>
-              <h3 className="font-bold uppercase tracking-wider text-sm text-slate-500 mb-4">{t.otherTemplates}</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {MOCK_TEMPLATES.filter(t => !t.isAiSuggested).map(template => (
-                      <div key={template.id} onClick={onComplete} className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-6 hover:border-brand-500 dark:hover:border-brand-500 transition-all cursor-pointer">
-                           <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-slate-800 flex items-center justify-center mb-3 text-slate-600 dark:text-slate-400">
-                                <Building2 className="w-5 h-5" />
-                           </div>
-                           <h3 className="text-md font-bold text-slate-900 dark:text-white mb-1">{template.name}</h3>
-                           <p className="text-xs text-slate-500">{template.description}</p>
-                      </div>
-                  ))}
-              </div>
-          </div>
-
-          {/* Remarks / Prompt */}
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-gray-200 dark:border-slate-800">
-               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  {t.remarks}
-               </label>
-               <textarea 
-                 rows={3}
-                 className="w-full bg-gray-50 dark:bg-slate-950 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none text-sm"
-                 placeholder={t.remarksPlaceholder}
-                 value={remarks}
-                 onChange={(e) => setRemarks(e.target.value)}
-               />
-               <button 
-                  onClick={onComplete}
-                  className="mt-4 w-full bg-brand-600 hover:bg-brand-700 text-white py-3 rounded-lg font-medium transition-colors flex items-center justify-center"
-                >
-                  <Wand2 className="w-5 h-5 mr-2" />
-                  {t.generate}
-               </button>
-          </div>
-      </div>
-    </div>
-  );
+  if (isExtracting) {
+    return <ExtractionLoading lang={lang} onComplete={onComplete} />;
+  }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      {step === 1 ? renderStep1() : renderStep2()}
+    <div className="max-w-5xl mx-auto pb-20 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+      {/* Page Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">{t.newCompromis}</h1>
+        <p className="text-slate-600 dark:text-slate-400">Upload documenten en kies een template om te starten.</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+        {/* Main Column: Form */}
+        <div className="lg:col-span-8 space-y-8">
+
+          {/* 1. Basic Info & Upload */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 p-8 shadow-sm">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-slate-500">1</div>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t.step1Title}</h2>
+            </div>
+
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  {t.compName}
+                </label>
+                <input
+                  type="text"
+                  className="w-full bg-gray-50 dark:bg-slate-950 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none"
+                  placeholder={t.compNamePlaceholder}
+                  value={dossierName}
+                  onChange={(e) => setDossierName(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  {t.uploadTitle}
+                </label>
+                <div className="border-2 border-dashed border-gray-300 dark:border-slate-700 rounded-xl p-8 text-center hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors relative cursor-pointer group">
+                  <input
+                    type="file"
+                    multiple
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    onChange={handleFileChange}
+                  />
+                  <div className="flex flex-col items-center pointer-events-none group-hover:scale-105 transition-transform">
+                    <div className="w-12 h-12 bg-brand-50 rounded-full flex items-center justify-center mb-4 text-brand-500">
+                      <Upload className="w-6 h-6" />
+                    </div>
+                    <p className="text-slate-900 dark:text-white font-medium text-lg">{t.dropzone}</p>
+                    <p className="text-slate-500 text-sm mt-1">{t.dropzoneSub}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* File Lists */}
+              {files.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Geüploade Bestanden</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {files.map((file, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800/50 rounded-lg border border-gray-200 dark:border-slate-700">
+                        <div className="flex items-center overflow-hidden">
+                          <FileText className="w-4 h-4 text-brand-500 mr-2 flex-shrink-0" />
+                          <span className="text-sm truncate text-slate-700 dark:text-slate-300">{file.name}</span>
+                        </div>
+                        <button onClick={() => removeFile(i)} className="text-slate-400 hover:text-red-500 ml-2 p-1">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 2. Template Selection */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 p-8 shadow-sm">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-slate-500">2</div>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t.chooseTemplate}</h2>
+            </div>
+
+            {/* Classification Status - Inline feedback */}
+            <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/30 flex items-start">
+              <Wand2 className="w-5 h-5 text-brand-600 mt-0.5 mr-3 flex-shrink-0" />
+              <div className="text-sm text-slate-600 dark:text-slate-400">
+                Op basis van de geüploade documenten raden we <strong>Standaard Verkoopsovereenkomst (Vlaanderen)</strong> aan.
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {MOCK_TEMPLATES.map(template => (
+                <div
+                  key={template.id}
+                  onClick={() => setSelectedTemplateId(template.id)}
+                  className={`
+                                  relative rounded-xl p-6 cursor-pointer border-2 transition-all
+                                  ${selectedTemplateId === template.id
+                      ? 'border-brand-500 bg-brand-50/50 dark:bg-brand-900/10'
+                      : 'border-transparent bg-gray-50 dark:bg-slate-800 hover:border-gray-300 dark:hover:border-slate-600'
+                    }
+                              `}
+                >
+                  {template.isAiSuggested && (
+                    <div className="absolute top-0 right-0 bg-brand-500 text-white text-[10px] px-2 py-1 rounded-bl-lg rounded-tr-lg font-bold tracking-wide">
+                      AANBEVOLEN
+                    </div>
+                  )}
+
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 ${selectedTemplateId === template.id ? 'bg-brand-100 text-brand-600' : 'bg-white dark:bg-slate-700 text-slate-500'}`}>
+                    {template.id.includes('vlaanderen') ? <Home className="w-5 h-5" /> : <Building2 className="w-5 h-5" />}
+                  </div>
+
+                  <h3 className={`font-bold mb-1 ${selectedTemplateId === template.id ? 'text-brand-700 dark:text-brand-400' : 'text-slate-900 dark:text-white'}`}>
+                    {template.name}
+                  </h3>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    {template.description}
+                  </p>
+
+                  {selectedTemplateId === template.id && (
+                    <div className="absolute bottom-4 right-4 text-brand-600">
+                      <Check className="w-5 h-5" />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                {t.remarks} <span className="text-slate-400 font-normal">(Optioneel)</span>
+              </label>
+              <textarea
+                rows={3}
+                className="w-full bg-gray-50 dark:bg-slate-950 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none text-sm resize-none"
+                placeholder={t.remarksPlaceholder}
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+              />
+            </div>
+          </div>
+
+        </div>
+
+        {/* Right Column: Status & Action */}
+        <div className="lg:col-span-4 space-y-8">
+
+          {/* Document Checklist Card */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 p-6 shadow-sm sticky top-6">
+            <h3 className="font-bold text-slate-900 dark:text-white mb-4 flex items-center">
+              <Check className="w-5 h-5 mr-2 text-green-500" />
+              Document Checklist
+            </h3>
+
+            <div className="space-y-3 mb-8">
+              {requiredDocs.map(doc => {
+                const isPresent = getDocStatus(doc);
+                return (
+                  <div key={doc.id} className="flex items-center justify-between p-2 rounded hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors">
+                    <div className="flex items-center">
+                      <div className={`w-2 h-2 rounded-full mr-3 ${isPresent ? 'bg-green-500' : 'bg-gray-300 dark:bg-slate-600'}`}></div>
+                      <span className={`text-sm ${isPresent ? 'text-slate-700 dark:text-slate-200 font-medium' : 'text-slate-400'}`}>
+                        {doc.label}
+                      </span>
+                    </div>
+                    {isPresent && <Check className="w-4 h-4 text-green-500" />}
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="border-t border-gray-100 dark:border-slate-800 pt-6">
+              <button
+                onClick={handleGenerate}
+                disabled={!dossierName || !selectedTemplateId}
+                className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold shadow-lg shadow-brand-500/20 hover:shadow-brand-500/40 transition-all flex items-center justify-center group"
+              >
+                {t.generate}
+                <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+              </button>
+              <p className="text-xs text-center text-slate-400 mt-3 px-4">
+                De AI zal de geüploade documenten analyseren en automatisch invullen in het gekozen sjabloon.
+              </p>
+            </div>
+          </div>
+
+        </div>
+      </div>
     </div>
   );
 };

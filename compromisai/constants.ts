@@ -56,6 +56,8 @@ export const TRANSLATIONS = {
     validationChecklist: 'Validatie Checklist',
     undo: 'Ongedaan maken',
     redo: 'Opnieuw uitvoeren',
+    reject: 'Afkeuren',
+    addSection: 'Sectie toevoegen',
     generate: 'Genereer Document',
     aiSuggestions: 'Aanbevolen door AI',
     otherTemplates: 'Andere templates',
@@ -123,6 +125,8 @@ export const TRANSLATIONS = {
     validationChecklist: 'Liste de validation',
     undo: 'Annuler',
     redo: 'Rétablir',
+    reject: 'Rejeter',
+    addSection: 'Ajouter une section',
     generate: 'Générer le document',
     aiSuggestions: 'Suggéré par l\'IA',
     otherTemplates: 'Autres modèles',
@@ -190,6 +194,8 @@ export const TRANSLATIONS = {
     validationChecklist: 'Validation Checklist',
     undo: 'Undo',
     redo: 'Redo',
+    reject: 'Reject',
+    addSection: 'Add Section',
     generate: 'Generate Document',
     aiSuggestions: 'AI Suggested',
     otherTemplates: 'Other templates',
@@ -215,9 +221,9 @@ export const MOCK_DOSSIERS: Dossier[] = [
     status: DossierStatus.DRAFT,
     type: 'Apartment',
     timeline: [
-        { id: 't1', date: '2025-11-01', title: 'Dossier aangemaakt', description: 'Initiele creatie', user: 'Jan' },
-        { id: 't2', date: '2025-11-02', title: 'Documenten geupload', description: 'EPC en Kadaster toegevoegd', user: 'Jan' },
-        { id: 't3', date: '2025-11-20', title: 'Draft v1', description: 'Eerste versie gegenereerd', user: 'AI' },
+      { id: 't1', date: '2025-11-01', title: 'Dossier aangemaakt', description: 'Initiele creatie', user: 'Jan' },
+      { id: 't2', date: '2025-11-02', title: 'Documenten geupload', description: 'EPC en Kadaster toegevoegd', user: 'Jan' },
+      { id: 't3', date: '2025-11-20', title: 'Draft v1', description: 'Eerste versie gegenereerd', user: 'AI' },
     ]
   },
   {
@@ -272,7 +278,7 @@ export const MOCK_TEMPLATES: Template[] = [
     source: 'CIB',
     isAiSuggested: false
   },
-   {
+  {
     id: 't3',
     name: 'CIB Handelspand',
     description: 'Standaard CIB template voor commercieel vastgoed',
@@ -283,25 +289,25 @@ export const MOCK_TEMPLATES: Template[] = [
 ];
 
 export const MOCK_SECTIONS: DocumentSection[] = [
-    {
-        id: 'sec1',
-        title: 'Artikel 1: Partijen',
-        content: 'Tussen ondergetekenden:\n\nVERKOPER(S):\nNaam: [placeholder:seller_name]\nAdres: [placeholder:seller_address]\n\nKOPER(S):\nNaam: [placeholder:buyer_name]',
-        isApproved: false,
-        placeholders: [
-            { id: 'p1', label: 'Naam verkoper', currentValue: 'Jan Janssens', sourceDoc: 'Kadaster.pdf', sourcePage: 1, confidence: 'High', isApproved: false },
-            { id: 'p2', label: 'Adres verkoper', currentValue: 'Dorpsstraat 1, 9000 Gent', sourceDoc: 'Identiteitskaart.pdf', sourcePage: 1, confidence: 'High', isApproved: true },
-            { id: 'p3', label: 'Naam koper', currentValue: 'Piet Peters', sourceDoc: 'Email_bod.pdf', sourcePage: 1, confidence: 'Medium', isApproved: false },
-        ]
-    },
-    {
-        id: 'sec2',
-        title: 'Artikel 2: Object',
-        content: 'De verkoper verklaart te verkopen aan de koper, die aanvaardt:\nEen woonhuis gelegen te [placeholder:prop_address].\nEPC Score: [placeholder:epc_score].',
-        isApproved: true,
-        placeholders: [
-            { id: 'p4', label: 'Adres pand', currentValue: 'Kerkstraat 123, 1000 Brussel', sourceDoc: 'EPC.pdf', sourcePage: 1, confidence: 'High', isApproved: true },
-            { id: 'p5', label: 'EPC Score', currentValue: 'B', sourceDoc: 'EPC.pdf', sourcePage: 2, confidence: 'High', isApproved: true },
-        ]
-    }
+  {
+    id: 'sec1',
+    title: 'Artikel 1: Partijen',
+    content: 'Tussen ondergetekenden:\n\nVERKOPER(S):\nNaam: [placeholder:seller_name]\nAdres: [placeholder:seller_address]\n\nKOPER(S):\nNaam: [placeholder:buyer_name]',
+    isApproved: false,
+    placeholders: [
+      { id: 'p1', label: 'Naam verkoper', currentValue: 'Jan Janssens', sourceDoc: 'Kadaster.pdf', sourcePage: 1, confidence: 'High', isApproved: false },
+      { id: 'p2', label: 'Adres verkoper', currentValue: 'Dorpsstraat 1, 9000 Gent', sourceDoc: 'Identiteitskaart.pdf', sourcePage: 1, confidence: 'High', isApproved: true },
+      { id: 'p3', label: 'Naam koper', currentValue: 'Piet Peters', sourceDoc: 'Email_bod.pdf', sourcePage: 1, confidence: 'Medium', isApproved: false },
+    ]
+  },
+  {
+    id: 'sec2',
+    title: 'Artikel 2: Object',
+    content: 'De verkoper verklaart te verkopen aan de koper, die aanvaardt:\nEen woonhuis gelegen te [placeholder:prop_address].\nEPC Score: [placeholder:epc_score].',
+    isApproved: true,
+    placeholders: [
+      { id: 'p4', label: 'Adres pand', currentValue: 'Kerkstraat 123, 1000 Brussel', sourceDoc: 'EPC.pdf', sourcePage: 1, confidence: 'High', isApproved: true },
+      { id: 'p5', label: 'EPC Score', currentValue: 'B', sourceDoc: 'EPC.pdf', sourcePage: 2, confidence: 'High', isApproved: true },
+    ]
+  }
 ];

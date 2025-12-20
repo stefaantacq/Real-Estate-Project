@@ -8,12 +8,14 @@ import { Editor } from './components/Editor';
 import { DossierOverview } from './components/DossierOverview';
 import { Language } from './types';
 
+import { Compare } from './components/Compare';
+
 const MainApp: React.FC = () => {
   // State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [darkMode, setDarkMode] = useState(true); // Default to Dark as per screens
   const [language, setLanguage] = useState<Language>(Language.NL);
-  
+
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -44,9 +46,9 @@ const MainApp: React.FC = () => {
 
   if (!isAuthenticated) {
     return (
-      <Auth 
-        onLogin={handleLogin} 
-        lang={language} 
+      <Auth
+        onLogin={handleLogin}
+        lang={language}
         setLang={setLanguage}
         darkMode={darkMode}
         toggleDarkMode={toggleDarkMode}
@@ -55,10 +57,10 @@ const MainApp: React.FC = () => {
   }
 
   return (
-    <Layout 
-      darkMode={darkMode} 
-      toggleDarkMode={toggleDarkMode} 
-      lang={language} 
+    <Layout
+      darkMode={darkMode}
+      toggleDarkMode={toggleDarkMode}
+      lang={language}
       setLang={setLanguage}
       onLogout={handleLogout}
       activePage={activePage}
@@ -66,44 +68,54 @@ const MainApp: React.FC = () => {
     >
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard" />} />
-        <Route 
-          path="/dashboard" 
+        <Route
+          path="/dashboard"
           element={
-            <Dashboard 
-              lang={language} 
+            <Dashboard
+              lang={language}
               onNewDossier={() => navigate('/new')}
               onOpenDossier={(id) => navigate(`/dossier/${id}`)}
             />
-          } 
+          }
         />
-        <Route 
-          path="/new" 
+        <Route
+          path="/new"
           element={
-            <NewCompromise 
+            <NewCompromise
               lang={language}
               onCancel={() => navigate('/dashboard')}
               onComplete={() => navigate('/editor/new')}
             />
-          } 
+          }
         />
-        <Route 
-          path="/dossier/:id" 
+        <Route
+          path="/dossier/:id"
           element={
-            <DossierOverview 
+            <DossierOverview
               lang={language}
               onBack={() => navigate('/dashboard')}
               onOpenEditor={(id) => navigate(`/editor/${id}`)}
+              onCompare={(id) => navigate(`/compare/${id}`)}
             />
-          } 
+          }
         />
-        <Route 
-          path="/editor/:id" 
+        <Route
+          path="/editor/:id"
           element={
-            <Editor 
+            <Editor
               lang={language}
               onBack={() => navigate(-1)}
             />
-          } 
+          }
+        />
+        <Route
+          path="/compare/:id"
+          element={
+            <Compare
+              lang={language}
+              onBack={() => navigate(-1)}
+            />
+          }
         />
       </Routes>
     </Layout>
