@@ -5,6 +5,7 @@ import { Auth } from './components/Auth';
 import { Dashboard } from './components/Dashboard';
 import { NewCompromise } from './components/NewCompromise';
 import { Editor } from './components/Editor';
+import { DossierOverview } from './components/DossierOverview';
 import { Language } from './types';
 
 const MainApp: React.FC = () => {
@@ -71,7 +72,7 @@ const MainApp: React.FC = () => {
             <Dashboard 
               lang={language} 
               onNewDossier={() => navigate('/new')}
-              onOpenDossier={() => navigate('/editor/1')}
+              onOpenDossier={(id) => navigate(`/dossier/${id}`)}
             />
           } 
         />
@@ -86,11 +87,21 @@ const MainApp: React.FC = () => {
           } 
         />
         <Route 
+          path="/dossier/:id" 
+          element={
+            <DossierOverview 
+              lang={language}
+              onBack={() => navigate('/dashboard')}
+              onOpenEditor={(id) => navigate(`/editor/${id}`)}
+            />
+          } 
+        />
+        <Route 
           path="/editor/:id" 
           element={
             <Editor 
               lang={language}
-              onBack={() => navigate('/dashboard')}
+              onBack={() => navigate(-1)}
             />
           } 
         />

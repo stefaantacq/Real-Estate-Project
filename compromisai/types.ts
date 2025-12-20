@@ -16,13 +16,24 @@ export enum DossierStatus {
   ARCHIVED = 'archived'
 }
 
+export interface TimelineEvent {
+  id: string;
+  date: string;
+  title: string;
+  description: string;
+  user: string;
+}
+
 export interface Dossier {
   id: string;
   name: string;
   address: string;
-  date: string;
+  date: string; // Last modified
+  creationDate: string;
   documentCount: number;
   status: DossierStatus;
+  timeline: TimelineEvent[];
+  type: 'House' | 'Apartment' | 'Commercial';
 }
 
 export interface Template {
@@ -31,13 +42,23 @@ export interface Template {
   description: string;
   type: 'House' | 'Apartment' | 'Commercial';
   source: 'CIB' | 'Custom';
+  isAiSuggested?: boolean;
 }
 
 export interface PlaceholderSuggestion {
   id: string;
-  label: string;
-  value: string;
-  sourceDoc: string;
+  label: string; // The variable name e.g., "Naam verkoper"
+  currentValue: string;
+  sourceDoc: string; // Filename
+  sourcePage: number;
   confidence: 'High' | 'Medium' | 'Low';
-  page: number;
+  isApproved: boolean;
+}
+
+export interface DocumentSection {
+  id: string;
+  title: string;
+  content: string; // Contains placeholders
+  isApproved: boolean;
+  placeholders: PlaceholderSuggestion[];
 }
