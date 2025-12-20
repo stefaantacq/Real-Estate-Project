@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Save, Download, FileText, Check, ChevronRight, Wand2, ArrowLeft, Eye, Undo, Redo, MoreHorizontal, Trash2, Plus, X, ListChecks, Maximize2, Split, ArrowUp, ArrowDown, ArrowRight } from 'lucide-react';
+import { Save, Download, FileText, Check, ChevronRight, Wand2, ArrowLeft, Eye, Undo, Redo, MoreHorizontal, Trash2, Plus, X, ListChecks, Maximize2, Split, ArrowUp, ArrowDown, ArrowRight, ExternalLink } from 'lucide-react';
 import { Language, DocumentSection, PlaceholderSuggestion } from '../types';
 import { TRANSLATIONS, MOCK_SECTIONS } from '../constants';
 
@@ -38,7 +38,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
             {
                 id: newId,
                 title: 'Nieuwe Sectie',
-                content: 'Typ hier uw tekst...',
+                content: '',
                 placeholders: [],
                 isApproved: false
             }
@@ -84,7 +84,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     // Render a placeholder chip within text
     const renderPlaceholder = (section: DocumentSection, p: PlaceholderSuggestion) => {
         return (
-            <span key={p.id} className="inline-block align-baseline relative group mx-1" contentEditable={false}>
+            <span key={p.id} className="inline-block align-baseline relative group/placeholder mx-1" contentEditable={false}>
                 {/* The Chip */}
                 <span
                     className={`
@@ -99,28 +99,31 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                 </span>
 
                 {/* Tooltip / Controls - HOVER ONLY (group-hover) */}
-                <div className="hidden group-hover:flex absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-gray-200 dark:border-slate-700 p-2 z-50 flex-col gap-2 animate-in fade-in zoom-in-95 duration-100">
-                    <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider text-center">{p.label}</div>
-                    <div className="flex gap-1.5">
-                        <button
-                            onClick={(e) => { e.preventDefault(); handleSourceClick(p.id); }}
-                            className="flex-1 flex items-center justify-center px-2 py-1.5 bg-gray-100 dark:bg-slate-700 rounded text-xs hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
-                            title={t.source}
-                        >
-                            <Eye className="w-3 h-3 mr-1" /> {t.source}
-                        </button>
-                        <button
-                            onClick={(e) => { e.preventDefault(); toggleApprovePlaceholder(section.id, p.id); }}
-                            className={`flex-1 flex items-center justify-center px-2 py-1.5 rounded text-xs text-white transition-colors
-                            ${p.isApproved ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}
-                        `}
-                        >
-                            {p.isApproved ? <X className="w-3 h-3 mr-1" /> : <Check className="w-3 h-3 mr-1" />}
-                            {p.isApproved ? t.reject : t.approve}
-                        </button>
+                {/* We use pb-2 to create an invisible bridge so the mouse can travel to the tooltip without losing hover */}
+                <div className="hidden group-hover/placeholder:flex absolute bottom-full left-1/2 -translate-x-1/2 w-48 pb-2 z-50 flex-col items-center animate-in fade-in zoom-in-95 duration-100">
+                    <div className="w-full bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-gray-200 dark:border-slate-700 p-2 flex flex-col gap-2 relative">
+                        <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider text-center">{p.label}</div>
+                        <div className="flex gap-1.5">
+                            <button
+                                onClick={(e) => { e.preventDefault(); handleSourceClick(p.id); }}
+                                className="flex-1 flex items-center justify-center px-2 py-1.5 bg-gray-100 dark:bg-slate-700 rounded text-xs hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
+                                title={t.source}
+                            >
+                                <Eye className="w-3 h-3 mr-1" /> {t.source}
+                            </button>
+                            <button
+                                onClick={(e) => { e.preventDefault(); toggleApprovePlaceholder(section.id, p.id); }}
+                                className={`flex-1 flex items-center justify-center px-2 py-1.5 rounded text-xs text-white transition-colors
+                                ${p.isApproved ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}
+                            `}
+                            >
+                                {p.isApproved ? <X className="w-3 h-3 mr-1" /> : <Check className="w-3 h-3 mr-1" />}
+                                {p.isApproved ? t.reject : t.approve}
+                            </button>
+                        </div>
+                        {/* Arrow is now part of the styled box */}
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-top-white dark:border-top-slate-800"></div>
                     </div>
-                    {/* Arrow */}
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-top-white dark:border-top-slate-800"></div>
                 </div>
             </span>
         );
@@ -211,10 +214,10 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
 
                         <div className="space-y-8">
                             {sections.map((section, index) => (
-                                <div key={section.id} className="group relative border border-transparent hover:border-dashed hover:border-brand-300 rounded p-4 -m-4 transition-all hover:bg-slate-50 dark:hover:bg-slate-800/20">
+                                <div key={section.id} className="group/section relative border border-transparent hover:border-dashed hover:border-brand-300 rounded p-4 -m-4 transition-all hover:bg-slate-50 dark:hover:bg-slate-800/20">
 
                                     {/* Floating Actions */}
-                                    <div className="absolute -top-3 -right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all bg-white dark:bg-slate-900 shadow-lg border border-gray-100 dark:border-slate-700 rounded-lg p-1 scale-90 hover:scale-100 z-10">
+                                    <div className="absolute -top-3 -right-2 flex gap-1 opacity-0 group-hover/section:opacity-100 transition-all bg-white dark:bg-slate-900 shadow-lg border border-gray-100 dark:border-slate-700 rounded-lg p-1 scale-90 hover:scale-100 z-10">
                                         <button onClick={() => moveSection(index, 'up')} disabled={index === 0} className="p-1.5 text-slate-400 hover:text-brand-500 disabled:opacity-30 rounded hover:bg-gray-50">
                                             <ArrowUp className="w-4 h-4" />
                                         </button>
@@ -245,7 +248,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
 
                                     {/* Editable Content Area */}
                                     <div
-                                        className="text-base text-justify text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-brand-100 rounded p-1 -ml-1"
+                                        className="text-base text-justify text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-brand-100 rounded p-1 -ml-1 min-h-[1.5em]"
                                         contentEditable
                                         suppressContentEditableWarning
                                         onInput={(e) => {
@@ -286,9 +289,18 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                 {splitScreen && (
                     <div className="w-1/2 border-l border-gray-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 flex flex-col animate-in slide-in-from-right duration-300 shadow-xl z-20">
                         <div className="h-10 flex items-center justify-between px-4 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 shrink-0">
-                            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center">
-                                <FileText className="w-3 h-3 mr-2" /> Bron Document: Kadaster.pdf
-                            </span>
+                            <div className="flex items-center">
+                                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center mr-3">
+                                    <FileText className="w-3 h-3 mr-2" /> Bron Document: Kadaster.pdf
+                                </span>
+                                <button
+                                    onClick={() => window.open('#', '_blank')}
+                                    className="p-1 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded transition-colors"
+                                    title="Open in drowser"
+                                >
+                                    <ExternalLink className="w-3 h-3" />
+                                </button>
+                            </div>
                             <button onClick={() => setSplitScreen(false)} className="text-slate-400 hover:text-slate-900 hover:bg-gray-100 rounded p-1">
                                 <X className="w-4 h-4" />
                             </button>

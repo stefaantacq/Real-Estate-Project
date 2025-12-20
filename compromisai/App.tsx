@@ -84,7 +84,7 @@ const MainApp: React.FC = () => {
             <NewCompromise
               lang={language}
               onCancel={() => navigate('/dashboard')}
-              onComplete={() => navigate('/editor/new')}
+              onComplete={(id) => navigate(`/dossier/${id}`)}
             />
           }
         />

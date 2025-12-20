@@ -1,14 +1,15 @@
 
 import React, { useState } from 'react';
 import { Upload, FileText, X, Home, Building2, Check, AlertCircle, Wand2, ArrowRight } from 'lucide-react';
-import { Language } from '../types';
+import { Language, Dossier, DossierStatus } from '../types';
 import { TRANSLATIONS, MOCK_TEMPLATES } from '../constants';
 import { ExtractionLoading } from './ExtractionLoading';
+import { DossierService } from '../services/dossierService';
 
 interface NewCompromiseProps {
   lang: Language;
   onCancel: () => void;
-  onComplete: () => void;
+  onComplete: (id: string) => void;
 }
 
 export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, onComplete }) => {
@@ -50,8 +51,37 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
     setIsExtracting(true);
   };
 
+  const handleExtractionComplete = () => {
+    // Create new Persistent Dossier
+    const newId = (Math.floor(Math.random() * 10000) + 100).toString();
+    const newDossier: Dossier = {
+      id: newId,
+      name: dossierName,
+      address: 'Nieuw Pand, Onbekende Straat 1', // Mock for now
+      date: new Date().toLocaleDateString('nl-BE'),
+      creationDate: new Date().toLocaleDateString('nl-BE'),
+      documentCount: files.length,
+      status: DossierStatus.DRAFT,
+      timeline: [
+        {
+          id: 'ev-1',
+          date: 'Zonet',
+          title: 'Dossier Aangemaakt',
+          description: 'Dossier geïnitialiseerd met templates.',
+          user: 'U'
+        }
+      ],
+      type: 'House'
+    };
+
+    DossierService.init();
+    DossierService.add(newDossier);
+
+    onComplete(newId);
+  };
+
   if (isExtracting) {
-    return <ExtractionLoading lang={lang} onComplete={onComplete} />;
+    return <ExtractionLoading lang={lang} onComplete={handleExtractionComplete} />;
   }
 
   return (

@@ -1,7 +1,9 @@
 import React from 'react';
 import { ArrowLeft, Calendar, MapPin, FileText, Clock, GitCompare, Archive, ExternalLink, RefreshCw, File } from 'lucide-react';
-import { Language, Dossier } from '../types';
-import { TRANSLATIONS, MOCK_DOSSIERS } from '../constants';
+import { useParams } from 'react-router-dom';
+import { Language, Dossier, DossierStatus } from '../types';
+import { DossierService } from '../services/dossierService';
+import { TRANSLATIONS } from '../constants';
 
 interface DossierOverviewProps {
    lang: Language;
@@ -12,15 +14,30 @@ interface DossierOverviewProps {
 
 export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, onOpenEditor, onCompare }) => {
    const t = TRANSLATIONS[lang];
-   // Mock fetching dossier by ID (using the first mock one for now)
-   const [dossier, setDossier] = React.useState<Dossier>(MOCK_DOSSIERS[0]);
+   const { id } = useParams<{ id: string }>();
+
+   // Fetch from storage
+   const [dossier, setDossier] = React.useState<Dossier | undefined>(undefined);
+
+   React.useEffect(() => {
+      if (!id) return;
+      DossierService.init();
+      const d = DossierService.getById(id);
+      setDossier(d);
+   }, [id]);
 
    const handleArchive = () => {
-      setDossier(prev => ({
-         ...prev,
-         status: prev.status === 'archived' ? 'draft' : 'archived'
-      }));
+      if (!dossier) return;
+      const newStatus = dossier.status === DossierStatus.ARCHIVED ? DossierStatus.DRAFT : DossierStatus.ARCHIVED;
+      const updated = { ...dossier, status: newStatus };
+
+      // Update local state
+      setDossier(updated);
+      // Persist
+      DossierService.update(updated);
    };
+
+   if (!dossier) return <div>Loading...</div>;
 
    return (
       <div className="max-w-6xl mx-auto animate-in fade-in duration-500">
