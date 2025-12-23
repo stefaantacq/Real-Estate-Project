@@ -90,6 +90,12 @@ export const TRANSLATIONS = {
     completed: 'Voltooid',
     noActiveDossiers: 'Geen actieve dossiers.',
     noArchivedDossiers: 'Geen gearchiveerde dossiers.',
+    deleteDossier: 'Dossier verwijderen',
+    deleteConfirmation: 'Ben je zeker dat je dit wilt verwijderen?',
+    dontShowAgain: 'Dit niet meer tonen',
+    confirmDelete: 'Verwijderen',
+    settingsDeleteConfirmation: 'Toon bevestigingspop-up bij verwijderen',
+    cancel: 'Annuleren',
   },
   [Language.FR]: {
     loginTitle: 'Bienvenue chez CompromisAI',
@@ -180,6 +186,12 @@ export const TRANSLATIONS = {
     completed: 'Terminé',
     noActiveDossiers: 'Aucun dossier actif.',
     noArchivedDossiers: 'Aucun dossier archivé.',
+    deleteDossier: 'Supprimer le dossier',
+    deleteConfirmation: 'Êtes-vous sûr de vouloir supprimer ceci ?',
+    dontShowAgain: 'Ne plus afficher',
+    confirmDelete: 'Supprimer',
+    settingsDeleteConfirmation: 'Afficher la confirmation de suppression',
+    cancel: 'Annuler',
   },
   [Language.EN]: {
     loginTitle: 'Welcome to CompromisAI',
@@ -270,6 +282,12 @@ export const TRANSLATIONS = {
     completed: 'Completed',
     noActiveDossiers: 'No active dossiers.',
     noArchivedDossiers: 'No archived dossiers.',
+    deleteDossier: 'Delete dossier',
+    deleteConfirmation: 'Are you sure you want to delete this?',
+    dontShowAgain: 'Don\'t show again',
+    confirmDelete: 'Delete',
+    settingsDeleteConfirmation: 'Show delete confirmation popup',
+    cancel: 'Cancel',
   }
 };
 
@@ -378,6 +396,15 @@ export const getTemplates = (lang: Language): Template[] => {
       type: 'Commercial',
       source: 'CIB',
       isAiSuggested: false
+    },
+    {
+      id: 'tmpl-house-extraction',
+      name: 'Extractie Huis',
+      description: 'Template gebaseerd op de standaard extractie van een huis',
+      type: 'House',
+      source: 'Custom',
+      isAiSuggested: false,
+      sections: HOUSE_EXTRACTION_SECTIONS // We'll define this below
     }
   ];
 };
@@ -542,3 +569,17 @@ export const MOCK_SECTIONS: DocumentSection[] = [
     ]
   }
 ];
+
+export const HOUSE_EXTRACTION_SECTIONS: DocumentSection[] = MOCK_SECTIONS.map(section => ({
+  ...section,
+  isApproved: false,
+  placeholders: section.placeholders.map(p => ({
+    ...p,
+    currentValue: '',
+    sourceDoc: '',
+    sourcePage: 0,
+    isApproved: false,
+    confidence: 'Low'
+  }))
+}));
+

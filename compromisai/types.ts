@@ -36,6 +36,10 @@ export interface Dossier {
   type: 'House' | 'Apartment' | 'Commercial';
 }
 
+export interface UserSettings {
+  showDeleteConfirmation: boolean;
+}
+
 export interface Template {
   id: string;
   name: string;
@@ -43,6 +47,7 @@ export interface Template {
   type: 'House' | 'Apartment' | 'Commercial';
   source: 'CIB' | 'Custom';
   isAiSuggested?: boolean;
+  sections?: DocumentSection[];
 }
 
 export interface PlaceholderSuggestion {

@@ -15,11 +15,11 @@ export const DossierService = {
 
     getAll: (): Dossier[] => {
         const stored = localStorage.getItem(STORAGE_KEY);
-        if (!stored) return MOCK_DOSSIERS;
+        if (!stored) return [...MOCK_DOSSIERS];
         try {
             return JSON.parse(stored);
         } catch (e) {
-            return MOCK_DOSSIERS;
+            return [...MOCK_DOSSIERS];
         }
     },
 
@@ -41,5 +41,11 @@ export const DossierService = {
         const dossiers = DossierService.getAll();
         dossiers.push(dossier);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(dossiers));
+    },
+
+    delete: (id: string) => {
+        const dossiers = DossierService.getAll();
+        const filtered = dossiers.filter(d => d.id !== id);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
     }
 };
