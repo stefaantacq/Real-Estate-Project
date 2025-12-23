@@ -74,7 +74,7 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
     setIsExtracting(true);
   };
 
-  const handleExtractionComplete = () => {
+  const handleExtractionComplete = React.useCallback(() => {
     // Create new Persistent Dossier
     const newId = (Math.floor(Math.random() * 10000) + 100).toString();
     const newDossier: Dossier = {
@@ -101,7 +101,7 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
     DossierService.add(newDossier);
 
     onComplete(newId);
-  };
+  }, [dossierName, files.length, t, onComplete]);
 
   if (isExtracting) {
     return <ExtractionLoading lang={lang} onComplete={handleExtractionComplete} />;

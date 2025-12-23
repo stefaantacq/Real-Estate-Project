@@ -1,9 +1,11 @@
 import React from 'react';
-import { ArrowLeft, Calendar, MapPin, FileText, Clock, GitCompare, Archive, ExternalLink, RefreshCw, File } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, FileText, Clock, GitCompare, Archive, ExternalLink, RefreshCw, File, Trash2 } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { Language, Dossier, DossierStatus } from '../types';
 import { DossierService } from '../services/dossierService';
 import { TRANSLATIONS } from '../constants';
+import { DeleteConfirmationModal } from './DeleteConfirmationModal';
+import { SettingsService } from '../services/settingsService';
 
 interface DossierOverviewProps {
    lang: Language;
@@ -18,6 +20,7 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
 
    // Fetch from storage
    const [dossier, setDossier] = React.useState<Dossier | undefined>(undefined);
+   const [deleteModalOpen, setDeleteModalOpen] = React.useState(false);
 
    React.useEffect(() => {
       if (!id) return;
@@ -37,10 +40,40 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
       DossierService.update(updated);
    };
 
+   const handleDeleteClick = () => {
+      const settings = SettingsService.getSettings();
+      if (settings.showDeleteConfirmation) {
+         setDeleteModalOpen(true);
+      } else {
+         performDelete();
+      }
+   };
+
+   const performDelete = () => {
+      if (id) {
+         DossierService.delete(id);
+         onBack();
+      }
+   };
+
+   const handleConfirmDelete = (dontShowAgain: boolean) => {
+      if (dontShowAgain) {
+         SettingsService.updateSettings({ showDeleteConfirmation: false });
+      }
+      performDelete();
+      setDeleteModalOpen(false);
+   };
+
    if (!dossier) return <div>Loading...</div>;
 
    return (
       <div className="max-w-6xl mx-auto animate-in fade-in duration-500">
+         <DeleteConfirmationModal
+            lang={lang}
+            isOpen={deleteModalOpen}
+            onClose={() => setDeleteModalOpen(false)}
+            onConfirm={handleConfirmDelete}
+         />
 
          {/* Header / Nav */}
          <div className="mb-8 flex items-center justify-between">
@@ -65,6 +98,9 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                <button onClick={handleArchive} className="flex items-center px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors shadow-sm">
                   {dossier.status === 'archived' ? <RefreshCw className="w-4 h-4 mr-2" /> : <Archive className="w-4 h-4 mr-2" />}
                   {dossier.status === 'archived' ? t.unarchiveDossier : t.archiveDossier}
+               </button>
+               <button onClick={handleDeleteClick} className="p-2 bg-white dark:bg-slate-800 border border-red-100 dark:border-red-900/30 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shadow-sm" title={t.deleteDossier}>
+                  <Trash2 className="w-5 h-5" />
                </button>
             </div>
          </div>

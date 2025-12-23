@@ -21,19 +21,27 @@ export const ExtractionLoading: React.FC<ExtractionLoadingProps> = ({ onComplete
     ];
 
     useEffect(() => {
-        const timer = setInterval(() => {
+        const interval = setInterval(() => {
             setStep(prev => {
                 if (prev >= steps.length - 1) {
-                    clearInterval(timer);
-                    setTimeout(onComplete, 800); // Small delay before finishing
+                    clearInterval(interval);
                     return prev;
                 }
                 return prev + 1;
             });
-        }, 1500); // 1.5s per step
+        }, 1500);
 
-        return () => clearInterval(timer);
-    }, [onComplete, steps.length]);
+        return () => clearInterval(interval);
+    }, [steps.length]);
+
+    useEffect(() => {
+        if (step === steps.length - 1) {
+            const timeout = setTimeout(() => {
+                onComplete();
+            }, 800);
+            return () => clearTimeout(timeout);
+        }
+    }, [step, steps.length, onComplete]);
 
     return (
         <div className="fixed inset-0 bg-white/90 dark:bg-slate-950/90 z-50 flex flex-col items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-300">
