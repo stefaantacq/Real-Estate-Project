@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Calendar, MapPin, FileText, Clock, GitCompare, Archive, ExternalLink, RefreshCw, File, Trash2 } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, FileText, Clock, GitCompare, Archive, ExternalLink, RefreshCw, File, Trash2, X } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { Language, Dossier, DossierStatus } from '../types';
 import { DossierService } from '../services/dossierService';
@@ -21,6 +21,8 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
    // Fetch from storage
    const [dossier, setDossier] = React.useState<Dossier | undefined>(undefined);
    const [deleteModalOpen, setDeleteModalOpen] = React.useState(false);
+   const [splitScreen, setSplitScreen] = React.useState(false);
+   const [selectedDocument, setSelectedDocument] = React.useState<string | null>(null);
 
    React.useEffect(() => {
       if (!id) return;
@@ -64,10 +66,15 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
       setDeleteModalOpen(false);
    };
 
+   const openDocument = (docName: string) => {
+      setSelectedDocument(docName);
+      setSplitScreen(true);
+   };
+
    if (!dossier) return <div>Loading...</div>;
 
    return (
-      <div className="max-w-6xl mx-auto animate-in fade-in duration-500">
+      <div className="max-w-7xl mx-auto animate-in fade-in duration-500 relative min-h-[calc(100vh-8rem)]">
          <DeleteConfirmationModal
             lang={lang}
             isOpen={deleteModalOpen}
@@ -105,10 +112,9 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
             </div>
          </div>
 
-         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
+         <div className="flex gap-8 relative">
             {/* Main Content: Timeline & Actions */}
-            <div className="lg:col-span-2 space-y-8">
+            <div className={`transition-all duration-300 ${splitScreen ? 'w-1/2' : 'w-full'} space-y-8`}>
 
                {/* Action Card */}
                <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm flex flex-col items-center text-center">
@@ -173,18 +179,59 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                   <h3 className="font-bold text-sm uppercase tracking-wider text-slate-500 mb-4">{t.documents}</h3>
                   <div className="space-y-3">
                      {['EPC.pdf', 'Kadaster.pdf', 'Identiteitskaart.pdf'].map((doc, i) => (
-                        <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-slate-800/50 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer group">
+                        <div
+                           key={i}
+                           onClick={() => openDocument(doc)}
+                           className={`flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer group
+                              ${selectedDocument === doc && splitScreen
+                                 ? 'bg-brand-50 border-brand-200 dark:bg-brand-900/20 dark:border-brand-800'
+                                 : 'bg-gray-50 dark:bg-slate-800/50 border-transparent hover:bg-gray-100 dark:hover:bg-slate-800'}`}
+                        >
                            <div className="flex items-center overflow-hidden">
-                              <File className="w-4 h-4 text-brand-500 mr-3 flex-shrink-0" />
-                              <span className="text-sm text-slate-700 dark:text-slate-300 truncate">{doc}</span>
+                              <File className={`w-4 h-4 mr-3 flex-shrink-0 ${selectedDocument === doc && splitScreen ? 'text-brand-600' : 'text-brand-500'}`} />
+                              <span className={`text-sm truncate ${selectedDocument === doc && splitScreen ? 'text-brand-700 dark:text-brand-400 font-bold' : 'text-slate-700 dark:text-slate-300'}`}>{doc}</span>
                            </div>
-                           <ExternalLink className="w-4 h-4 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                           <ExternalLink className={`w-4 h-4 transition-opacity ${selectedDocument === doc && splitScreen ? 'opacity-100 text-brand-500' : 'opacity-0 group-hover:opacity-100 text-slate-400'}`} />
                         </div>
                      ))}
                   </div>
                </div>
             </div>
 
+            {/* Split Screen Source Viewer (adapted from Editor) */}
+            {splitScreen && (
+               <div className="w-1/2 border-l border-gray-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 flex flex-col animate-in slide-in-from-right duration-300 shadow-xl ml-4 rounded-2xl overflow-hidden sticky top-0 h-[calc(100vh-10rem)]">
+                  <div className="h-12 flex items-center justify-between px-4 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 shrink-0">
+                     <div className="flex items-center">
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center mr-3">
+                           <FileText className="w-3 h-3 mr-2" /> {selectedDocument}
+                        </span>
+                        <button
+                           onClick={() => window.open('#', '_blank')}
+                           className="p-1 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded transition-colors"
+                           title="Open in browser"
+                        >
+                           <ExternalLink className="w-3 h-3" />
+                        </button>
+                     </div>
+                     <button onClick={() => setSplitScreen(false)} className="text-slate-400 hover:text-slate-900 hover:bg-gray-100 rounded p-1">
+                        <X className="w-4 h-4" />
+                     </button>
+                  </div>
+                  <div className="flex-1 p-6 overflow-hidden bg-slate-100 dark:bg-slate-950">
+                     <div className="w-full h-full bg-white shadow-lg flex flex-col items-center justify-center text-slate-300 border border-gray-200 overflow-hidden relative group">
+                        {/* Fake PDF Lines */}
+                        <div className="absolute inset-0 p-8 space-y-4 opacity-50 pointer-events-none">
+                           {[...Array(20)].map((_, i) => (
+                              <div key={i} className="h-2 bg-slate-200 rounded w-full" style={{ width: `${Math.random() * 40 + 60}%` }}></div>
+                           ))}
+                        </div>
+
+                        <span className="relative z-10 font-medium text-slate-400 bg-white/80 px-4 py-2 rounded-lg backdrop-blur-sm">[ {selectedDocument} Preview ]</span>
+                     </div>
+                  </div>
+               </div>
+            )}
          </div>
       </div>
    );
