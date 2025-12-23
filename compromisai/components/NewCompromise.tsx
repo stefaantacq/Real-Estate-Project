@@ -1,10 +1,11 @@
 
 import React, { useState } from 'react';
-import { Upload, FileText, X, Home, Building2, Check, AlertCircle, Wand2, ArrowRight } from 'lucide-react';
+import { Upload, FileText, X, Home, Building2, Check, AlertCircle, Wand2, ArrowRight, ChevronDown, ChevronRight } from 'lucide-react';
 import { Language, Dossier, DossierStatus } from '../types';
-import { TRANSLATIONS, MOCK_TEMPLATES } from '../constants';
+import { TRANSLATIONS, getTemplates } from '../constants';
 import { ExtractionLoading } from './ExtractionLoading';
 import { DossierService } from '../services/dossierService';
+import { getDocumentChecklist } from '../documentChecklist';
 
 interface NewCompromiseProps {
   lang: Language;
@@ -20,13 +21,12 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
   const [remarks, setRemarks] = useState('');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
 
-  // Expanded list of docs and synonyms mapping
-  const requiredDocs = [
-    { id: 'EPC', label: 'EPC', synonyms: ['epc', 'energie', 'prestatie'] },
-    { id: 'Kadaster', label: 'Kadaster', synonyms: ['kadaster', 'kadastraal', 'uittreksel'] },
-    { id: 'Bodemattest', label: 'Bodemattest', synonyms: ['bodem', 'ovam'] },
-    { id: 'Elektrische Keuring', label: 'Elektrische Keuring', synonyms: ['elek', 'keuring', 'installatie'] }
-  ];
+  // Get translated document checklist
+  const requiredDocs = getDocumentChecklist(lang);
+
+  // Get the translated "Mandatory certificates" category name for default expansion
+  const mandatoryCertsCategoryName = requiredDocs.find(doc => doc.id === 'epc')?.category || '';
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set([mandatoryCertsCategoryName]));
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -44,6 +44,29 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
       const fname = f.name.toLowerCase();
       return docDef.synonyms.some(s => fname.includes(s));
     });
+  };
+
+  const toggleCategory = (category: string) => {
+    setExpandedCategories(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(category)) {
+        newSet.delete(category);
+      } else {
+        newSet.add(category);
+      }
+      return newSet;
+    });
+  };
+
+  const getDocsByCategory = () => {
+    const categories: { [key: string]: typeof requiredDocs } = {};
+    requiredDocs.forEach(doc => {
+      if (!categories[doc.category]) {
+        categories[doc.category] = [];
+      }
+      categories[doc.category].push(doc);
+    });
+    return categories;
   };
 
   const handleGenerate = () => {
@@ -65,10 +88,10 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
       timeline: [
         {
           id: 'ev-1',
-          date: 'Zonet',
-          title: 'Dossier Aangemaakt',
-          description: 'Dossier geïnitialiseerd met templates.',
-          user: 'U'
+          date: t.justNow,
+          title: t.dossierCreated,
+          description: t.dossierInitialized,
+          user: t.you
         }
       ],
       type: 'House'
@@ -90,7 +113,7 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
       {/* Page Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">{t.newCompromis}</h1>
-        <p className="text-slate-600 dark:text-slate-400">Upload documenten en kies een template om te starten.</p>
+        <p className="text-slate-600 dark:text-slate-400">{t.uploadSubtitle}</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -143,7 +166,7 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
               {/* File Lists */}
               {files.length > 0 && (
                 <div className="space-y-3">
-                  <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Geüploade Bestanden</h3>
+                  <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">{t.uploadedFiles}</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {files.map((file, i) => (
                       <div key={i} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800/50 rounded-lg border border-gray-200 dark:border-slate-700">
@@ -173,12 +196,12 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
             <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/30 flex items-start">
               <Wand2 className="w-5 h-5 text-brand-600 mt-0.5 mr-3 flex-shrink-0" />
               <div className="text-sm text-slate-600 dark:text-slate-400">
-                Op basis van de geüploade documenten raden we <strong>Standaard Verkoopsovereenkomst (Vlaanderen)</strong> aan.
+                {t.aiSuggestionText} <strong>Standaard Verkoopsovereenkomst (Vlaanderen)</strong> {t.aiSuggestionTextEnd}
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {MOCK_TEMPLATES.map(template => (
+              {getTemplates(lang).map(template => (
                 <div
                   key={template.id}
                   onClick={() => setSelectedTemplateId(template.id)}
@@ -192,7 +215,7 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
                 >
                   {template.isAiSuggested && (
                     <div className="absolute top-0 right-0 bg-brand-500 text-white text-[10px] px-2 py-1 rounded-bl-lg rounded-tr-lg font-bold tracking-wide">
-                      AANBEVOLEN
+                      {t.recommended}
                     </div>
                   )}
 
@@ -218,7 +241,7 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
 
             <div className="mt-6">
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                {t.remarks} <span className="text-slate-400 font-normal">(Optioneel)</span>
+                {t.remarks} <span className="text-slate-400 font-normal">({t.optional})</span>
               </label>
               <textarea
                 rows={3}
@@ -239,21 +262,62 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 p-6 shadow-sm sticky top-6">
             <h3 className="font-bold text-slate-900 dark:text-white mb-4 flex items-center">
               <Check className="w-5 h-5 mr-2 text-green-500" />
-              Document Checklist
+              {t.documentChecklist}
             </h3>
 
-            <div className="space-y-3 mb-8">
-              {requiredDocs.map(doc => {
-                const isPresent = getDocStatus(doc);
+            <div className="space-y-2 mb-8 max-h-[500px] overflow-y-auto pr-2">
+              {Object.entries(getDocsByCategory()).map(([category, docs]) => {
+                const isExpanded = expandedCategories.has(category);
+                const presentCount = docs.filter(doc => getDocStatus(doc)).length;
+                const totalCount = docs.length;
+                const allPresent = presentCount === totalCount;
+
                 return (
-                  <div key={doc.id} className="flex items-center justify-between p-2 rounded hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors">
-                    <div className="flex items-center">
-                      <div className={`w-2 h-2 rounded-full mr-3 ${isPresent ? 'bg-green-500' : 'bg-gray-300 dark:bg-slate-600'}`}></div>
-                      <span className={`text-sm ${isPresent ? 'text-slate-700 dark:text-slate-200 font-medium' : 'text-slate-400'}`}>
-                        {doc.label}
-                      </span>
-                    </div>
-                    {isPresent && <Check className="w-4 h-4 text-green-500" />}
+                  <div key={category} className="border border-gray-200 dark:border-slate-700 rounded-lg overflow-hidden">
+                    {/* Category Header */}
+                    <button
+                      onClick={() => toggleCategory(category)}
+                      className="w-full flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800/50 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        {isExpanded ? (
+                          <ChevronDown className="w-4 h-4 text-slate-500" />
+                        ) : (
+                          <ChevronRight className="w-4 h-4 text-slate-500" />
+                        )}
+                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                          {category}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-medium ${allPresent && presentCount > 0 ? 'text-green-600 dark:text-green-400' : 'text-slate-500'}`}>
+                          {presentCount}/{totalCount}
+                        </span>
+                        {allPresent && presentCount > 0 && (
+                          <Check className="w-4 h-4 text-green-500" />
+                        )}
+                      </div>
+                    </button>
+
+                    {/* Category Documents */}
+                    {isExpanded && (
+                      <div className="bg-white dark:bg-slate-900 p-2">
+                        {docs.map(doc => {
+                          const isPresent = getDocStatus(doc);
+                          return (
+                            <div key={doc.id} className="flex items-center justify-between p-2 rounded hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors">
+                              <div className="flex items-center">
+                                <div className={`w-2 h-2 rounded-full mr-3 ${isPresent ? 'bg-green-500' : 'bg-gray-300 dark:bg-slate-600'}`}></div>
+                                <span className={`text-xs ${isPresent ? 'text-slate-700 dark:text-slate-200 font-medium' : 'text-slate-400'}`}>
+                                  {doc.label}
+                                </span>
+                              </div>
+                              {isPresent && <Check className="w-3 h-3 text-green-500" />}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
                 )
               })}
@@ -269,7 +333,7 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
                 <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
               </button>
               <p className="text-xs text-center text-slate-400 mt-3 px-4">
-                De AI zal de geüploade documenten analyseren en automatisch invullen in het gekozen sjabloon.
+                {t.generateDescription}
               </p>
             </div>
           </div>

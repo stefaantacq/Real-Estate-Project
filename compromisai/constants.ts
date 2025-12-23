@@ -69,6 +69,27 @@ export const TRANSLATIONS = {
     missingDocs: 'Ontbrekende documenten',
     settings: 'Instellingen',
     incomplete: 'Onvoltooid',
+    uploadSubtitle: 'Upload documenten en kies een template om te starten.',
+    uploadedFiles: 'Geüploade Bestanden',
+    aiSuggestionText: 'Op basis van de geüploade documenten raden we',
+    aiSuggestionTextEnd: 'aan.',
+    recommended: 'AANBEVOLEN',
+    optional: 'Optioneel',
+    generateDescription: 'De AI zal de geüploade documenten analyseren en automatisch invullen in het gekozen sjabloon.',
+    documentChecklist: 'Document Checklist',
+    justNow: 'Zonet',
+    dossierCreated: 'Dossier Aangemaakt',
+    dossierInitialized: 'Dossier geïnitialiseerd met templates.',
+    you: 'U',
+    aiWorking: 'AI is aan het werk...',
+    uploadingDocs: 'Documenten uploaden...',
+    analyzingContent: 'Inhoud analyseren...',
+    extractingData: 'Gegevens extraheren...',
+    finalizingCompromise: 'Compromis genereren...',
+    draft: 'Concept',
+    completed: 'Voltooid',
+    noActiveDossiers: 'Geen actieve dossiers.',
+    noArchivedDossiers: 'Geen gearchiveerde dossiers.',
   },
   [Language.FR]: {
     loginTitle: 'Bienvenue chez CompromisAI',
@@ -138,6 +159,27 @@ export const TRANSLATIONS = {
     missingDocs: 'Documents manquants',
     settings: 'Paramètres',
     incomplete: 'Incomplet',
+    uploadSubtitle: 'Téléchargez des documents et choisissez un modèle pour commencer.',
+    uploadedFiles: 'Fichiers téléchargés',
+    aiSuggestionText: 'Sur la base des documents téléchargés, nous recommandons',
+    aiSuggestionTextEnd: '.',
+    recommended: 'RECOMMANDÉ',
+    optional: 'Optionnel',
+    generateDescription: 'L\'IA analysera les documents téléchargés et les remplira automatiquement dans le modèle choisi.',
+    documentChecklist: 'Liste de contrôle des documents',
+    justNow: 'À l\'instant',
+    dossierCreated: 'Dossier créé',
+    dossierInitialized: 'Dossier initialisé avec des modèles.',
+    you: 'Vous',
+    aiWorking: 'L\'IA est au travail...',
+    uploadingDocs: 'Téléchargement des documents...',
+    analyzingContent: 'Analyse du contenu...',
+    extractingData: 'Extraction des données...',
+    finalizingCompromise: 'Finalisation du compromis...',
+    draft: 'Brouillon',
+    completed: 'Terminé',
+    noActiveDossiers: 'Aucun dossier actif.',
+    noArchivedDossiers: 'Aucun dossier archivé.',
   },
   [Language.EN]: {
     loginTitle: 'Welcome to CompromisAI',
@@ -207,6 +249,27 @@ export const TRANSLATIONS = {
     missingDocs: 'Missing documents',
     settings: 'Settings',
     incomplete: 'Incomplete',
+    uploadSubtitle: 'Upload documents and choose a template to get started.',
+    uploadedFiles: 'Uploaded Files',
+    aiSuggestionText: 'Based on the uploaded documents, we recommend',
+    aiSuggestionTextEnd: '.',
+    recommended: 'RECOMMENDED',
+    optional: 'Optional',
+    generateDescription: 'The AI will analyze the uploaded documents and automatically fill them into the chosen template.',
+    documentChecklist: 'Document Checklist',
+    justNow: 'Just now',
+    dossierCreated: 'Dossier Created',
+    dossierInitialized: 'Dossier initialized with templates.',
+    you: 'You',
+    aiWorking: 'AI is working...',
+    uploadingDocs: 'Uploading documents...',
+    analyzingContent: 'Analyzing content...',
+    extractingData: 'Extracting data points...',
+    finalizingCompromise: 'Finalizing compromise...',
+    draft: 'Draft',
+    completed: 'Completed',
+    noActiveDossiers: 'No active dossiers.',
+    noArchivedDossiers: 'No archived dossiers.',
   }
 };
 
@@ -261,6 +324,65 @@ export const MOCK_DOSSIERS: Dossier[] = [
   }
 ];
 
+export const getTemplates = (lang: Language): Template[] => {
+  const translations = {
+    [Language.NL]: {
+      cibHouse: 'CIB Huis',
+      cibHouseDesc: 'Standaard CIB template voor huizen',
+      cibApartment: 'CIB Appartement',
+      cibApartmentDesc: 'Standaard CIB template voor appartementen',
+      cibCommercial: 'CIB Handelspand',
+      cibCommercialDesc: 'Standaard CIB template voor commercieel vastgoed',
+    },
+    [Language.FR]: {
+      cibHouse: 'CIB Maison',
+      cibHouseDesc: 'Modèle CIB standard pour les maisons',
+      cibApartment: 'CIB Appartement',
+      cibApartmentDesc: 'Modèle CIB standard pour les appartements',
+      cibCommercial: 'CIB Commerce',
+      cibCommercialDesc: 'Modèle CIB standard pour l\'immobilier commercial',
+    },
+    [Language.EN]: {
+      cibHouse: 'CIB House',
+      cibHouseDesc: 'Standard CIB template for houses',
+      cibApartment: 'CIB Apartment',
+      cibApartmentDesc: 'Standard CIB template for apartments',
+      cibCommercial: 'CIB Commercial',
+      cibCommercialDesc: 'Standard CIB template for commercial real estate',
+    },
+  };
+
+  const t = translations[lang];
+
+  return [
+    {
+      id: 't1',
+      name: t.cibHouse,
+      description: t.cibHouseDesc,
+      type: 'House',
+      source: 'CIB',
+      isAiSuggested: true
+    },
+    {
+      id: 't2',
+      name: t.cibApartment,
+      description: t.cibApartmentDesc,
+      type: 'Apartment',
+      source: 'CIB',
+      isAiSuggested: false
+    },
+    {
+      id: 't3',
+      name: t.cibCommercial,
+      description: t.cibCommercialDesc,
+      type: 'Commercial',
+      source: 'CIB',
+      isAiSuggested: false
+    }
+  ];
+};
+
+// Deprecated: Use getTemplates(lang) instead
 export const MOCK_TEMPLATES: Template[] = [
   {
     id: 't1',

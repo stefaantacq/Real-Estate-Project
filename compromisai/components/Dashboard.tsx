@@ -42,7 +42,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
           <FileText className="w-5 h-5" />
         </div>
         <div className={`px-2 py-1 rounded-full text-xs font-medium ${dossier.status === DossierStatus.COMPLETED ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'}`}>
-          {dossier.status === DossierStatus.ARCHIVED ? t.archived : dossier.status === DossierStatus.COMPLETED ? 'Completed' : 'Draft'}
+          {dossier.status === DossierStatus.ARCHIVED ? t.archived : dossier.status === DossierStatus.COMPLETED ? t.completed : t.draft}
         </div>
       </div>
 
@@ -86,7 +86,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {activeDossiers.length > 0 ? activeDossiers.map(renderCard) : (
             <div className="col-span-full py-8 text-center text-slate-400 border-2 border-dashed border-gray-200 dark:border-slate-800 rounded-xl">
-              Geen actieve dossiers.
+              {t.noActiveDossiers}
             </div>
           )}
 
@@ -111,7 +111,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {archivedDossiers.length > 0 ? archivedDossiers.map(renderCard) : (
             <div className="col-span-full py-8 text-center text-slate-400 border-2 border-dashed border-gray-200 dark:border-slate-800 rounded-xl">
-              Geen gearchiveerde dossiers.
+              {t.noArchivedDossiers}
             </div>
           )}
         </div>
