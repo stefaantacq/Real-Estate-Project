@@ -1,8 +1,10 @@
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { Save, Download, FileText, Check, ChevronRight, Wand2, ArrowLeft, Eye, Undo, Redo, MoreHorizontal, Trash2, Plus, X, ListChecks, Maximize2, Split, ArrowUp, ArrowDown, ArrowRight, ExternalLink, Edit2 } from 'lucide-react';
-import { Language, DocumentSection, PlaceholderSuggestion } from '../types';
+import { Language, DocumentSection, PlaceholderSuggestion, Dossier } from '../types';
 import { TRANSLATIONS, MOCK_SECTIONS } from '../constants';
+import { DossierService } from '../services/dossierService';
 
 interface EditorProps {
     lang: Language;
@@ -10,12 +12,37 @@ interface EditorProps {
 }
 
 export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
+    const { id } = useParams<{ id: string }>();
     const t = TRANSLATIONS[lang];
+    const [dossier, setDossier] = useState<Dossier | undefined>(undefined);
     const [sections, setSections] = useState<DocumentSection[]>(MOCK_SECTIONS);
     const [sidebarMode, setSidebarMode] = useState<'none' | 'ai' | 'checklist'>('none');
     const [splitScreen, setSplitScreen] = useState<boolean>(false);
     const [activePlaceholderId, setActivePlaceholderId] = useState<string | null>(null);
     const [editingPlaceholder, setEditingPlaceholder] = useState<{ sectionId: string, placeholderId: string } | null>(null);
+    const [isInitialized, setIsInitialized] = useState(false);
+
+    // Initial Load
+    useEffect(() => {
+        if (!id) return;
+        DossierService.init();
+        const d = DossierService.getById(id);
+        if (d) {
+            setDossier(d);
+            if (d.sections && d.sections.length > 0) {
+                setSections(d.sections);
+            }
+            setIsInitialized(true);
+        }
+    }, [id]);
+
+    // Save on Change
+    useEffect(() => {
+        if (isInitialized && dossier) {
+            const updatedDossier = { ...dossier, sections };
+            DossierService.update(updatedDossier);
+        }
+    }, [sections, dossier, isInitialized]);
 
     // Helper to get total validation status
     const totalPlaceholders = sections.flatMap(s => s.placeholders).length;
@@ -93,6 +120,32 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
         setSections(prev => prev.map(s => s.id === sectionId ? { ...s, content: newContent } : s));
     };
 
+    const handleTitleEdit = (sectionId: string, newTitle: string) => {
+        setSections(prev => prev.map(s => s.id === sectionId ? { ...s, title: newTitle } : s));
+    };
+
+    const handleContentBlur = (sectionId: string, event: React.FocusEvent<HTMLDivElement>) => {
+        const container = event.currentTarget;
+        let content = "";
+
+        container.childNodes.forEach(node => {
+            if (node.nodeType === Node.TEXT_NODE) {
+                content += node.textContent;
+            } else if (node.nodeType === Node.ELEMENT_NODE) {
+                const el = node as HTMLElement;
+                const placeholderId = el.getAttribute('data-placeholder-id');
+                if (placeholderId) {
+                    content += `[placeholder:${placeholderId}]`;
+                } else {
+                    // This handles any other text or spans that might have been added
+                    content += el.innerText;
+                }
+            }
+        });
+
+        handleContentEdit(sectionId, content);
+    };
+
     // Render a placeholder chip within text
     const renderPlaceholder = (section: DocumentSection, p: PlaceholderSuggestion) => {
         const isEditing = editingPlaceholder?.sectionId === section.id && editingPlaceholder?.placeholderId === p.id;
@@ -119,7 +172,8 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
         return (
             <span
                 key={p.id}
-                className="inline-block align-baseline relative group/placeholder mx-1"
+                data-placeholder-id={p.id}
+                className="inline-block align-baseline relative group/placeholder mx-1 underline decoration-dotted decoration-brand-300 underline-offset-4"
                 contentEditable={false}
                 onDoubleClick={() => setEditingPlaceholder({ sectionId: section.id, placeholderId: p.id })}
             >
@@ -288,6 +342,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                                     className="font-bold text-lg mb-3 uppercase flex items-center border-b border-gray-100 dark:border-slate-800 pb-2 outline-none focus:border-brand-300"
                                                     contentEditable
                                                     suppressContentEditableWarning
+                                                    onBlur={(e) => handleTitleEdit(section.id, e.currentTarget.innerText)}
                                                 >
                                                     {section.title}
                                                     {section.isApproved && <Check className="w-4 h-4 text-green-500 ml-2" contentEditable={false} />}
@@ -298,6 +353,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                                     className="text-base text-justify text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-brand-100 rounded p-1 -ml-1 min-h-[1.5em]"
                                                     contentEditable={!editingPlaceholder}
                                                     suppressContentEditableWarning
+                                                    onBlur={(e) => handleContentBlur(section.id, e)}
                                                 >
                                                     {section.content.split(/(\[placeholder:[a-z0-9_]+\])/g).map((part, i) => {
                                                         const match = part.match(/\[placeholder:([a-z0-9_]+)\]/);

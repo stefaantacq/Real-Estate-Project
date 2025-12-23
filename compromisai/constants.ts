@@ -316,7 +316,11 @@ export const MOCK_DOSSIERS: Dossier[] = [
     documentCount: 3,
     status: DossierStatus.COMPLETED,
     type: 'House',
-    timeline: []
+    timeline: [
+      { id: 't2-1', date: '2025-10-15', title: 'Dossier aangemaakt', description: 'Nieuw dossier gestart', user: 'Jan' },
+      { id: 't2-2', date: '2025-10-20', title: 'Certificaten ontvangen', description: 'EPC en Bodemattest aanwezig', user: 'Systeem' },
+      { id: 't2-3', date: '2025-11-18', title: 'Voltooid', description: 'Compromis volledig getekend', user: 'Jan' },
+    ]
   },
   {
     id: '3',
@@ -327,7 +331,11 @@ export const MOCK_DOSSIERS: Dossier[] = [
     documentCount: 5,
     status: DossierStatus.ARCHIVED,
     type: 'House',
-    timeline: []
+    timeline: [
+      { id: 't3-1', date: '2025-09-01', title: 'Dossier aangemaakt', description: 'Start dossier Villa Gent', user: 'Sofie' },
+      { id: 't3-2', date: '2025-10-01', title: 'Documentatie compleet', description: 'Alle 5 documenten geüpload', user: 'Sofie' },
+      { id: 't3-3', date: '2025-11-15', title: 'Gearchiveerd', description: 'Transactie afgerond en gearchiveerd', user: 'Sofie' },
+    ]
   },
   {
     id: '4',
@@ -338,7 +346,11 @@ export const MOCK_DOSSIERS: Dossier[] = [
     documentCount: 4,
     status: DossierStatus.ARCHIVED,
     type: 'Apartment',
-    timeline: []
+    timeline: [
+      { id: 't4-1', date: '2025-09-20', title: 'Dossier aangemaakt', description: 'Creatie Studio Leuven', user: 'Wouter' },
+      { id: 't4-2', date: '2025-09-25', title: 'AI Analyse', description: 'Data extractie uitgevoerd', user: 'AI' },
+      { id: 't4-3', date: '2025-10-01', title: 'Gearchiveerd', description: 'Dossier gesloten', user: 'Wouter' },
+    ]
   }
 ];
 

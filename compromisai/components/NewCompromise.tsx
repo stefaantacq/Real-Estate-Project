@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Upload, FileText, X, Home, Building2, Check, AlertCircle, Wand2, ArrowRight, ChevronDown, ChevronRight } from 'lucide-react';
 import { Language, Dossier, DossierStatus } from '../types';
-import { TRANSLATIONS, getTemplates } from '../constants';
+import { TRANSLATIONS, getTemplates, MOCK_SECTIONS } from '../constants';
 import { ExtractionLoading } from './ExtractionLoading';
 import { DossierService } from '../services/dossierService';
 import { getDocumentChecklist } from '../documentChecklist';
@@ -94,7 +94,8 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
           user: t.you
         }
       ],
-      type: 'House'
+      type: 'House',
+      sections: getTemplates(lang).find(t => t.id === selectedTemplateId)?.sections || MOCK_SECTIONS
     };
 
     DossierService.init();
