@@ -11,6 +11,12 @@ interface EditorProps {
     onBack: () => void;
 }
 
+const NAME_PLACEHOLDERS = [
+    'seller_firstname', 'seller_lastname',
+    'buyer1_firstname', 'buyer1_lastname',
+    'buyer2_firstname', 'buyer2_lastname'
+];
+
 export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     const { id } = useParams<{ id: string }>();
     const t = TRANSLATIONS[lang];
@@ -396,7 +402,10 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                         <div className="h-10 flex items-center justify-between px-4 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 shrink-0">
                             <div className="flex items-center">
                                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center mr-3">
-                                    <FileText className="w-3 h-3 mr-2" /> Bron Document: Kadaster.pdf
+                                    <FileText className="w-3 h-3 mr-2" />
+                                    {activePlaceholderId && NAME_PLACEHOLDERS.includes(activePlaceholderId)
+                                        ? 'Bron: Identiteitskaart.jpg'
+                                        : 'Bron Document: Kadaster.pdf'}
                                 </span>
                                 <button
                                     onClick={() => window.open('#', '_blank')}
@@ -412,19 +421,37 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                         </div>
                         <div className="flex-1 p-6 overflow-hidden bg-slate-100 dark:bg-slate-950">
                             <div className="w-full h-full bg-white shadow-lg flex flex-col items-center justify-center text-slate-300 border border-gray-200 overflow-hidden relative group">
-                                {/* Fake PDF Lines */}
-                                <div className="absolute inset-0 p-8 space-y-4 opacity-50 pointer-events-none">
-                                    {[...Array(20)].map((_, i) => (
-                                        <div key={i} className="h-2 bg-slate-200 rounded w-full" style={{ width: `${Math.random() * 40 + 60}%` }}></div>
-                                    ))}
-                                </div>
+                                {activePlaceholderId && NAME_PLACEHOLDERS.includes(activePlaceholderId) ? (
+                                    <div className="relative w-full h-full flex items-center justify-center bg-slate-200">
+                                        <img
+                                            src="/id_card_evidence.png"
+                                            alt="Identity Card Proof"
+                                            className="max-w-[90%] max-h-[90%] object-contain shadow-2xl rounded-lg border-4 border-white"
+                                        />
+                                        <div className="absolute bottom-4 left-4 right-4 bg-white/90 dark:bg-slate-900/90 p-4 rounded-xl border border-gray-200 dark:border-slate-800 shadow-lg backdrop-blur-sm">
+                                            <div className="text-xs font-bold text-slate-500 uppercase mb-1">AI Context Mapping</div>
+                                            <div className="text-sm text-slate-700 dark:text-slate-200">
+                                                Inhoud van veld <strong>{sections.flatMap(s => s.placeholders).find(p => p.id === activePlaceholderId)?.label}</strong> overeenkomstig met ID scan.
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {/* Fake PDF Lines */}
+                                        <div className="absolute inset-0 p-8 space-y-4 opacity-50 pointer-events-none">
+                                            {[...Array(20)].map((_, i) => (
+                                                <div key={i} className="h-2 bg-slate-200 rounded w-full" style={{ width: `${Math.random() * 40 + 60}%` }}></div>
+                                            ))}
+                                        </div>
 
-                                {/* Highlighted Area */}
-                                <div className="absolute top-1/4 left-10 right-10 h-24 bg-yellow-200/50 border-2 border-yellow-400 rounded flex items-center justify-center">
-                                    <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-bold shadow-sm">Gevonden Data</span>
-                                </div>
+                                        {/* Highlighted Area */}
+                                        <div className="absolute top-1/4 left-10 right-10 h-24 bg-yellow-200/50 border-2 border-yellow-400 rounded flex items-center justify-center">
+                                            <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-bold shadow-sm">Gevonden Data</span>
+                                        </div>
 
-                                <span className="relative z-10 font-medium text-slate-400 bg-white/80 px-4 py-2 rounded-lg backdrop-blur-sm">[ PDF Preview Mock ]</span>
+                                        <span className="relative z-10 font-medium text-slate-400 bg-white/80 px-4 py-2 rounded-lg backdrop-blur-sm">[ PDF Preview Mock ]</span>
+                                    </>
+                                )}
                             </div>
                         </div>
                     </div>
