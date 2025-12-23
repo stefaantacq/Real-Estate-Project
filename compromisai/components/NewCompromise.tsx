@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Upload, FileText, X, Home, Building2, Check, AlertCircle, Wand2, ArrowRight } from 'lucide-react';
+import { Upload, FileText, X, Home, Building2, Check, AlertCircle, Wand2, ArrowRight, ChevronDown, ChevronRight } from 'lucide-react';
 import { Language, Dossier, DossierStatus } from '../types';
 import { TRANSLATIONS, MOCK_TEMPLATES } from '../constants';
 import { ExtractionLoading } from './ExtractionLoading';
@@ -19,13 +19,89 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
   const [files, setFiles] = useState<File[]>([]);
   const [remarks, setRemarks] = useState('');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['Verplichte attesten']));
 
-  // Expanded list of docs and synonyms mapping
+  // Comprehensive document checklist organized by category
   const requiredDocs = [
-    { id: 'EPC', label: 'EPC', synonyms: ['epc', 'energie', 'prestatie'] },
-    { id: 'Kadaster', label: 'Kadaster', synonyms: ['kadaster', 'kadastraal', 'uittreksel'] },
-    { id: 'Bodemattest', label: 'Bodemattest', synonyms: ['bodem', 'ovam'] },
-    { id: 'Elektrische Keuring', label: 'Elektrische Keuring', synonyms: ['elek', 'keuring', 'installatie'] }
+    // Eigendom & juridische titel
+    { id: 'eigendomsakte', label: 'Eigendomsakte', category: 'Eigendom & juridische titel', synonyms: ['eigendom', 'akte'] },
+    { id: 'vorige_notariele_akte', label: 'Vorige notariële akte', category: 'Eigendom & juridische titel', synonyms: ['notarieel', 'notaris', 'akte'] },
+    { id: 'hypothecaire_staat', label: 'Hypothecaire staat', category: 'Eigendom & juridische titel', synonyms: ['hypotheek', 'hypothecaire'] },
+    { id: 'erfdienstbaarheden', label: 'Overzicht erfdienstbaarheden', category: 'Eigendom & juridische titel', synonyms: ['erfdienstbaarheid', 'erfdienstbaarheden'] },
+    { id: 'volmacht', label: 'Volmacht', category: 'Eigendom & juridische titel', synonyms: ['volmacht'] },
+
+    // Identificatie van het goed
+    { id: 'kadastraal_uittreksel', label: 'Kadastraal uittreksel', category: 'Identificatie van het goed', synonyms: ['kadaster', 'kadastraal', 'uittreksel'] },
+    { id: 'kadastraal_plan', label: 'Kadastraal plan', category: 'Identificatie van het goed', synonyms: ['kadaster', 'plan'] },
+    { id: 'kadastrale_legger', label: 'Kadastrale legger', category: 'Identificatie van het goed', synonyms: ['legger', 'kadaster'] },
+    { id: 'beschrijving_goed', label: 'Beschrijving van het goed', category: 'Identificatie van het goed', synonyms: ['beschrijving'] },
+
+    // Stedenbouw & ruimtelijke ordening
+    { id: 'stedenbouwkundige_inlichtingen', label: 'Stedenbouwkundige inlichtingen', category: 'Stedenbouw & ruimtelijke ordening', synonyms: ['stedenbouw', 'inlichtingen'] },
+    { id: 'vergunningenregister', label: 'Uittreksel vergunningenregister', category: 'Stedenbouw & ruimtelijke ordening', synonyms: ['vergunning', 'register'] },
+    { id: 'plannenregister', label: 'Uittreksel plannenregister', category: 'Stedenbouw & ruimtelijke ordening', synonyms: ['plannen', 'register'] },
+    { id: 'verkavelingsvergunning', label: 'Verkavelingsvergunning', category: 'Stedenbouw & ruimtelijke ordening', synonyms: ['verkaveling', 'vergunning'] },
+    { id: 'bestemmingsvoorschriften', label: 'Bestemmingsvoorschriften', category: 'Stedenbouw & ruimtelijke ordening', synonyms: ['bestemming', 'voorschrift'] },
+    { id: 'stedenbouwkundige_overtredingen', label: 'Verklaring stedenbouwkundige overtredingen', category: 'Stedenbouw & ruimtelijke ordening', synonyms: ['overtreding', 'stedenbouw'] },
+    { id: 'voorkooprecht', label: 'Verklaring voorkooprecht', category: 'Stedenbouw & ruimtelijke ordening', synonyms: ['voorkooprecht'] },
+    { id: 'overstromingsgevoeligheidsrapport', label: 'Overstromingsgevoeligheidsrapport', category: 'Stedenbouw & ruimtelijke ordening', synonyms: ['overstroming', 'gevoeligheid'] },
+    { id: 'watertoets_stedenbouw', label: 'Watertoets', category: 'Stedenbouw & ruimtelijke ordening', synonyms: ['watertoets', 'water'] },
+
+    // Verplichte attesten (Vlaanderen)
+    { id: 'epc', label: 'Energieprestatiecertificaat (EPC)', category: 'Verplichte attesten', synonyms: ['epc', 'energie', 'prestatie'] },
+    { id: 'elektrisch_keuringsattest', label: 'Elektrisch keuringsattest', category: 'Verplichte attesten', synonyms: ['elektrisch', 'keuring', 'elektriciteit'] },
+    { id: 'bodemattest', label: 'Bodemattest (OVAM)', category: 'Verplichte attesten', synonyms: ['bodem', 'ovam'] },
+    { id: 'asbestattest', label: 'Asbestattest', category: 'Verplichte attesten', synonyms: ['asbest'] },
+    { id: 'watertoets_attest', label: 'Watertoets / Overstromingsrapport', category: 'Verplichte attesten', synonyms: ['watertoets', 'overstroming'] },
+
+    // Technische & bouwkundige documenten
+    { id: 'post_interventiedossier', label: 'Post-interventiedossier (PID)', category: 'Technische & bouwkundige documenten', synonyms: ['pid', 'post', 'interventie'] },
+    { id: 'epb_aangifte', label: 'EPB-aangifte', category: 'Technische & bouwkundige documenten', synonyms: ['epb', 'aangifte'] },
+    { id: 'bouwvergunning', label: 'Bouwvergunning', category: 'Technische & bouwkundige documenten', synonyms: ['bouw', 'vergunning'] },
+    { id: 'regularisatiedocumenten', label: 'Regularisatiedocumenten', category: 'Technische & bouwkundige documenten', synonyms: ['regularisatie'] },
+    { id: 'stabiliteitsstudie', label: 'Stabiliteitsstudie', category: 'Technische & bouwkundige documenten', synonyms: ['stabiliteit', 'studie'] },
+
+    // Huur & gebruik
+    { id: 'huurovereenkomst_woning', label: 'Huurovereenkomst woning', category: 'Huur & gebruik', synonyms: ['huur', 'woning', 'overeenkomst'] },
+    { id: 'huurovereenkomst_handel', label: 'Huurovereenkomst handel', category: 'Huur & gebruik', synonyms: ['huur', 'handel', 'overeenkomst'] },
+    { id: 'registratie_huurovereenkomst', label: 'Registratie huurovereenkomst', category: 'Huur & gebruik', synonyms: ['registratie', 'huur'] },
+    { id: 'huurwaarborg', label: 'Overzicht huurwaarborg', category: 'Huur & gebruik', synonyms: ['waarborg', 'huur'] },
+
+    // Appartement / mede-eigendom
+    { id: 'basisakte', label: 'Basisakte', category: 'Appartement / mede-eigendom', synonyms: ['basis', 'akte'] },
+    { id: 'splitsingsakte', label: 'Splitsingsakte', category: 'Appartement / mede-eigendom', synonyms: ['splitsing', 'akte'] },
+    { id: 'reglement_mede_eigendom', label: 'Reglement van mede-eigendom', category: 'Appartement / mede-eigendom', synonyms: ['reglement', 'mede-eigendom'] },
+    { id: 'huishoudelijk_reglement', label: 'Huishoudelijk reglement', category: 'Appartement / mede-eigendom', synonyms: ['huishoudelijk', 'reglement'] },
+    { id: 'verslag_vme', label: 'Verslag laatste algemene vergadering VME', category: 'Appartement / mede-eigendom', synonyms: ['vme', 'vergadering', 'verslag'] },
+    { id: 'jaarrekening_vme', label: 'Jaarrekening VME', category: 'Appartement / mede-eigendom', synonyms: ['jaarrekening', 'vme'] },
+    { id: 'afrekening_lasten', label: 'Afrekening gemeenschappelijke lasten', category: 'Appartement / mede-eigendom', synonyms: ['afrekening', 'lasten'] },
+    { id: 'reservefonds', label: 'Overzicht reservefonds', category: 'Appartement / mede-eigendom', synonyms: ['reservefonds', 'reserve'] },
+    { id: 'werkkapitaal', label: 'Overzicht werkkapitaal', category: 'Appartement / mede-eigendom', synonyms: ['werkkapitaal'] },
+    { id: 'achterstallige_bijdragen', label: 'Verklaring achterstallige bijdragen', category: 'Appartement / mede-eigendom', synonyms: ['achterstallig', 'bijdrage'] },
+    { id: 'gerechtelijke_procedures_vme', label: 'Verklaring lopende gerechtelijke procedures VME', category: 'Appartement / mede-eigendom', synonyms: ['gerechtelijk', 'procedure', 'vme'] },
+
+    // Handelspand-specifiek
+    { id: 'exploitatievergunning', label: 'Exploitatievergunning', category: 'Handelspand-specifiek', synonyms: ['exploitatie', 'vergunning'] },
+    { id: 'vestigingsvergunning', label: 'Vestigingsvergunning', category: 'Handelspand-specifiek', synonyms: ['vestiging', 'vergunning'] },
+    { id: 'omgevingsvergunning_milieu', label: 'Omgevingsvergunning milieu', category: 'Handelspand-specifiek', synonyms: ['omgeving', 'milieu', 'vergunning'] },
+    { id: 'vlarem_indeling', label: 'Vlarem-indelingsdocument', category: 'Handelspand-specifiek', synonyms: ['vlarem', 'indeling'] },
+    { id: 'brandveiligheidsattest', label: 'Brandveiligheidsattest', category: 'Handelspand-specifiek', synonyms: ['brand', 'veiligheid'] },
+    { id: 'keuringsattest_gas', label: 'Keuringsattest gasinstallatie', category: 'Handelspand-specifiek', synonyms: ['gas', 'keuring'] },
+    { id: 'keuringsattest_lift', label: 'Keuringsattest lift', category: 'Handelspand-specifiek', synonyms: ['lift', 'keuring'] },
+
+    // Fiscaal & financieel
+    { id: 'berekening_registratierechten', label: 'Berekening registratierechten', category: 'Fiscaal & financieel', synonyms: ['registratie', 'rechten', 'berekening'] },
+    { id: 'kostenraming_notaris', label: 'Kostenraming notaris', category: 'Fiscaal & financieel', synonyms: ['kosten', 'notaris'] },
+    { id: 'betalingsbewijs_voorschot', label: 'Betalingsbewijs voorschot', category: 'Fiscaal & financieel', synonyms: ['betaling', 'voorschot'] },
+
+    // Overige / bijzondere situaties
+    { id: 'erfenisakte', label: 'Erfenisakte', category: 'Overige / bijzondere situaties', synonyms: ['erfenis', 'akte'] },
+    { id: 'akte_verdeling', label: 'Akte van verdeling', category: 'Overige / bijzondere situaties', synonyms: ['verdeling', 'akte'] },
+    { id: 'pachtcontract', label: 'Pachtcontract', category: 'Overige / bijzondere situaties', synonyms: ['pacht', 'contract'] },
+    { id: 'onteigeningsplan', label: 'Onteigeningsplan', category: 'Overige / bijzondere situaties', synonyms: ['onteignen', 'plan'] },
+    { id: 'bewindvoerdersbesluit', label: 'Bewindvoerdersbesluit', category: 'Overige / bijzondere situaties', synonyms: ['bewindvoerder', 'besluit'] },
+    { id: 'verkoopbeslissing_vennootschap', label: 'Verkoopbeslissing vennootschap', category: 'Overige / bijzondere situaties', synonyms: ['verkoop', 'vennootschap', 'beslissing'] },
+    { id: 'overdracht_handelsfonds', label: 'Overdracht handelsfonds', category: 'Overige / bijzondere situaties', synonyms: ['handelsfonds', 'overdracht'] }
   ];
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -44,6 +120,29 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
       const fname = f.name.toLowerCase();
       return docDef.synonyms.some(s => fname.includes(s));
     });
+  };
+
+  const toggleCategory = (category: string) => {
+    setExpandedCategories(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(category)) {
+        newSet.delete(category);
+      } else {
+        newSet.add(category);
+      }
+      return newSet;
+    });
+  };
+
+  const getDocsByCategory = () => {
+    const categories: { [key: string]: typeof requiredDocs } = {};
+    requiredDocs.forEach(doc => {
+      if (!categories[doc.category]) {
+        categories[doc.category] = [];
+      }
+      categories[doc.category].push(doc);
+    });
+    return categories;
   };
 
   const handleGenerate = () => {
@@ -242,18 +341,59 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
               Document Checklist
             </h3>
 
-            <div className="space-y-3 mb-8">
-              {requiredDocs.map(doc => {
-                const isPresent = getDocStatus(doc);
+            <div className="space-y-2 mb-8 max-h-[500px] overflow-y-auto pr-2">
+              {Object.entries(getDocsByCategory()).map(([category, docs]) => {
+                const isExpanded = expandedCategories.has(category);
+                const presentCount = docs.filter(doc => getDocStatus(doc)).length;
+                const totalCount = docs.length;
+                const allPresent = presentCount === totalCount;
+
                 return (
-                  <div key={doc.id} className="flex items-center justify-between p-2 rounded hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors">
-                    <div className="flex items-center">
-                      <div className={`w-2 h-2 rounded-full mr-3 ${isPresent ? 'bg-green-500' : 'bg-gray-300 dark:bg-slate-600'}`}></div>
-                      <span className={`text-sm ${isPresent ? 'text-slate-700 dark:text-slate-200 font-medium' : 'text-slate-400'}`}>
-                        {doc.label}
-                      </span>
-                    </div>
-                    {isPresent && <Check className="w-4 h-4 text-green-500" />}
+                  <div key={category} className="border border-gray-200 dark:border-slate-700 rounded-lg overflow-hidden">
+                    {/* Category Header */}
+                    <button
+                      onClick={() => toggleCategory(category)}
+                      className="w-full flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800/50 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        {isExpanded ? (
+                          <ChevronDown className="w-4 h-4 text-slate-500" />
+                        ) : (
+                          <ChevronRight className="w-4 h-4 text-slate-500" />
+                        )}
+                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                          {category}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-medium ${allPresent && presentCount > 0 ? 'text-green-600 dark:text-green-400' : 'text-slate-500'}`}>
+                          {presentCount}/{totalCount}
+                        </span>
+                        {allPresent && presentCount > 0 && (
+                          <Check className="w-4 h-4 text-green-500" />
+                        )}
+                      </div>
+                    </button>
+
+                    {/* Category Documents */}
+                    {isExpanded && (
+                      <div className="bg-white dark:bg-slate-900 p-2">
+                        {docs.map(doc => {
+                          const isPresent = getDocStatus(doc);
+                          return (
+                            <div key={doc.id} className="flex items-center justify-between p-2 rounded hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors">
+                              <div className="flex items-center">
+                                <div className={`w-2 h-2 rounded-full mr-3 ${isPresent ? 'bg-green-500' : 'bg-gray-300 dark:bg-slate-600'}`}></div>
+                                <span className={`text-xs ${isPresent ? 'text-slate-700 dark:text-slate-200 font-medium' : 'text-slate-400'}`}>
+                                  {doc.label}
+                                </span>
+                              </div>
+                              {isPresent && <Check className="w-3 h-3 text-green-500" />}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
                 )
               })}
