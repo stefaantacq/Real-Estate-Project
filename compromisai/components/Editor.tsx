@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Save, Download, FileText, Check, ChevronRight, Wand2, ArrowLeft, Eye, Undo, Redo, MoreHorizontal, Trash2, Plus, X, ListChecks, Maximize2, Split, ArrowUp, ArrowDown, ArrowRight, ExternalLink } from 'lucide-react';
+import { Save, Download, FileText, Check, ChevronRight, Wand2, ArrowLeft, Eye, Undo, Redo, MoreHorizontal, Trash2, Plus, X, ListChecks, Maximize2, Split, ArrowUp, ArrowDown, ArrowRight, ExternalLink, Edit2 } from 'lucide-react';
 import { Language, DocumentSection, PlaceholderSuggestion } from '../types';
 import { TRANSLATIONS, MOCK_SECTIONS } from '../constants';
 
@@ -15,6 +15,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     const [sidebarMode, setSidebarMode] = useState<'none' | 'ai' | 'checklist'>('none');
     const [splitScreen, setSplitScreen] = useState<boolean>(false);
     const [activePlaceholderId, setActivePlaceholderId] = useState<string | null>(null);
+    const [editingPlaceholder, setEditingPlaceholder] = useState<{ sectionId: string, placeholderId: string } | null>(null);
 
     // Helper to get total validation status
     const totalPlaceholders = sections.flatMap(s => s.placeholders).length;
@@ -65,6 +66,17 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
         }));
     };
 
+    const updatePlaceholderValue = (sectionId: string, placeholderId: string, newValue: string) => {
+        setSections(prev => prev.map(s => {
+            if (s.id !== sectionId) return s;
+            return {
+                ...s,
+                placeholders: s.placeholders.map(p => p.id === placeholderId ? { ...p, currentValue: newValue } : p)
+            };
+        }));
+        setEditingPlaceholder(null);
+    };
+
     const handleSourceClick = (id: string) => {
         setActivePlaceholderId(id);
         setSplitScreen(true);
@@ -83,8 +95,34 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
 
     // Render a placeholder chip within text
     const renderPlaceholder = (section: DocumentSection, p: PlaceholderSuggestion) => {
+        const isEditing = editingPlaceholder?.sectionId === section.id && editingPlaceholder?.placeholderId === p.id;
+
+        if (isEditing) {
+            return (
+                <span key={p.id} className="inline-block align-baseline mx-1" contentEditable={false}>
+                    <input
+                        autoFocus
+                        type="text"
+                        defaultValue={p.currentValue}
+                        className="px-1.5 py-0.5 rounded border border-brand-500 bg-white dark:bg-slate-800 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-200 w-32 shadow-inner"
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') updatePlaceholderValue(section.id, p.id, e.currentTarget.value);
+                            if (e.key === 'Escape') setEditingPlaceholder(null);
+                        }}
+                        onBlur={(e) => updatePlaceholderValue(section.id, p.id, e.currentTarget.value)}
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                </span>
+            );
+        }
+
         return (
-            <span key={p.id} className="inline-block align-baseline relative group/placeholder mx-1" contentEditable={false}>
+            <span
+                key={p.id}
+                className="inline-block align-baseline relative group/placeholder mx-1"
+                contentEditable={false}
+                onDoubleClick={() => setEditingPlaceholder({ sectionId: section.id, placeholderId: p.id })}
+            >
                 {/* The Chip */}
                 <span
                     className={`
@@ -93,36 +131,42 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                             ? 'bg-green-100 border-green-300 text-green-800 dark:bg-green-900/30 dark:border-green-800 dark:text-green-300'
                             : 'bg-yellow-100 border-yellow-300 text-yellow-800 dark:bg-yellow-900/30 dark:border-yellow-800 dark:text-yellow-300'
                         }
+                    ${isEditing ? 'opacity-0' : 'opacity-100'}
                 `}
                 >
                     {p.currentValue}
                 </span>
 
-                {/* Tooltip / Controls - HOVER ONLY (group-hover) */}
-                {/* We use pb-2 to create an invisible bridge so the mouse can travel to the tooltip without losing hover */}
-                <div className="hidden group-hover/placeholder:flex absolute bottom-full left-1/2 -translate-x-1/2 w-48 pb-2 z-50 flex-col items-center animate-in fade-in zoom-in-95 duration-100">
-                    <div className="w-full bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-gray-200 dark:border-slate-700 p-2 flex flex-col gap-2 relative">
-                        <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider text-center">{p.label}</div>
-                        <div className="flex gap-1.5">
+                {/* Tooltip / Controls */}
+                <div className="hidden group-hover/placeholder:flex absolute bottom-full left-1/2 -translate-x-1/2 w-60 pb-1 z-50 flex-col items-center animate-in fade-in zoom-in-95 duration-100">
+                    <div className="w-full bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-gray-200 dark:border-slate-700 p-1 flex flex-col gap-1 relative">
+                        <div className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-tighter text-center px-1 leading-none pt-0.5">{p.label}</div>
+                        <div className="flex gap-1 items-center">
                             <button
-                                onClick={(e) => { e.preventDefault(); handleSourceClick(p.id); }}
-                                className="flex-1 flex items-center justify-center px-2 py-1.5 bg-gray-100 dark:bg-slate-700 rounded text-xs hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleSourceClick(p.id); }}
+                                className="flex-none flex items-center justify-center px-1.5 py-0.5 bg-gray-100 dark:bg-slate-700/50 rounded text-[9px] hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors whitespace-nowrap"
                                 title={t.source}
                             >
-                                <Eye className="w-3 h-3 mr-1" /> {t.source}
+                                <Eye className="w-3 h-3 mr-0.5" /> {t.source}
                             </button>
                             <button
-                                onClick={(e) => { e.preventDefault(); toggleApprovePlaceholder(section.id, p.id); }}
-                                className={`flex-1 flex items-center justify-center px-2 py-1.5 rounded text-xs text-white transition-colors
-                                ${p.isApproved ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingPlaceholder({ sectionId: section.id, placeholderId: p.id }); }}
+                                className="flex-none flex items-center justify-center px-1.5 py-0.5 bg-gray-100 dark:bg-slate-700/50 rounded text-[9px] hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors whitespace-nowrap"
+                                title="Bewerk"
+                            >
+                                <Edit2 className="w-3 h-3 mr-0.5" /> Bewerk
+                            </button>
+                            <button
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleApprovePlaceholder(section.id, p.id); }}
+                                className={`flex-1 flex items-center justify-center px-1.5 py-0.5 rounded text-[9px] text-white font-medium transition-colors shadow-sm
+                                ${p.isApproved ? 'bg-red-500 hover:bg-red-600' : 'bg-green-600 hover:bg-green-700'}
                             `}
                             >
-                                {p.isApproved ? <X className="w-3 h-3 mr-1" /> : <Check className="w-3 h-3 mr-1" />}
+                                {p.isApproved ? <X className="w-3 h-3 mr-0.5" /> : <Check className="w-3 h-3 mr-0.5" />}
                                 {p.isApproved ? t.reject : t.approve}
                             </button>
                         </div>
-                        {/* Arrow is now part of the styled box */}
-                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-top-white dark:border-top-slate-800"></div>
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-white dark:border-t-slate-800"></div>
                     </div>
                 </div>
             </span>
@@ -206,81 +250,86 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
             <div className="flex-1 flex min-h-0 bg-gray-100 dark:bg-slate-950 relative overflow-hidden">
 
                 {/* Document Area */}
-                <div className={`flex-1 overflow-y-auto p-8 transition-all duration-300 flex justify-center ${splitScreen ? 'w-1/2' : 'w-full'}`}>
-                    <div className="max-w-[800px] w-full min-h-[1000px] bg-white dark:bg-slate-900 shadow-xl border border-gray-200 dark:border-slate-800 p-12 text-slate-900 dark:text-slate-100 font-serif leading-relaxed">
-                        <div className="text-center font-bold text-2xl uppercase border-b-2 border-slate-900 dark:border-slate-100 pb-4 mb-10">
-                            Verkoopcompromis
-                        </div>
-
-                        <div className="space-y-8">
-                            {sections.map((section, index) => (
-                                <div key={section.id} className="group/section relative border border-transparent hover:border-dashed hover:border-brand-300 rounded p-4 -m-4 transition-all hover:bg-slate-50 dark:hover:bg-slate-800/20">
-
-                                    {/* Floating Actions */}
-                                    <div className="absolute -top-3 -right-2 flex gap-1 opacity-0 group-hover/section:opacity-100 transition-all bg-white dark:bg-slate-900 shadow-lg border border-gray-100 dark:border-slate-700 rounded-lg p-1 scale-90 hover:scale-100 z-10">
-                                        <button onClick={() => moveSection(index, 'up')} disabled={index === 0} className="p-1.5 text-slate-400 hover:text-brand-500 disabled:opacity-30 rounded hover:bg-gray-50">
-                                            <ArrowUp className="w-4 h-4" />
-                                        </button>
-                                        <button onClick={() => moveSection(index, 'down')} disabled={index === sections.length - 1} className="p-1.5 text-slate-400 hover:text-brand-500 disabled:opacity-30 rounded hover:bg-gray-50">
-                                            <ArrowDown className="w-4 h-4" />
-                                        </button>
-                                        <div className="w-px bg-gray-200 mx-1"></div>
-                                        <button onClick={() => toggleApproveSection(section.id)} className={`p-1.5 rounded hover:bg-gray-50 ${section.isApproved ? 'text-green-500' : 'text-slate-400 hover:text-green-500'}`}>
-                                            <Check className="w-4 h-4" />
-                                        </button>
-                                        <button onClick={() => removeSection(section.id)} className="p-1.5 text-slate-400 hover:text-red-500 rounded hover:bg-gray-50">
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
+                <div className={`flex-1 overflow-y-auto p-12 transition-all duration-300 bg-slate-200 dark:bg-slate-950/50 ${splitScreen ? 'w-1/2' : 'w-full'}`}>
+                    <div className="flex flex-col items-center gap-12 pb-24">
+                        {Array.from({ length: Math.ceil(sections.length / 3) || 1 }).map((_, pageIndex) => (
+                            <div key={pageIndex} className="max-w-[850px] w-full h-fit min-h-[1100px] bg-white dark:bg-slate-900 shadow-2xl border border-gray-200 dark:border-slate-800 p-16 text-slate-900 dark:text-slate-100 font-serif leading-relaxed relative ring-1 ring-slate-100 dark:ring-slate-800 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                                {pageIndex === 0 && (
+                                    <div className="text-center font-bold text-2xl uppercase border-b-2 border-slate-900 dark:border-slate-100 pb-4 mb-10">
+                                        Verkoopcompromis
                                     </div>
+                                )}
 
-                                    {/* Editable Title */}
-                                    <div
-                                        className="font-bold text-lg mb-3 uppercase flex items-center border-b border-gray-100 dark:border-slate-800 pb-2 outline-none focus:border-brand-300"
-                                        contentEditable
-                                        suppressContentEditableWarning
-                                        onInput={(e) => {
-                                            // Update title (simplified)
-                                        }}
-                                    >
-                                        {section.title}
-                                        {section.isApproved && <Check className="w-4 h-4 text-green-500 ml-2" contentEditable={false} />}
-                                    </div>
+                                <div className="space-y-12">
+                                    {sections.slice(pageIndex * 3, (pageIndex * 3) + 3).map((section, subIndex) => {
+                                        const globalIndex = (pageIndex * 3) + subIndex;
+                                        return (
+                                            <div key={section.id} className="group/section relative border border-transparent hover:border-dashed hover:border-blue-400 rounded-xl p-6 -m-6 transition-all hover:bg-blue-50/50 dark:hover:bg-blue-900/10">
 
-                                    {/* Editable Content Area */}
-                                    <div
-                                        className="text-base text-justify text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-brand-100 rounded p-1 -ml-1 min-h-[1.5em]"
-                                        contentEditable
-                                        suppressContentEditableWarning
-                                        onInput={(e) => {
-                                            // In a real app we'd parse HTML back to text, for mock we do nothing to avoid complexity
-                                            // e.currentTarget.innerText
-                                        }}
-                                    >
-                                        {/* We map the placeholders to actual elements */}
-                                        {/* Since we can't easily put React components inside contentEditable and keep state working perfectly in this mock, 
-                                      we will render the array of nodes. */}
-                                        {section.content.split(/(\[placeholder:[a-z_]+\])/g).map((part, i) => {
-                                            if (part.startsWith('[placeholder:')) {
-                                                const pIndex = Math.floor(i / 2);
-                                                const p = section.placeholders[pIndex % section.placeholders.length];
-                                                if (p) return renderPlaceholder(section, p);
-                                            }
-                                            return <span key={i}>{part}</span>;
-                                        })}
-                                    </div>
+                                                {/* Floating Actions */}
+                                                <div className="absolute -top-3 -right-2 flex gap-1 opacity-0 group-hover/section:opacity-100 transition-all bg-white dark:bg-slate-900 shadow-lg border border-gray-100 dark:border-slate-700 rounded-lg p-1 scale-90 hover:scale-100 z-10">
+                                                    <button onClick={() => moveSection(globalIndex, 'up')} disabled={globalIndex === 0} className="p-1.5 text-slate-400 hover:text-brand-500 disabled:opacity-30 rounded hover:bg-gray-50">
+                                                        <ArrowUp className="w-4 h-4" />
+                                                    </button>
+                                                    <button onClick={() => moveSection(globalIndex, 'down')} disabled={globalIndex === sections.length - 1} className="p-1.5 text-slate-400 hover:text-brand-500 disabled:opacity-30 rounded hover:bg-gray-50">
+                                                        <ArrowDown className="w-4 h-4" />
+                                                    </button>
+                                                    <div className="w-px bg-gray-200 mx-1"></div>
+                                                    <button onClick={() => toggleApproveSection(section.id)} className={`p-1.5 rounded hover:bg-gray-50 ${section.isApproved ? 'text-green-500' : 'text-slate-400 hover:text-green-500'}`}>
+                                                        <Check className="w-4 h-4" />
+                                                    </button>
+                                                    <button onClick={() => removeSection(section.id)} className="p-1.5 text-slate-400 hover:text-red-500 rounded hover:bg-gray-50">
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+
+                                                {/* Editable Title */}
+                                                <div
+                                                    className="font-bold text-lg mb-3 uppercase flex items-center border-b border-gray-100 dark:border-slate-800 pb-2 outline-none focus:border-brand-300"
+                                                    contentEditable
+                                                    suppressContentEditableWarning
+                                                >
+                                                    {section.title}
+                                                    {section.isApproved && <Check className="w-4 h-4 text-green-500 ml-2" contentEditable={false} />}
+                                                </div>
+
+                                                {/* Editable Content Area */}
+                                                <div
+                                                    className="text-base text-justify text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-brand-100 rounded p-1 -ml-1 min-h-[1.5em]"
+                                                    contentEditable={!editingPlaceholder}
+                                                    suppressContentEditableWarning
+                                                >
+                                                    {section.content.split(/(\[placeholder:[a-z0-9_]+\])/g).map((part, i) => {
+                                                        const match = part.match(/\[placeholder:([a-z0-9_]+)\]/);
+                                                        if (match) {
+                                                            const placeholderId = match[1];
+                                                            const p = section.placeholders.find(ph => ph.id === placeholderId);
+                                                            if (p) return renderPlaceholder(section, p);
+                                                        }
+                                                        return <span key={`${section.id}-part-${i}`}>{part}</span>;
+                                                    })}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
-                            ))}
 
-                            {/* Add Section Button - Now Functional */}
-                            <div className="flex justify-center py-8 opacity-40 hover:opacity-100 transition-opacity">
-                                <button
-                                    onClick={addSection}
-                                    className="flex items-center px-6 py-3 bg-white dark:bg-slate-800 rounded-full text-slate-500 hover:text-brand-500 text-sm border-2 border-dashed border-slate-300 hover:border-brand-400 hover:shadow-md transition-all"
-                                >
-                                    <Plus className="w-4 h-4 mr-2" />
-                                    {t.addSection || 'Voeg nieuwe sectie toe'}
-                                </button>
+                                {/* Page Number Footer */}
+                                <div className="absolute bottom-8 left-0 right-0 text-center text-slate-400 text-sm font-sans select-none">
+                                    Pagina {pageIndex + 1}
+                                </div>
                             </div>
+                        ))}
+
+                        {/* Add Section Button */}
+                        <div className="flex justify-center py-8 opacity-40 hover:opacity-100 transition-opacity">
+                            <button
+                                onClick={addSection}
+                                className="flex items-center px-6 py-3 bg-white dark:bg-slate-800 rounded-full text-slate-500 hover:text-brand-500 text-sm border-2 border-dashed border-slate-300 hover:border-brand-400 hover:shadow-md transition-all"
+                            >
+                                <Plus className="w-4 h-4 mr-2" />
+                                {t.addSection || 'Voeg nieuwe sectie toe'}
+                            </button>
                         </div>
                     </div>
                 </div>
