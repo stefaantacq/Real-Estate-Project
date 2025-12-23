@@ -1,21 +1,54 @@
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { Save, Download, FileText, Check, ChevronRight, Wand2, ArrowLeft, Eye, Undo, Redo, MoreHorizontal, Trash2, Plus, X, ListChecks, Maximize2, Split, ArrowUp, ArrowDown, ArrowRight, ExternalLink, Edit2 } from 'lucide-react';
-import { Language, DocumentSection, PlaceholderSuggestion } from '../types';
+import { Language, DocumentSection, PlaceholderSuggestion, Dossier } from '../types';
 import { TRANSLATIONS, MOCK_SECTIONS } from '../constants';
+import { DossierService } from '../services/dossierService';
 
 interface EditorProps {
     lang: Language;
     onBack: () => void;
 }
 
+const NAME_PLACEHOLDERS = [
+    'seller_firstname', 'seller_lastname',
+    'buyer1_firstname', 'buyer1_lastname',
+    'buyer2_firstname', 'buyer2_lastname'
+];
+
 export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
+    const { id } = useParams<{ id: string }>();
     const t = TRANSLATIONS[lang];
+    const [dossier, setDossier] = useState<Dossier | undefined>(undefined);
     const [sections, setSections] = useState<DocumentSection[]>(MOCK_SECTIONS);
     const [sidebarMode, setSidebarMode] = useState<'none' | 'ai' | 'checklist'>('none');
     const [splitScreen, setSplitScreen] = useState<boolean>(false);
     const [activePlaceholderId, setActivePlaceholderId] = useState<string | null>(null);
     const [editingPlaceholder, setEditingPlaceholder] = useState<{ sectionId: string, placeholderId: string } | null>(null);
+    const [isInitialized, setIsInitialized] = useState(false);
+
+    // Initial Load
+    useEffect(() => {
+        if (!id) return;
+        DossierService.init();
+        const d = DossierService.getById(id);
+        if (d) {
+            setDossier(d);
+            if (d.sections && d.sections.length > 0) {
+                setSections(d.sections);
+            }
+            setIsInitialized(true);
+        }
+    }, [id]);
+
+    // Save on Change
+    useEffect(() => {
+        if (isInitialized && dossier) {
+            const updatedDossier = { ...dossier, sections };
+            DossierService.update(updatedDossier);
+        }
+    }, [sections, dossier, isInitialized]);
 
     // Helper to get total validation status
     const totalPlaceholders = sections.flatMap(s => s.placeholders).length;
@@ -93,6 +126,32 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
         setSections(prev => prev.map(s => s.id === sectionId ? { ...s, content: newContent } : s));
     };
 
+    const handleTitleEdit = (sectionId: string, newTitle: string) => {
+        setSections(prev => prev.map(s => s.id === sectionId ? { ...s, title: newTitle } : s));
+    };
+
+    const handleContentBlur = (sectionId: string, event: React.FocusEvent<HTMLDivElement>) => {
+        const container = event.currentTarget;
+        let content = "";
+
+        container.childNodes.forEach(node => {
+            if (node.nodeType === Node.TEXT_NODE) {
+                content += node.textContent;
+            } else if (node.nodeType === Node.ELEMENT_NODE) {
+                const el = node as HTMLElement;
+                const placeholderId = el.getAttribute('data-placeholder-id');
+                if (placeholderId) {
+                    content += `[placeholder:${placeholderId}]`;
+                } else {
+                    // This handles any other text or spans that might have been added
+                    content += el.innerText;
+                }
+            }
+        });
+
+        handleContentEdit(sectionId, content);
+    };
+
     // Render a placeholder chip within text
     const renderPlaceholder = (section: DocumentSection, p: PlaceholderSuggestion) => {
         const isEditing = editingPlaceholder?.sectionId === section.id && editingPlaceholder?.placeholderId === p.id;
@@ -119,7 +178,8 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
         return (
             <span
                 key={p.id}
-                className="inline-block align-baseline relative group/placeholder mx-1"
+                data-placeholder-id={p.id}
+                className="inline-block align-baseline relative group/placeholder mx-1 underline decoration-dotted decoration-brand-300 underline-offset-4"
                 contentEditable={false}
                 onDoubleClick={() => setEditingPlaceholder({ sectionId: section.id, placeholderId: p.id })}
             >
@@ -288,6 +348,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                                     className="font-bold text-lg mb-3 uppercase flex items-center border-b border-gray-100 dark:border-slate-800 pb-2 outline-none focus:border-brand-300"
                                                     contentEditable
                                                     suppressContentEditableWarning
+                                                    onBlur={(e) => handleTitleEdit(section.id, e.currentTarget.innerText)}
                                                 >
                                                     {section.title}
                                                     {section.isApproved && <Check className="w-4 h-4 text-green-500 ml-2" contentEditable={false} />}
@@ -298,6 +359,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                                     className="text-base text-justify text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-brand-100 rounded p-1 -ml-1 min-h-[1.5em]"
                                                     contentEditable={!editingPlaceholder}
                                                     suppressContentEditableWarning
+                                                    onBlur={(e) => handleContentBlur(section.id, e)}
                                                 >
                                                     {section.content.split(/(\[placeholder:[a-z0-9_]+\])/g).map((part, i) => {
                                                         const match = part.match(/\[placeholder:([a-z0-9_]+)\]/);
@@ -340,7 +402,10 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                         <div className="h-10 flex items-center justify-between px-4 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 shrink-0">
                             <div className="flex items-center">
                                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center mr-3">
-                                    <FileText className="w-3 h-3 mr-2" /> Bron Document: Kadaster.pdf
+                                    <FileText className="w-3 h-3 mr-2" />
+                                    {activePlaceholderId && NAME_PLACEHOLDERS.includes(activePlaceholderId)
+                                        ? 'Bron: Identiteitskaart.jpg'
+                                        : 'Bron Document: Kadaster.pdf'}
                                 </span>
                                 <button
                                     onClick={() => window.open('#', '_blank')}
@@ -356,19 +421,37 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                         </div>
                         <div className="flex-1 p-6 overflow-hidden bg-slate-100 dark:bg-slate-950">
                             <div className="w-full h-full bg-white shadow-lg flex flex-col items-center justify-center text-slate-300 border border-gray-200 overflow-hidden relative group">
-                                {/* Fake PDF Lines */}
-                                <div className="absolute inset-0 p-8 space-y-4 opacity-50 pointer-events-none">
-                                    {[...Array(20)].map((_, i) => (
-                                        <div key={i} className="h-2 bg-slate-200 rounded w-full" style={{ width: `${Math.random() * 40 + 60}%` }}></div>
-                                    ))}
-                                </div>
+                                {activePlaceholderId && NAME_PLACEHOLDERS.includes(activePlaceholderId) ? (
+                                    <div className="relative w-full h-full flex items-center justify-center bg-slate-200">
+                                        <img
+                                            src="/id_card_evidence.png"
+                                            alt="Identity Card Proof"
+                                            className="max-w-[90%] max-h-[90%] object-contain shadow-2xl rounded-lg border-4 border-white"
+                                        />
+                                        <div className="absolute bottom-4 left-4 right-4 bg-white/90 dark:bg-slate-900/90 p-4 rounded-xl border border-gray-200 dark:border-slate-800 shadow-lg backdrop-blur-sm">
+                                            <div className="text-xs font-bold text-slate-500 uppercase mb-1">AI Context Mapping</div>
+                                            <div className="text-sm text-slate-700 dark:text-slate-200">
+                                                Inhoud van veld <strong>{sections.flatMap(s => s.placeholders).find(p => p.id === activePlaceholderId)?.label}</strong> overeenkomstig met ID scan.
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {/* Fake PDF Lines */}
+                                        <div className="absolute inset-0 p-8 space-y-4 opacity-50 pointer-events-none">
+                                            {[...Array(20)].map((_, i) => (
+                                                <div key={i} className="h-2 bg-slate-200 rounded w-full" style={{ width: `${Math.random() * 40 + 60}%` }}></div>
+                                            ))}
+                                        </div>
 
-                                {/* Highlighted Area */}
-                                <div className="absolute top-1/4 left-10 right-10 h-24 bg-yellow-200/50 border-2 border-yellow-400 rounded flex items-center justify-center">
-                                    <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-bold shadow-sm">Gevonden Data</span>
-                                </div>
+                                        {/* Highlighted Area */}
+                                        <div className="absolute top-1/4 left-10 right-10 h-24 bg-yellow-200/50 border-2 border-yellow-400 rounded flex items-center justify-center">
+                                            <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-bold shadow-sm">Gevonden Data</span>
+                                        </div>
 
-                                <span className="relative z-10 font-medium text-slate-400 bg-white/80 px-4 py-2 rounded-lg backdrop-blur-sm">[ PDF Preview Mock ]</span>
+                                        <span className="relative z-10 font-medium text-slate-400 bg-white/80 px-4 py-2 rounded-lg backdrop-blur-sm">[ PDF Preview Mock ]</span>
+                                    </>
+                                )}
                             </div>
                         </div>
                     </div>

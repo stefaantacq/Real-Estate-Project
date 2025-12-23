@@ -2,7 +2,7 @@ import { Language, Dossier, DossierStatus, Template, DocumentSection } from './t
 
 export const TRANSLATIONS = {
   [Language.NL]: {
-    loginTitle: 'Welkom bij CompromisAI',
+    loginTitle: 'Welkom bij compromAIs',
     loginSubtitle: 'Log in om door te gaan',
     email: 'E-mailadres',
     password: 'Wachtwoord',
@@ -11,8 +11,8 @@ export const TRANSLATIONS = {
     loginBtn: 'Inloggen',
     dashboard: 'Dashboard',
     templates: 'Templates',
-    newCompromis: 'Nieuw Compromis',
-    newCompromisDesc: 'Begin met het maken van een nieuw verkoopscompromis',
+    newCompromis: 'Nieuw Dossier',
+    newCompromisDesc: 'Begin met het maken van een nieuw dossier',
     recentCompromises: 'Recente compromissen',
     viewAll: 'Bekijk alles',
     searchPlaceholder: 'Zoek dossier...',
@@ -68,7 +68,7 @@ export const TRANSLATIONS = {
     otherDocs: 'Andere documenten',
     missingDocs: 'Ontbrekende documenten',
     settings: 'Instellingen',
-    incomplete: 'Onvoltooid',
+    incomplete: 'In behandeling',
     uploadSubtitle: 'Upload documenten en kies een template om te starten.',
     uploadedFiles: 'Geüploade Bestanden',
     aiSuggestionText: 'Op basis van de geüploade documenten raden we',
@@ -98,7 +98,7 @@ export const TRANSLATIONS = {
     cancel: 'Annuleren',
   },
   [Language.FR]: {
-    loginTitle: 'Bienvenue chez CompromisAI',
+    loginTitle: 'Bienvenue chez compromAIs',
     loginSubtitle: 'Connectez-vous pour continuer',
     email: 'Adresse e-mail',
     password: 'Mot de passe',
@@ -316,7 +316,11 @@ export const MOCK_DOSSIERS: Dossier[] = [
     documentCount: 3,
     status: DossierStatus.COMPLETED,
     type: 'House',
-    timeline: []
+    timeline: [
+      { id: 't2-1', date: '2025-10-15', title: 'Dossier aangemaakt', description: 'Nieuw dossier gestart', user: 'Jan' },
+      { id: 't2-2', date: '2025-10-20', title: 'Certificaten ontvangen', description: 'EPC en Bodemattest aanwezig', user: 'Systeem' },
+      { id: 't2-3', date: '2025-11-18', title: 'Voltooid', description: 'Compromis volledig getekend', user: 'Jan' },
+    ]
   },
   {
     id: '3',
@@ -327,7 +331,11 @@ export const MOCK_DOSSIERS: Dossier[] = [
     documentCount: 5,
     status: DossierStatus.ARCHIVED,
     type: 'House',
-    timeline: []
+    timeline: [
+      { id: 't3-1', date: '2025-09-01', title: 'Dossier aangemaakt', description: 'Start dossier Villa Gent', user: 'Sofie' },
+      { id: 't3-2', date: '2025-10-01', title: 'Documentatie compleet', description: 'Alle 5 documenten geüpload', user: 'Sofie' },
+      { id: 't3-3', date: '2025-11-15', title: 'Gearchiveerd', description: 'Transactie afgerond en gearchiveerd', user: 'Sofie' },
+    ]
   },
   {
     id: '4',
@@ -338,7 +346,11 @@ export const MOCK_DOSSIERS: Dossier[] = [
     documentCount: 4,
     status: DossierStatus.ARCHIVED,
     type: 'Apartment',
-    timeline: []
+    timeline: [
+      { id: 't4-1', date: '2025-09-20', title: 'Dossier aangemaakt', description: 'Creatie Studio Leuven', user: 'Wouter' },
+      { id: 't4-2', date: '2025-09-25', title: 'AI Analyse', description: 'Data extractie uitgevoerd', user: 'AI' },
+      { id: 't4-3', date: '2025-10-01', title: 'Gearchiveerd', description: 'Dossier gesloten', user: 'Wouter' },
+    ]
   }
 ];
 

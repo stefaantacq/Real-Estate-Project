@@ -34,6 +34,7 @@ export interface Dossier {
   status: DossierStatus;
   timeline: TimelineEvent[];
   type: 'House' | 'Apartment' | 'Commercial';
+  sections?: DocumentSection[];
 }
 
 export interface UserSettings {

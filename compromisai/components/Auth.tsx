@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Mail, Lock, User, CreditCard, CheckCircle, ArrowRight, Building2 } from 'lucide-react';
+import { Mail, Lock, User, CreditCard, CheckCircle, ArrowRight, Building2, Sun, Moon } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../constants';
 
@@ -49,8 +49,8 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, darkMode, to
 
       {/* Lang & Theme Toggles */}
       <div className="absolute top-6 right-6 flex items-center space-x-4">
-        <button onClick={toggleDarkMode} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors">
-          {darkMode ? '☀️' : '🌙'}
+        <button onClick={toggleDarkMode} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors text-slate-500 dark:text-slate-400">
+          {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
         </button>
         <div className="flex bg-white dark:bg-slate-900 rounded-lg p-1 border border-gray-200 dark:border-slate-800">
           {(['NL', 'FR', 'EN'] as Language[]).map((l) => (
@@ -58,8 +58,8 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, darkMode, to
               key={l}
               onClick={() => setLang(l)}
               className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${lang === l
-                  ? 'bg-brand-600 text-white shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                ? 'bg-brand-600 text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                 }`}
             >
               {l}
@@ -74,7 +74,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, darkMode, to
           <div className="inline-flex items-center justify-center w-16 h-16 bg-brand-600 rounded-2xl mb-4 shadow-lg shadow-brand-600/20">
             <Building2 className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">CompromisAI</h1>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">compromAIs</h1>
           <p className="text-slate-500 dark:text-slate-400">
             {view === 'login' && 'Welkom terug! Log in op uw account.'}
             {view === 'register' && 'Maak een nieuw account aan als makelaar.'}
@@ -250,7 +250,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, darkMode, to
         </div>
 
         <p className="text-center mt-8 text-sm text-slate-400">
-          &copy; {new Date().getFullYear()} CompromisAI. All rights reserved.
+          &copy; {new Date().getFullYear()} compromAIs. All rights reserved.
         </p>
       </div>
     </div>
