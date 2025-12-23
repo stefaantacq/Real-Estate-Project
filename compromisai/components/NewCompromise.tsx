@@ -2,9 +2,10 @@
 import React, { useState } from 'react';
 import { Upload, FileText, X, Home, Building2, Check, AlertCircle, Wand2, ArrowRight, ChevronDown, ChevronRight } from 'lucide-react';
 import { Language, Dossier, DossierStatus } from '../types';
-import { TRANSLATIONS, MOCK_TEMPLATES } from '../constants';
+import { TRANSLATIONS, getTemplates } from '../constants';
 import { ExtractionLoading } from './ExtractionLoading';
 import { DossierService } from '../services/dossierService';
+import { getDocumentChecklist } from '../documentChecklist';
 
 interface NewCompromiseProps {
   lang: Language;
@@ -19,90 +20,13 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
   const [files, setFiles] = useState<File[]>([]);
   const [remarks, setRemarks] = useState('');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['Verplichte attesten']));
 
-  // Comprehensive document checklist organized by category
-  const requiredDocs = [
-    // Eigendom & juridische titel
-    { id: 'eigendomsakte', label: 'Eigendomsakte', category: 'Eigendom & juridische titel', synonyms: ['eigendom', 'akte'] },
-    { id: 'vorige_notariele_akte', label: 'Vorige notariële akte', category: 'Eigendom & juridische titel', synonyms: ['notarieel', 'notaris', 'akte'] },
-    { id: 'hypothecaire_staat', label: 'Hypothecaire staat', category: 'Eigendom & juridische titel', synonyms: ['hypotheek', 'hypothecaire'] },
-    { id: 'erfdienstbaarheden', label: 'Overzicht erfdienstbaarheden', category: 'Eigendom & juridische titel', synonyms: ['erfdienstbaarheid', 'erfdienstbaarheden'] },
-    { id: 'volmacht', label: 'Volmacht', category: 'Eigendom & juridische titel', synonyms: ['volmacht'] },
+  // Get translated document checklist
+  const requiredDocs = getDocumentChecklist(lang);
 
-    // Identificatie van het goed
-    { id: 'kadastraal_uittreksel', label: 'Kadastraal uittreksel', category: 'Identificatie van het goed', synonyms: ['kadaster', 'kadastraal', 'uittreksel'] },
-    { id: 'kadastraal_plan', label: 'Kadastraal plan', category: 'Identificatie van het goed', synonyms: ['kadaster', 'plan'] },
-    { id: 'kadastrale_legger', label: 'Kadastrale legger', category: 'Identificatie van het goed', synonyms: ['legger', 'kadaster'] },
-    { id: 'beschrijving_goed', label: 'Beschrijving van het goed', category: 'Identificatie van het goed', synonyms: ['beschrijving'] },
-
-    // Stedenbouw & ruimtelijke ordening
-    { id: 'stedenbouwkundige_inlichtingen', label: 'Stedenbouwkundige inlichtingen', category: 'Stedenbouw & ruimtelijke ordening', synonyms: ['stedenbouw', 'inlichtingen'] },
-    { id: 'vergunningenregister', label: 'Uittreksel vergunningenregister', category: 'Stedenbouw & ruimtelijke ordening', synonyms: ['vergunning', 'register'] },
-    { id: 'plannenregister', label: 'Uittreksel plannenregister', category: 'Stedenbouw & ruimtelijke ordening', synonyms: ['plannen', 'register'] },
-    { id: 'verkavelingsvergunning', label: 'Verkavelingsvergunning', category: 'Stedenbouw & ruimtelijke ordening', synonyms: ['verkaveling', 'vergunning'] },
-    { id: 'bestemmingsvoorschriften', label: 'Bestemmingsvoorschriften', category: 'Stedenbouw & ruimtelijke ordening', synonyms: ['bestemming', 'voorschrift'] },
-    { id: 'stedenbouwkundige_overtredingen', label: 'Verklaring stedenbouwkundige overtredingen', category: 'Stedenbouw & ruimtelijke ordening', synonyms: ['overtreding', 'stedenbouw'] },
-    { id: 'voorkooprecht', label: 'Verklaring voorkooprecht', category: 'Stedenbouw & ruimtelijke ordening', synonyms: ['voorkooprecht'] },
-    { id: 'overstromingsgevoeligheidsrapport', label: 'Overstromingsgevoeligheidsrapport', category: 'Stedenbouw & ruimtelijke ordening', synonyms: ['overstroming', 'gevoeligheid'] },
-    { id: 'watertoets_stedenbouw', label: 'Watertoets', category: 'Stedenbouw & ruimtelijke ordening', synonyms: ['watertoets', 'water'] },
-
-    // Verplichte attesten (Vlaanderen)
-    { id: 'epc', label: 'Energieprestatiecertificaat (EPC)', category: 'Verplichte attesten', synonyms: ['epc', 'energie', 'prestatie'] },
-    { id: 'elektrisch_keuringsattest', label: 'Elektrisch keuringsattest', category: 'Verplichte attesten', synonyms: ['elektrisch', 'keuring', 'elektriciteit'] },
-    { id: 'bodemattest', label: 'Bodemattest (OVAM)', category: 'Verplichte attesten', synonyms: ['bodem', 'ovam'] },
-    { id: 'asbestattest', label: 'Asbestattest', category: 'Verplichte attesten', synonyms: ['asbest'] },
-    { id: 'watertoets_attest', label: 'Watertoets / Overstromingsrapport', category: 'Verplichte attesten', synonyms: ['watertoets', 'overstroming'] },
-
-    // Technische & bouwkundige documenten
-    { id: 'post_interventiedossier', label: 'Post-interventiedossier (PID)', category: 'Technische & bouwkundige documenten', synonyms: ['pid', 'post', 'interventie'] },
-    { id: 'epb_aangifte', label: 'EPB-aangifte', category: 'Technische & bouwkundige documenten', synonyms: ['epb', 'aangifte'] },
-    { id: 'bouwvergunning', label: 'Bouwvergunning', category: 'Technische & bouwkundige documenten', synonyms: ['bouw', 'vergunning'] },
-    { id: 'regularisatiedocumenten', label: 'Regularisatiedocumenten', category: 'Technische & bouwkundige documenten', synonyms: ['regularisatie'] },
-    { id: 'stabiliteitsstudie', label: 'Stabiliteitsstudie', category: 'Technische & bouwkundige documenten', synonyms: ['stabiliteit', 'studie'] },
-
-    // Huur & gebruik
-    { id: 'huurovereenkomst_woning', label: 'Huurovereenkomst woning', category: 'Huur & gebruik', synonyms: ['huur', 'woning', 'overeenkomst'] },
-    { id: 'huurovereenkomst_handel', label: 'Huurovereenkomst handel', category: 'Huur & gebruik', synonyms: ['huur', 'handel', 'overeenkomst'] },
-    { id: 'registratie_huurovereenkomst', label: 'Registratie huurovereenkomst', category: 'Huur & gebruik', synonyms: ['registratie', 'huur'] },
-    { id: 'huurwaarborg', label: 'Overzicht huurwaarborg', category: 'Huur & gebruik', synonyms: ['waarborg', 'huur'] },
-
-    // Appartement / mede-eigendom
-    { id: 'basisakte', label: 'Basisakte', category: 'Appartement / mede-eigendom', synonyms: ['basis', 'akte'] },
-    { id: 'splitsingsakte', label: 'Splitsingsakte', category: 'Appartement / mede-eigendom', synonyms: ['splitsing', 'akte'] },
-    { id: 'reglement_mede_eigendom', label: 'Reglement van mede-eigendom', category: 'Appartement / mede-eigendom', synonyms: ['reglement', 'mede-eigendom'] },
-    { id: 'huishoudelijk_reglement', label: 'Huishoudelijk reglement', category: 'Appartement / mede-eigendom', synonyms: ['huishoudelijk', 'reglement'] },
-    { id: 'verslag_vme', label: 'Verslag laatste algemene vergadering VME', category: 'Appartement / mede-eigendom', synonyms: ['vme', 'vergadering', 'verslag'] },
-    { id: 'jaarrekening_vme', label: 'Jaarrekening VME', category: 'Appartement / mede-eigendom', synonyms: ['jaarrekening', 'vme'] },
-    { id: 'afrekening_lasten', label: 'Afrekening gemeenschappelijke lasten', category: 'Appartement / mede-eigendom', synonyms: ['afrekening', 'lasten'] },
-    { id: 'reservefonds', label: 'Overzicht reservefonds', category: 'Appartement / mede-eigendom', synonyms: ['reservefonds', 'reserve'] },
-    { id: 'werkkapitaal', label: 'Overzicht werkkapitaal', category: 'Appartement / mede-eigendom', synonyms: ['werkkapitaal'] },
-    { id: 'achterstallige_bijdragen', label: 'Verklaring achterstallige bijdragen', category: 'Appartement / mede-eigendom', synonyms: ['achterstallig', 'bijdrage'] },
-    { id: 'gerechtelijke_procedures_vme', label: 'Verklaring lopende gerechtelijke procedures VME', category: 'Appartement / mede-eigendom', synonyms: ['gerechtelijk', 'procedure', 'vme'] },
-
-    // Handelspand-specifiek
-    { id: 'exploitatievergunning', label: 'Exploitatievergunning', category: 'Handelspand-specifiek', synonyms: ['exploitatie', 'vergunning'] },
-    { id: 'vestigingsvergunning', label: 'Vestigingsvergunning', category: 'Handelspand-specifiek', synonyms: ['vestiging', 'vergunning'] },
-    { id: 'omgevingsvergunning_milieu', label: 'Omgevingsvergunning milieu', category: 'Handelspand-specifiek', synonyms: ['omgeving', 'milieu', 'vergunning'] },
-    { id: 'vlarem_indeling', label: 'Vlarem-indelingsdocument', category: 'Handelspand-specifiek', synonyms: ['vlarem', 'indeling'] },
-    { id: 'brandveiligheidsattest', label: 'Brandveiligheidsattest', category: 'Handelspand-specifiek', synonyms: ['brand', 'veiligheid'] },
-    { id: 'keuringsattest_gas', label: 'Keuringsattest gasinstallatie', category: 'Handelspand-specifiek', synonyms: ['gas', 'keuring'] },
-    { id: 'keuringsattest_lift', label: 'Keuringsattest lift', category: 'Handelspand-specifiek', synonyms: ['lift', 'keuring'] },
-
-    // Fiscaal & financieel
-    { id: 'berekening_registratierechten', label: 'Berekening registratierechten', category: 'Fiscaal & financieel', synonyms: ['registratie', 'rechten', 'berekening'] },
-    { id: 'kostenraming_notaris', label: 'Kostenraming notaris', category: 'Fiscaal & financieel', synonyms: ['kosten', 'notaris'] },
-    { id: 'betalingsbewijs_voorschot', label: 'Betalingsbewijs voorschot', category: 'Fiscaal & financieel', synonyms: ['betaling', 'voorschot'] },
-
-    // Overige / bijzondere situaties
-    { id: 'erfenisakte', label: 'Erfenisakte', category: 'Overige / bijzondere situaties', synonyms: ['erfenis', 'akte'] },
-    { id: 'akte_verdeling', label: 'Akte van verdeling', category: 'Overige / bijzondere situaties', synonyms: ['verdeling', 'akte'] },
-    { id: 'pachtcontract', label: 'Pachtcontract', category: 'Overige / bijzondere situaties', synonyms: ['pacht', 'contract'] },
-    { id: 'onteigeningsplan', label: 'Onteigeningsplan', category: 'Overige / bijzondere situaties', synonyms: ['onteignen', 'plan'] },
-    { id: 'bewindvoerdersbesluit', label: 'Bewindvoerdersbesluit', category: 'Overige / bijzondere situaties', synonyms: ['bewindvoerder', 'besluit'] },
-    { id: 'verkoopbeslissing_vennootschap', label: 'Verkoopbeslissing vennootschap', category: 'Overige / bijzondere situaties', synonyms: ['verkoop', 'vennootschap', 'beslissing'] },
-    { id: 'overdracht_handelsfonds', label: 'Overdracht handelsfonds', category: 'Overige / bijzondere situaties', synonyms: ['handelsfonds', 'overdracht'] }
-  ];
+  // Get the translated "Mandatory certificates" category name for default expansion
+  const mandatoryCertsCategoryName = requiredDocs.find(doc => doc.id === 'epc')?.category || '';
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set([mandatoryCertsCategoryName]));
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -164,10 +88,10 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
       timeline: [
         {
           id: 'ev-1',
-          date: 'Zonet',
-          title: 'Dossier Aangemaakt',
-          description: 'Dossier geïnitialiseerd met templates.',
-          user: 'U'
+          date: t.justNow,
+          title: t.dossierCreated,
+          description: t.dossierInitialized,
+          user: t.you
         }
       ],
       type: 'House'
@@ -189,7 +113,7 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
       {/* Page Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">{t.newCompromis}</h1>
-        <p className="text-slate-600 dark:text-slate-400">Upload documenten en kies een template om te starten.</p>
+        <p className="text-slate-600 dark:text-slate-400">{t.uploadSubtitle}</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -242,7 +166,7 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
               {/* File Lists */}
               {files.length > 0 && (
                 <div className="space-y-3">
-                  <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Geüploade Bestanden</h3>
+                  <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">{t.uploadedFiles}</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {files.map((file, i) => (
                       <div key={i} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800/50 rounded-lg border border-gray-200 dark:border-slate-700">
@@ -272,12 +196,12 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
             <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/30 flex items-start">
               <Wand2 className="w-5 h-5 text-brand-600 mt-0.5 mr-3 flex-shrink-0" />
               <div className="text-sm text-slate-600 dark:text-slate-400">
-                Op basis van de geüploade documenten raden we <strong>Standaard Verkoopsovereenkomst (Vlaanderen)</strong> aan.
+                {t.aiSuggestionText} <strong>Standaard Verkoopsovereenkomst (Vlaanderen)</strong> {t.aiSuggestionTextEnd}
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {MOCK_TEMPLATES.map(template => (
+              {getTemplates(lang).map(template => (
                 <div
                   key={template.id}
                   onClick={() => setSelectedTemplateId(template.id)}
@@ -291,7 +215,7 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
                 >
                   {template.isAiSuggested && (
                     <div className="absolute top-0 right-0 bg-brand-500 text-white text-[10px] px-2 py-1 rounded-bl-lg rounded-tr-lg font-bold tracking-wide">
-                      AANBEVOLEN
+                      {t.recommended}
                     </div>
                   )}
 
@@ -317,7 +241,7 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
 
             <div className="mt-6">
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                {t.remarks} <span className="text-slate-400 font-normal">(Optioneel)</span>
+                {t.remarks} <span className="text-slate-400 font-normal">({t.optional})</span>
               </label>
               <textarea
                 rows={3}
@@ -338,7 +262,7 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 p-6 shadow-sm sticky top-6">
             <h3 className="font-bold text-slate-900 dark:text-white mb-4 flex items-center">
               <Check className="w-5 h-5 mr-2 text-green-500" />
-              Document Checklist
+              {t.documentChecklist}
             </h3>
 
             <div className="space-y-2 mb-8 max-h-[500px] overflow-y-auto pr-2">
@@ -409,7 +333,7 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
                 <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
               </button>
               <p className="text-xs text-center text-slate-400 mt-3 px-4">
-                De AI zal de geüploade documenten analyseren en automatisch invullen in het gekozen sjabloon.
+                {t.generateDescription}
               </p>
             </div>
           </div>

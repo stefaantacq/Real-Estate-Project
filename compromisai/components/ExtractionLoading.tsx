@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Loader2, CheckCircle, FileText, BrainCircuit } from 'lucide-react';
 import { Language } from '../types';
+import { TRANSLATIONS } from '../constants';
 
 interface ExtractionLoadingProps {
     onComplete: () => void;
@@ -10,12 +11,13 @@ interface ExtractionLoadingProps {
 
 export const ExtractionLoading: React.FC<ExtractionLoadingProps> = ({ onComplete, lang }) => {
     const [step, setStep] = useState(0);
+    const t = TRANSLATIONS[lang];
 
     const steps = [
-        { text: lang === Language.EN ? "Uploading documents..." : "Documenten uploaden...", icon: FileText },
-        { text: lang === Language.EN ? "Analyzing content..." : "Inhoud analyseren...", icon: BrainCircuit },
-        { text: lang === Language.EN ? "Extracting data points..." : "Gegevens extraheren...", icon: Loader2 },
-        { text: lang === Language.EN ? "Finalizing compromise..." : "Compromis genereren...", icon: CheckCircle }
+        { text: t.uploadingDocs, icon: FileText },
+        { text: t.analyzingContent, icon: BrainCircuit },
+        { text: t.extractingData, icon: Loader2 },
+        { text: t.finalizingCompromise, icon: CheckCircle }
     ];
 
     useEffect(() => {
@@ -43,7 +45,7 @@ export const ExtractionLoading: React.FC<ExtractionLoadingProps> = ({ onComplete
                 </div>
 
                 <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-8">
-                    AI is aan het werk...
+                    {t.aiWorking}
                 </h2>
 
                 <div className="space-y-4 text-left">
