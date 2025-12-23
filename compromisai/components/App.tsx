@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { Layout } from './components/Layout';
-import { Auth } from './components/Auth';
-import { Dashboard } from './components/Dashboard';
-import { NewCompromise } from './components/NewCompromise';
-import { Editor } from './components/Editor';
-import { DossierOverview } from './components/DossierOverview';
-import { Language } from './types';
+import { Layout } from './Layout';
+import { Auth } from './Auth';
+import { Dashboard } from './Dashboard';
+import { NewCompromise } from './NewCompromise';
+import { Editor } from './Editor';
+import { DossierOverview } from './DossierOverview';
+import { TemplatesPage } from './TemplatesPage';
+import { SettingsPage } from './SettingsPage';
+import { Language } from '../types';
 
-import { Compare } from './components/Compare';
+import { Compare } from './Compare';
 
 const MainApp: React.FC = () => {
   // State
@@ -42,7 +44,8 @@ const MainApp: React.FC = () => {
   };
 
   // Page Routing Logic
-  const activePage = location.pathname.includes('templates') ? 'templates' : 'dashboard';
+  const activePage = location.pathname.includes('templates') ? 'templates' :
+    location.pathname.includes('settings') ? 'settings' : 'dashboard';
 
   if (!isAuthenticated) {
     return (
@@ -75,6 +78,14 @@ const MainApp: React.FC = () => {
               lang={language}
               onNewDossier={() => navigate('/new')}
               onOpenDossier={(id) => navigate(`/dossier/${id}`)}
+            />
+          }
+        />
+        <Route
+          path="/templates"
+          element={
+            <TemplatesPage
+              lang={language}
             />
           }
         />
@@ -112,6 +123,15 @@ const MainApp: React.FC = () => {
           path="/compare/:id"
           element={
             <Compare
+              lang={language}
+              onBack={() => navigate(-1)}
+            />
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <SettingsPage
               lang={language}
               onBack={() => navigate(-1)}
             />

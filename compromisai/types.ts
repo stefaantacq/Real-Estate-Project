@@ -34,6 +34,11 @@ export interface Dossier {
   status: DossierStatus;
   timeline: TimelineEvent[];
   type: 'House' | 'Apartment' | 'Commercial';
+  sections?: DocumentSection[];
+}
+
+export interface UserSettings {
+  showDeleteConfirmation: boolean;
 }
 
 export interface Template {
@@ -43,6 +48,7 @@ export interface Template {
   type: 'House' | 'Apartment' | 'Commercial';
   source: 'CIB' | 'Custom';
   isAiSuggested?: boolean;
+  sections?: DocumentSection[];
 }
 
 export interface PlaceholderSuggestion {

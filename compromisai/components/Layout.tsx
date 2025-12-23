@@ -29,8 +29,17 @@ export const Layout: React.FC<LayoutProps> = ({
         <button
           onClick={() => navigate('/dashboard')}
           className={`p-3 rounded-xl transition-colors ${activePage === 'dashboard' ? 'bg-brand-50 text-brand-600 dark:bg-slate-800 dark:text-brand-400' : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+          title={t.dashboard}
         >
           <Home className="w-6 h-6" />
+        </button>
+
+        <button
+          onClick={() => navigate('/templates')}
+          className={`p-3 rounded-xl transition-colors ${activePage === 'templates' ? 'bg-brand-50 text-brand-600 dark:bg-slate-800 dark:text-brand-400' : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+          title={t.templates}
+        >
+          <FileText className="w-6 h-6" />
         </button>
 
         {/* BIG Add Button */}
@@ -78,7 +87,9 @@ export const Layout: React.FC<LayoutProps> = ({
         </button>
 
         <button
-          className="p-3 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+          onClick={() => navigate('/settings')}
+          className={`p-3 transition-colors ${activePage === 'settings' ? 'bg-brand-50 text-brand-600 dark:bg-slate-800 dark:text-brand-400 font-bold' : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+          title={t.settings}
         >
           <Settings className="w-6 h-6" />
         </button>
