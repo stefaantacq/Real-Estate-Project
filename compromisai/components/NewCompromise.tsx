@@ -4,8 +4,8 @@ import { Upload, FileText, X, Home, Building2, Check, AlertCircle, Wand2, ArrowR
 import { Language, Dossier, DossierStatus } from '../types';
 import { TRANSLATIONS, getTemplates, MOCK_SECTIONS } from '../constants';
 import { ExtractionLoading } from './ExtractionLoading';
-import { DossierService } from '../services/dossierService';
 import { getDocumentChecklist } from '../documentChecklist';
+import { api } from '../services/api';
 
 interface NewCompromiseProps {
   lang: Language;
@@ -74,35 +74,26 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
     setIsExtracting(true);
   };
 
-  const handleExtractionComplete = React.useCallback(() => {
-    // Create new Persistent Dossier
-    const newId = (Math.floor(Math.random() * 10000) + 100).toString();
-    const newDossier: Dossier = {
-      id: newId,
-      name: dossierName,
-      address: 'Nieuw Pand, Onbekende Straat 1', // Mock for now
-      date: new Date().toLocaleDateString('nl-BE'),
-      creationDate: new Date().toLocaleDateString('nl-BE'),
-      documentCount: files.length,
-      status: DossierStatus.DRAFT,
-      timeline: [
-        {
-          id: 'ev-1',
-          date: t.justNow,
-          title: t.dossierCreated,
-          description: t.dossierInitialized,
-          user: t.you
-        }
-      ],
-      type: 'House',
-      sections: getTemplates(lang).find(t => t.id === selectedTemplateId)?.sections || MOCK_SECTIONS
-    };
+  const handleExtractionComplete = React.useCallback(async () => {
+    try {
+      // 1. Save to Database via API
+      const result = await api.createDossier({
+        titel: dossierName,
+        verkoper_naam: 'Onbekende Verkoper', // We extract this later usually
+        adres: 'Nieuw Pand, Onbekende Straat 1' // Mock/Extracted
+      });
 
-    DossierService.init();
-    DossierService.add(newDossier);
+      console.log("Created Dossier:", result);
 
-    onComplete(newId);
-  }, [dossierName, files.length, t, onComplete]);
+      // 2. Navigate to the new ID
+      onComplete(result.dossierId.toString());
+
+    } catch (error) {
+      console.error("Failed to create dossier", error);
+      alert("Er ging iets mis bij het opslaan.");
+    }
+
+  }, [dossierName, onComplete]);
 
   if (isExtracting) {
     return <ExtractionLoading lang={lang} onComplete={handleExtractionComplete} />;

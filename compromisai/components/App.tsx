@@ -11,6 +11,7 @@ import { SettingsPage } from './SettingsPage';
 import { Language } from '../types';
 
 import { Compare } from './Compare';
+import { api } from '../services/api';
 
 const MainApp: React.FC = () => {
   // State

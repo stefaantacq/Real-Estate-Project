@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Search, Clock, CheckCircle, FileText, Archive, ChevronRight, MapPin } from 'lucide-react';
 import { Language, Dossier, DossierStatus } from '../types';
 import { TRANSLATIONS } from '../constants';
-import { DossierService } from '../services/dossierService';
+import { api } from '../services/api';
 
 interface DashboardProps {
   lang: Language;
@@ -15,10 +15,28 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
   const [searchTerm, setSearchTerm] = useState('');
   const [dossiers, setDossiers] = useState<Dossier[]>([]);
 
-  // Load dossiers from storage on mount
+  // Load dossiers from API
   React.useEffect(() => {
-    DossierService.init();
-    setDossiers(DossierService.getAll());
+    const fetchDossiers = async () => {
+      try {
+        const data = await api.getDossiers();
+        // Map DB result to Frontend Dossier Type if needed (for now assume 1:1 or map basic fields)
+        // The DB returns: { dossier_id, titel, verkoper_naam, adres, datum_aanmaak, ... }
+        // We need to map to: { id, name, address, date, ... }
+        const mappedDossiers = data.map((d: any) => ({
+          id: d.dossier_id.toString(),
+          name: d.titel,
+          address: d.adres,
+          date: new Date(d.datum_aanmaak).toLocaleDateString('nl-BE'),
+          status: DossierStatus.DRAFT, // Default for now
+          // ... map other fields or keep defaults
+        }));
+        setDossiers(mappedDossiers);
+      } catch (err) {
+        console.error("Failed to load dossiers", err);
+      }
+    };
+    fetchDossiers();
   }, []);
 
   const activeDossiers = dossiers.filter(d =>

@@ -2,10 +2,10 @@ import React from 'react';
 import { ArrowLeft, Calendar, MapPin, FileText, Clock, GitCompare, Archive, ExternalLink, RefreshCw, File, Trash2, X } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { Language, Dossier, DossierStatus } from '../types';
-import { DossierService } from '../services/dossierService';
 import { TRANSLATIONS } from '../constants';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
 import { SettingsService } from '../services/settingsService';
+import { api } from '../services/api';
 
 interface DossierOverviewProps {
    lang: Language;
@@ -31,21 +31,41 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
    const [tempAddress, setTempAddress] = React.useState('');
 
    React.useEffect(() => {
-      if (!id) return;
-      DossierService.init();
-      const d = DossierService.getById(id);
-      setDossier(d);
+      const fetchDossier = async () => {
+         if (!id) return;
+         try {
+            const data: any = await api.getDossierById(id);
+            // Map single DB result to Frontend Dossier Type
+            const mappedDossier: Dossier = {
+               id: data.dossier_id.toString(),
+               name: data.titel,
+               address: data.adres,
+               date: new Date(data.datum_aanmaak).toLocaleDateString('nl-BE'),
+               creationDate: new Date(data.datum_aanmaak).toLocaleDateString('nl-BE'),
+               status: DossierStatus.DRAFT, // Default for now
+               documentCount: 0, // Mock
+               type: 'House', // Mock
+               timeline: [], // Mock
+               sections: [] // We'll fetch these later when doing the editor
+            };
+            setDossier(mappedDossier);
+         } catch (error) {
+            console.error("Failed to fetch dossier", error);
+         }
+      };
+
+      fetchDossier();
    }, [id]);
 
    const handleArchive = () => {
       if (!dossier) return;
+      // TODO: API Call for update status
+      alert("Status update via API nog te implementeren");
+      /*
       const newStatus = dossier.status === DossierStatus.ARCHIVED ? DossierStatus.DRAFT : DossierStatus.ARCHIVED;
       const updated = { ...dossier, status: newStatus };
-
-      // Update local state
       setDossier(updated);
-      // Persist
-      DossierService.update(updated);
+      */
    };
 
    const handleDeleteClick = () => {
@@ -57,10 +77,15 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
       }
    };
 
-   const performDelete = () => {
+   const performDelete = async () => {
       if (id) {
-         DossierService.delete(id);
-         onBack();
+         try {
+            await api.deleteDossier(id);
+            onBack();
+         } catch (error) {
+            console.error("Failed to delete", error);
+            alert("Kon dossier niet verwijderen.");
+         }
       }
    };
 
@@ -73,12 +98,11 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
    };
 
    const toggleEditName = () => {
+      // Mock implementation for UI stability, needs API Update endpoint
       if (!dossier) return;
       if (isEditingName) {
-         // Save
          const updated = { ...dossier, name: tempName };
          setDossier(updated);
-         DossierService.update(updated);
       } else {
          setTempName(dossier.name);
       }
@@ -86,12 +110,11 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
    };
 
    const toggleEditAddress = () => {
+      // Mock implementation for UI stability, needs API Update endpoint
       if (!dossier) return;
       if (isEditingAddress) {
-         // Save
          const updated = { ...dossier, address: tempAddress };
          setDossier(updated);
-         DossierService.update(updated);
       } else {
          setTempAddress(dossier.address);
       }
@@ -208,7 +231,7 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                   </h3>
 
                   <div className="relative border-l-2 border-gray-100 dark:border-slate-800 ml-3 space-y-8">
-                     {dossier.timeline.map((event) => (
+                     {dossier.timeline.length > 0 ? dossier.timeline.map((event) => (
                         <div key={event.id} className="relative pl-8">
                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-brand-500 border-4 border-white dark:border-slate-900"></div>
                            <div>
@@ -217,7 +240,9 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                               <p className="text-sm text-slate-500 mt-1">{event.description} <span className="text-slate-300 mx-1">•</span> {event.user}</p>
                            </div>
                         </div>
-                     ))}
+                     )) : (
+                        <div className="pl-8 text-slate-500 text-sm">Nog geen activiteiten.</div>
+                     )}
                   </div>
                </div>
             </div>
