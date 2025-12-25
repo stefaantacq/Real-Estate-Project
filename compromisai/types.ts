@@ -44,6 +44,7 @@ export interface UserSettings {
 export interface Template {
   id: string;
   name: string;
+  title?: string;
   description: string;
   type: 'House' | 'Apartment' | 'Commercial';
   source: 'CIB' | 'Custom';

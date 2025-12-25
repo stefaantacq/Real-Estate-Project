@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Upload, FileText, X, Home, Building2, Check, AlertCircle, Wand2, ArrowRight, ChevronDown, ChevronRight } from 'lucide-react';
 import { Language, Dossier, DossierStatus } from '../types';
 import { TRANSLATIONS, getTemplates, MOCK_SECTIONS } from '../constants';
+import { ExpandableText } from './ExpandableText';
 import { ExtractionLoading } from './ExtractionLoading';
 import { getDocumentChecklist } from '../documentChecklist';
 import { api } from '../services/api';
@@ -13,6 +14,10 @@ interface NewCompromiseProps {
   onComplete: (id: string) => void;
 }
 
+// ... imports
+
+// ... interface
+
 export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, onComplete }) => {
   const t = TRANSLATIONS[lang];
   const [isExtracting, setIsExtracting] = useState(false);
@@ -20,6 +25,24 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
   const [files, setFiles] = useState<File[]>([]);
   const [remarks, setRemarks] = useState('');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+
+  // Dynamic Templates State
+  const [templates, setTemplates] = useState<any[]>([]);
+
+  // Load Templates from API
+  React.useEffect(() => {
+    const loadTemplates = async () => {
+      try {
+        console.log("Fetching templates...");
+        const data = await api.getTemplates();
+        console.log("Templates fetched:", data);
+        setTemplates(data);
+      } catch (err) {
+        console.error("Failed to load templates", err);
+      }
+    };
+    loadTemplates();
+  }, [lang]);
 
   // Get translated document checklist
   const requiredDocs = getDocumentChecklist(lang);
@@ -193,7 +216,7 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {getTemplates(lang).map(template => (
+              {templates.map(template => (
                 <div
                   key={template.id}
                   onClick={() => setSelectedTemplateId(template.id)}
@@ -218,9 +241,11 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
                   <h3 className={`font-bold mb-1 ${selectedTemplateId === template.id ? 'text-brand-700 dark:text-brand-400' : 'text-slate-900 dark:text-white'}`}>
                     {template.name}
                   </h3>
-                  <p className="text-xs text-slate-500 leading-relaxed">
-                    {template.description}
-                  </p>
+                  <ExpandableText
+                    text={template.description}
+                    limit={60}
+                    className="text-xs text-slate-500 leading-relaxed"
+                  />
 
                   {selectedTemplateId === template.id && (
                     <div className="absolute bottom-4 right-4 text-brand-600">

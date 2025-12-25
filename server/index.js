@@ -11,7 +11,10 @@ app.use(express.json());
 
 // Routes
 const dossierRoutes = require('./routes/dossierRoutes');
+const templateRoutes = require('./routes/templateRoutes');
+
 app.use('/api/dossiers', dossierRoutes);
+app.use('/api/templates', templateRoutes);
 
 // Test Endpoint
 app.get('/api/test', async (req, res) => {

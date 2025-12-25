@@ -1,5 +1,31 @@
 import { Language, Dossier, DossierStatus, Template, DocumentSection } from './types';
 
+export const SUPPORTED_PLACEHOLDERS = [
+  { id: 'seller_firstname', label: 'Voornaam verkoper' },
+  { id: 'seller_lastname', label: 'Achternaam verkoper' },
+  { id: 'seller_birthplace', label: 'Geboorteplaats verkoper' },
+  { id: 'seller_birthdate', label: 'Geboortedatum verkoper' },
+  { id: 'seller_address', label: 'Adres verkoper' },
+  { id: 'buyer1_firstname', label: 'Voornaam koper 1' },
+  { id: 'buyer1_lastname', label: 'Achternaam koper 1' },
+  { id: 'buyer1_birthplace', label: 'Geboorteplaats koper 1' },
+  { id: 'buyer1_birthdate', label: 'Geboortedatum koper 1' },
+  { id: 'buyer2_firstname', label: 'Voornaam koper 2' },
+  { id: 'buyer2_lastname', label: 'Achternaam koper 2' },
+  { id: 'buyer2_birthplace', label: 'Geboorteplaats koper 2' },
+  { id: 'buyer2_birthdate', label: 'Geboortedatum koper 2' },
+  { id: 'buyers_address', label: 'Adres kopers' },
+  { id: 'property_municipality', label: 'Gemeente eigendom' },
+  { id: 'property_section', label: 'Kadastrale afdeling' },
+  { id: 'property_street', label: 'Straat eigendom' },
+  { id: 'cadastral_number', label: 'Kadastraal nummer' },
+  { id: 'sale_price_amount', label: 'Verkoopprijs' },
+  { id: 'deposit_amount', label: 'Voorschot' },
+  { id: 'notary_name', label: 'Naam notaris' },
+  { id: 'signing_date', label: 'Datum ondertekening' },
+  { id: 'signing_location', label: 'Plaats ondertekening' },
+];
+
 export const TRANSLATIONS = {
   [Language.NL]: {
     loginTitle: 'Welkom bij compromAIs',
@@ -354,100 +380,12 @@ export const MOCK_DOSSIERS: Dossier[] = [
   }
 ];
 
+// Deprecated: Use API instead
 export const getTemplates = (lang: Language): Template[] => {
-  const translations = {
-    [Language.NL]: {
-      cibHouse: 'CIB Huis',
-      cibHouseDesc: 'Standaard CIB template voor huizen',
-      cibApartment: 'CIB Appartement',
-      cibApartmentDesc: 'Standaard CIB template voor appartementen',
-      cibCommercial: 'CIB Handelspand',
-      cibCommercialDesc: 'Standaard CIB template voor commercieel vastgoed',
-    },
-    [Language.FR]: {
-      cibHouse: 'CIB Maison',
-      cibHouseDesc: 'Modèle CIB standard pour les maisons',
-      cibApartment: 'CIB Appartement',
-      cibApartmentDesc: 'Modèle CIB standard pour les appartements',
-      cibCommercial: 'CIB Commerce',
-      cibCommercialDesc: 'Modèle CIB standard pour l\'immobilier commercial',
-    },
-    [Language.EN]: {
-      cibHouse: 'CIB House',
-      cibHouseDesc: 'Standard CIB template for houses',
-      cibApartment: 'CIB Apartment',
-      cibApartmentDesc: 'Standard CIB template for apartments',
-      cibCommercial: 'CIB Commercial',
-      cibCommercialDesc: 'Standard CIB template for commercial real estate',
-    },
-  };
-
-  const t = translations[lang];
-
-  return [
-    {
-      id: 't1',
-      name: t.cibHouse,
-      description: t.cibHouseDesc,
-      type: 'House',
-      source: 'CIB',
-      isAiSuggested: true
-    },
-    {
-      id: 't2',
-      name: t.cibApartment,
-      description: t.cibApartmentDesc,
-      type: 'Apartment',
-      source: 'CIB',
-      isAiSuggested: false
-    },
-    {
-      id: 't3',
-      name: t.cibCommercial,
-      description: t.cibCommercialDesc,
-      type: 'Commercial',
-      source: 'CIB',
-      isAiSuggested: false
-    },
-    {
-      id: 'tmpl-house-extraction',
-      name: 'Extractie Huis',
-      description: 'Template gebaseerd op de standaard extractie van een huis',
-      type: 'House',
-      source: 'Custom',
-      isAiSuggested: false,
-      sections: HOUSE_EXTRACTION_SECTIONS // We'll define this below
-    }
-  ];
+  return [];
 };
 
-// Deprecated: Use getTemplates(lang) instead
-export const MOCK_TEMPLATES: Template[] = [
-  {
-    id: 't1',
-    name: 'CIB Huis',
-    description: 'Standaard CIB template voor huizen',
-    type: 'House',
-    source: 'CIB',
-    isAiSuggested: true
-  },
-  {
-    id: 't2',
-    name: 'CIB Appartement',
-    description: 'Standaard CIB template voor appartementen',
-    type: 'Apartment',
-    source: 'CIB',
-    isAiSuggested: false
-  },
-  {
-    id: 't3',
-    name: 'CIB Handelspand',
-    description: 'Standaard CIB template voor commercieel vastgoed',
-    type: 'Commercial',
-    source: 'CIB',
-    isAiSuggested: false
-  }
-];
+export const MOCK_TEMPLATES: Template[] = [];
 
 export const MOCK_SECTIONS: DocumentSection[] = [
   {

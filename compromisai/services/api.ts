@@ -1,3 +1,5 @@
+import { Template } from '../types';
+
 export const API_BASE_URL = '/api';
 
 export const api = {
@@ -42,6 +44,35 @@ export const api = {
 
     async deleteDossier(id: string) {
         return this.request(`/dossiers/${id}`, {
+            method: 'DELETE',
+        });
+    },
+
+    // Templates
+    async getTemplates() {
+        return this.request('/templates');
+    },
+
+    async getTemplateById(id: string) {
+        return this.request(`/templates/${id}`);
+    },
+
+    async updateTemplate(id: string, data: { name: string; description: string; sections: any[] }) {
+        return this.request(`/templates/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        });
+    },
+
+    async createTemplate(data: Template) {
+        return this.request('/templates', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    },
+
+    async deleteTemplate(id: string) {
+        return this.request(`/templates/${id}`, {
             method: 'DELETE',
         });
     }

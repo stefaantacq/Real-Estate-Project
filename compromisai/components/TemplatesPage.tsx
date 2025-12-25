@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Search, Plus, FileText, ChevronRight, Layout as LayoutIcon, Globe, Lock, MoreVertical, Edit2, Trash2, Copy, Eye, X, Check } from 'lucide-react';
 import { Language, Template, DocumentSection, PlaceholderSuggestion } from '../types';
-import { TRANSLATIONS, getTemplates } from '../constants';
+import { TRANSLATIONS, SUPPORTED_PLACEHOLDERS } from '../constants';
+import { api } from '../services/api'; // Integrated API
 
 interface TemplatesPageProps {
     lang: Language;
@@ -9,7 +10,7 @@ interface TemplatesPageProps {
 
 const AutoResizeTextarea: React.FC<{
     value: string;
-    onChange: (val: string) => void;
+    onChange: (val: string, target?: HTMLTextAreaElement) => void;
     className?: string;
     placeholder?: string;
 }> = ({ value, onChange, className, placeholder }) => {
@@ -36,7 +37,9 @@ const AutoResizeTextarea: React.FC<{
         <textarea
             ref={textareaRef}
             value={value}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={(e) => onChange(e.target.value, e.target)}
+            onKeyUp={(e) => onChange((e.target as HTMLTextAreaElement).value, e.target as HTMLTextAreaElement)}
+            onClick={(e) => onChange((e.target as HTMLTextAreaElement).value, e.target as HTMLTextAreaElement)}
             className={className}
             placeholder={placeholder}
             rows={1}
@@ -45,17 +48,38 @@ const AutoResizeTextarea: React.FC<{
     );
 };
 
+import { ExpandableText } from './ExpandableText';
+
 export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
     const t = TRANSLATIONS[lang];
-    const [templates, setTemplates] = useState<Template[]>(getTemplates(lang));
+    const [templates, setTemplates] = useState<Template[]>([]); // Initialized empty
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState<'all' | 'cib' | 'custom'>('all');
+
+    // Fetch templates from API
+    React.useEffect(() => {
+        const fetchTemplates = async () => {
+            try {
+                const data = await api.getTemplates();
+                setTemplates(data);
+            } catch (error) {
+                console.error("Failed to load templates:", error);
+            }
+        };
+        fetchTemplates();
+    }, [lang]);
     const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
     const [isCreating, setIsCreating] = useState(false);
     const [templateToDelete, setTemplateToDelete] = useState<Template | null>(null);
     const [isEditingInPreview, setIsEditingInPreview] = useState(false);
     const [editedSections, setEditedSections] = useState<DocumentSection[]>([]);
     const [showSaveToast, setShowSaveToast] = useState(false);
+    const [suggestionState, setSuggestionState] = useState<{
+        active: boolean;
+        query: string;
+        sectionId: string | null;
+        cursorPos: number;
+    }>({ active: false, query: '', sectionId: null, cursorPos: 0 });
 
     // Form state for new template
     const [newName, setNewName] = useState('');
@@ -80,23 +104,90 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
         if (target) {
             target.style.height = 'auto';
             target.style.height = `${target.scrollHeight}px`;
+
+            // Suggestion logic
+            const cursorPos = target.selectionStart;
+            const textBeforeCursor = newContent.slice(0, cursorPos);
+            const lastBracketIndex = textBeforeCursor.lastIndexOf('[');
+
+            if (lastBracketIndex !== -1 && !textBeforeCursor.slice(lastBracketIndex).includes(']')) {
+                const query = textBeforeCursor.slice(lastBracketIndex + 1).toLowerCase();
+                setSuggestionState({ active: true, query, sectionId, cursorPos });
+            } else {
+                setSuggestionState({ active: false, query: '', sectionId: null, cursorPos: 0 });
+            }
         }
     };
 
-    const handleSaveEdits = () => {
+    const handleSelectPlaceholder = (placeholderId: string) => {
+        if (!suggestionState.sectionId) return;
+
+        setEditedSections(prev => prev.map(s => {
+            if (s.id === suggestionState.sectionId) {
+                const content = s.content;
+                const textBeforeBracket = content.slice(0, content.lastIndexOf('[', suggestionState.cursorPos));
+                const textAfterCursor = content.slice(suggestionState.cursorPos);
+                const newPlaceholder = `[placeholder:${placeholderId}]`;
+                return { ...s, content: textBeforeBracket + newPlaceholder + textAfterCursor };
+            }
+            return s;
+        }));
+
+        setSuggestionState({ active: false, query: '', sectionId: null, cursorPos: 0 });
+    };
+
+    const handleAddSection = () => {
+        const newSection: DocumentSection = {
+            id: `sec-${Date.now()}`,
+            title: 'Nieuwe Sectie',
+            content: '',
+            isApproved: false,
+            placeholders: []
+        };
+        setEditedSections(prev => [...prev, newSection]);
+    };
+
+    const handleUpdateSectionTitle = (id: string, newTitle: string) => {
+        setEditedSections(prev => prev.map(s => s.id === id ? { ...s, title: newTitle } : s));
+    };
+
+    const handleDeleteSection = (id: string) => {
+        setEditedSections(prev => prev.filter(s => s.id !== id));
+    };
+
+    const handleSaveEdits = async () => {
         if (!previewTemplate) return;
 
-        const updatedTemplates = templates.map(t =>
-            t.id === previewTemplate.id ? { ...t, sections: editedSections } : t
-        );
+        try {
+            await api.updateTemplate(previewTemplate.id, {
+                name: previewTemplate.name,
+                description: previewTemplate.description,
+                sections: editedSections
+            });
 
-        setTemplates(updatedTemplates);
-        setPreviewTemplate({ ...previewTemplate, sections: editedSections });
-        setIsEditingInPreview(false);
+            const updatedTemplates = templates.map(t =>
+                t.id === previewTemplate.id ? {
+                    ...t,
+                    name: previewTemplate.name,
+                    description: previewTemplate.description,
+                    sections: editedSections
+                } : t
+            );
 
-        // Show non-blocking toast
-        setShowSaveToast(true);
-        setTimeout(() => setShowSaveToast(false), 3000);
+            setTemplates(updatedTemplates);
+            setPreviewTemplate({
+                ...previewTemplate,
+                sections: editedSections
+            });
+            setIsEditingInPreview(false);
+
+            // Show non-blocking toast
+            setShowSaveToast(true);
+            setTimeout(() => setShowSaveToast(false), 3000);
+        } catch (error) {
+            console.error("Failed to save template:", error);
+            alert("Er is een fout opgetreden bij het opslaan.");
+        }
     };
 
     const handleAddNew = () => {
@@ -106,7 +197,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
         setIsCreating(true);
     };
 
-    const handleSaveNew = () => {
+    const handleSaveNew = async () => {
         if (!newName) return alert('Geef een naam op');
 
         const newTemplate: Template = {
@@ -119,14 +210,26 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
             sections: []
         };
 
-        setTemplates(prev => [...prev, newTemplate]);
-        setIsCreating(false);
+        try {
+            await api.createTemplate(newTemplate);
+            setTemplates(prev => [...prev, newTemplate]);
+            setIsCreating(false);
+        } catch (error) {
+            console.error("Failed to create template:", error);
+            alert("Fout bij aanmaken template");
+        }
     };
 
-    const confirmDelete = () => {
+    const confirmDelete = async () => {
         if (templateToDelete) {
-            setTemplates(prev => prev.filter(t => t.id !== templateToDelete.id));
-            setTemplateToDelete(null);
+            try {
+                await api.deleteTemplate(templateToDelete.id);
+                setTemplates(prev => prev.filter(t => t.id !== templateToDelete.id));
+                setTemplateToDelete(null);
+            } catch (error) {
+                console.error("Failed to delete template:", error);
+                alert("Fout bij verwijderen template");
+            }
         }
     };
 
@@ -229,9 +332,11 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                             </div>
 
                             <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">{template.name}</h3>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 mb-6">
-                                {template.description}
-                            </p>
+                            <ExpandableText
+                                text={template.description}
+                                limit={80}
+                                className="text-sm text-slate-500 dark:text-slate-400 mb-6"
+                            />
 
                             <div className="flex items-center justify-between pt-4 border-t border-gray-50 dark:border-slate-800">
                                 <div className="flex items-center text-xs text-slate-400">
@@ -277,14 +382,57 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                     <div className="bg-white dark:bg-slate-900 w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
                         {/* Modal Header */}
                         <div className="px-6 py-4 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between bg-gray-50/50 dark:bg-slate-900/50">
-                            <div>
-                                <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center">
-                                    <FileText className="w-5 h-5 mr-2 text-brand-600" />
-                                    Preview: {previewTemplate.name}
-                                </h2>
-                                <p className="text-xs text-slate-500 mt-0.5">{previewTemplate.description}</p>
+                            <div className="flex-1 mr-4">
+                                {isEditingInPreview ? (
+                                    <div className="flex flex-col gap-2">
+                                        <div className="flex items-center gap-2">
+                                            <FileText className="w-5 h-5 text-brand-600 shrink-0" />
+                                            <input
+                                                type="text"
+                                                value={previewTemplate.name}
+                                                onChange={(e) => setPreviewTemplate({ ...previewTemplate, name: e.target.value })}
+                                                className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded px-2 py-1 text-sm font-bold w-full focus:ring-1 focus:ring-brand-500 outline-none"
+                                                placeholder="Template Naam"
+                                            />
+                                        </div>
+                                        <textarea
+                                            value={previewTemplate.description}
+                                            onChange={(e) => setPreviewTemplate({ ...previewTemplate, description: e.target.value })}
+                                            className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded px-2 py-1 text-xs w-full focus:ring-2 focus:ring-brand-500 outline-none resize-none transition-all duration-200 max-h-48 overflow-y-auto shadow-inner"
+                                            placeholder="Beschrijving"
+                                            rows={2}
+                                            onFocus={(e) => {
+                                                const target = e.target as HTMLTextAreaElement;
+                                                target.style.height = 'auto';
+                                                target.style.height = `${Math.min(target.scrollHeight, 192)}px`; // max-h-48 is 192px
+                                            }}
+                                            onInput={(e) => {
+                                                const target = e.target as HTMLTextAreaElement;
+                                                target.style.height = 'auto';
+                                                target.style.height = `${Math.min(target.scrollHeight, 192)}px`;
+                                            }}
+                                            onBlur={(e) => {
+                                                const target = e.target as HTMLTextAreaElement;
+                                                // Keep it at 2 rows (approx 48px) if blurred to keep header compact
+                                                target.style.height = '48px';
+                                            }}
+                                        />
+                                    </div>
+                                ) : (
+                                    <>
+                                        <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center">
+                                            <FileText className="w-5 h-5 mr-2 text-brand-600" />
+                                            {previewTemplate.name}
+                                        </h2>
+                                        <ExpandableText
+                                            text={previewTemplate.description}
+                                            limit={120}
+                                            className="text-xs text-slate-500 mt-1 italic"
+                                        />
+                                    </>
+                                )}
                             </div>
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-3 shrink-0">
                                 {isEditingInPreview ? (
                                     <button
                                         onClick={handleSaveEdits}
@@ -313,25 +461,68 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                             </div>
                         </div>
 
-                        {/* Modal Content - The Document View */}
                         <div className="flex-1 overflow-y-auto p-8 bg-slate-100 dark:bg-slate-950/50">
                             <div className="max-w-[800px] mx-auto bg-white dark:bg-slate-900 shadow-lg border border-gray-200 dark:border-slate-800 p-12 text-slate-800 dark:text-slate-200 font-serif leading-relaxed min-h-screen">
-                                <div className="text-center font-bold text-xl uppercase border-b-2 border-slate-900 dark:border-slate-100 pb-4 mb-8">
-                                    {previewTemplate.name}
+                                <div className="text-center border-b-2 border-slate-900 dark:border-slate-100 pb-4 mb-12">
+                                    <h1 className="text-2xl font-bold uppercase tracking-tight">{previewTemplate.name}</h1>
                                 </div>
-
                                 <div className="space-y-8">
                                     {editedSections.length > 0 ? (
                                         editedSections.map((section) => (
-                                            <div key={section.id} className="space-y-3">
-                                                <h3 className="font-bold text-base uppercase border-b border-gray-100 dark:border-slate-800 pb-1">{section.title}</h3>
+                                            <div key={section.id} className="space-y-3 group/section relative">
+                                                {isEditingInPreview && (
+                                                    <div className="absolute top-0 right-0 opacity-0 group-hover/section:opacity-100 transition-opacity">
+                                                        <button
+                                                            onClick={() => handleDeleteSection(section.id)}
+                                                            className="p-1 text-red-500 hover:bg-red-50 rounded"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                )}
+
                                                 {isEditingInPreview ? (
-                                                    <AutoResizeTextarea
-                                                        value={section.content}
-                                                        onChange={(val) => handleSectionContentChange(section.id, val)}
-                                                        className="w-full p-0 font-serif text-sm bg-transparent border-none focus:ring-0 outline-none transition-all text-justify leading-relaxed text-slate-800 dark:text-slate-200 antialiased"
-                                                        placeholder="Voer hier de sectie-inhoud in..."
+                                                    <input
+                                                        value={section.title}
+                                                        onChange={(e) => handleUpdateSectionTitle(section.id, e.target.value)}
+                                                        className="font-bold text-base uppercase border-b border-gray-100 dark:border-slate-800 pb-1 w-full bg-transparent outline-none focus:border-brand-500 transition-colors"
                                                     />
+                                                ) : (
+                                                    <h3 className="font-bold text-base uppercase border-b border-gray-100 dark:border-slate-800 pb-1">{section.title}</h3>
+                                                )}
+
+                                                {isEditingInPreview ? (
+                                                    <div className="relative">
+                                                        <AutoResizeTextarea
+                                                            value={section.content}
+                                                            onChange={(val, target) => handleSectionContentChange(section.id, val, target)}
+                                                            className="w-full p-0 font-serif text-sm bg-transparent border-none focus:ring-0 outline-none transition-all text-justify leading-relaxed text-slate-800 dark:text-slate-200 antialiased"
+                                                            placeholder="Voer hier de sectie-inhoud in..."
+                                                        />
+
+                                                        {suggestionState.active && suggestionState.sectionId === section.id && (
+                                                            <div className="absolute z-50 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg shadow-xl mt-1 w-64 max-h-48 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200">
+                                                                <div className="p-2 border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50">
+                                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Kies een placeholder</span>
+                                                                </div>
+                                                                {SUPPORTED_PLACEHOLDERS
+                                                                    .filter(p => p.id.includes(suggestionState.query) || p.label.toLowerCase().includes(suggestionState.query))
+                                                                    .map(p => (
+                                                                        <button
+                                                                            key={p.id}
+                                                                            onClick={() => handleSelectPlaceholder(p.id)}
+                                                                            className="w-full text-left px-4 py-2 text-xs hover:bg-brand-50 dark:hover:bg-brand-900/20 text-slate-700 dark:text-slate-300 flex flex-col border-b border-gray-50 dark:border-slate-700/50 last:border-0"
+                                                                        >
+                                                                            <span className="font-bold text-brand-600">{p.label}</span>
+                                                                            <span className="text-[10px] text-slate-400 opacity-70">placeholder:{p.id}</span>
+                                                                        </button>
+                                                                    ))}
+                                                                {SUPPORTED_PLACEHOLDERS.filter(p => p.id.includes(suggestionState.query) || p.label.toLowerCase().includes(suggestionState.query)).length === 0 && (
+                                                                    <div className="px-4 py-3 text-xs text-slate-400 italic">Geen overeenkomende placeholders...</div>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 ) : (
                                                     <div className="font-serif text-sm leading-relaxed text-justify whitespace-pre-wrap text-slate-800 dark:text-slate-200 antialiased">
                                                         {section.content.split(/(\[placeholder:[a-z0-9_]+\])/g).map((part, i) => {
@@ -348,9 +539,21 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                             </div>
                                         ))
                                     ) : (
-                                        <div className="py-20 text-center text-slate-400 italic font-sans">
-                                            Geen inhoud beschikbaar om te bekijken of te bewerken.
-                                        </div>
+                                        !isEditingInPreview && (
+                                            <div className="py-20 text-center text-slate-400 italic font-sans">
+                                                Geen inhoud beschikbaar om te bekijken of te bewerken.
+                                            </div>
+                                        )
+                                    )}
+
+                                    {isEditingInPreview && (
+                                        <button
+                                            onClick={handleAddSection}
+                                            className="w-full py-4 border-2 border-dashed border-gray-300 dark:border-slate-700 rounded-xl text-slate-400 hover:border-brand-500 hover:text-brand-500 transition-all flex items-center justify-center font-bold"
+                                        >
+                                            <Plus className="w-5 h-5 mr-2" />
+                                            Sectie Toevoegen
+                                        </button>
                                     )}
                                 </div>
                             </div>
