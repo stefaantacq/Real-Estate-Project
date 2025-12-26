@@ -1,10 +1,11 @@
 import React from 'react';
-import { ArrowLeft, Calendar, MapPin, FileText, Clock, GitCompare, Archive, ExternalLink, RefreshCw, File, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, FileText, Clock, GitCompare, Archive, ExternalLink, RefreshCw, File, Trash2, X, Home, Building2 } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { Language, Dossier, DossierStatus } from '../types';
 import { TRANSLATIONS } from '../constants';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
 import { SettingsService } from '../services/settingsService';
+import { ExpandableText } from './ExpandableText';
 import { api } from '../services/api';
 
 interface DossierOverviewProps {
@@ -30,42 +31,50 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
    const [tempName, setTempName] = React.useState('');
    const [tempAddress, setTempAddress] = React.useState('');
 
+   // Templates state for "Add Agreement"
+   const [templates, setTemplates] = React.useState<any[]>([]);
+   const [isTemplateModalOpen, setIsTemplateModalOpen] = React.useState(false);
+   const [isCreatingAgreement, setIsCreatingAgreement] = React.useState(false);
+
+   // Version states
+   const [isAddVersionModalOpen, setIsAddVersionModalOpen] = React.useState(false);
+   const [activeAgreementId, setActiveAgreementId] = React.useState<string | null>(null);
+   const [isCreatingVersion, setIsCreatingVersion] = React.useState(false);
+   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
    React.useEffect(() => {
       const fetchDossier = async () => {
          if (!id) return;
          try {
             const data: any = await api.getDossierById(id);
-            // Map single DB result to Frontend Dossier Type
-            const mappedDossier: Dossier = {
-               id: data.dossier_id.toString(),
-               name: data.titel,
-               address: data.adres,
-               date: new Date(data.datum_aanmaak).toLocaleDateString('nl-BE'),
-               creationDate: new Date(data.datum_aanmaak).toLocaleDateString('nl-BE'),
-               status: DossierStatus.DRAFT, // Default for now
-               documentCount: 0, // Mock
-               type: 'House', // Mock
-               timeline: [], // Mock
-               sections: [] // We'll fetch these later when doing the editor
-            };
-            setDossier(mappedDossier);
+            setDossier(data as Dossier);
          } catch (error) {
             console.error("Failed to fetch dossier", error);
          }
       };
 
+      const fetchTemplates = async () => {
+         try {
+            const data = await api.getTemplates();
+            setTemplates(data);
+         } catch (error) {
+            console.error("Failed to fetch templates", error);
+         }
+      };
+
       fetchDossier();
+      fetchTemplates();
    }, [id]);
 
-   const handleArchive = () => {
+   const handleArchive = async () => {
       if (!dossier) return;
-      // TODO: API Call for update status
-      alert("Status update via API nog te implementeren");
-      /*
       const newStatus = dossier.status === DossierStatus.ARCHIVED ? DossierStatus.DRAFT : DossierStatus.ARCHIVED;
-      const updated = { ...dossier, status: newStatus };
-      setDossier(updated);
-      */
+      try {
+         await api.updateDossier(dossier.id, { status: newStatus });
+         setDossier({ ...dossier, status: newStatus });
+      } catch (error) {
+         console.error("Failed to update status", error);
+      }
    };
 
    const handleDeleteClick = () => {
@@ -97,24 +106,30 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
       setDeleteModalOpen(false);
    };
 
-   const toggleEditName = () => {
-      // Mock implementation for UI stability, needs API Update endpoint
+   const toggleEditName = async () => {
       if (!dossier) return;
       if (isEditingName) {
-         const updated = { ...dossier, name: tempName };
-         setDossier(updated);
+         try {
+            await api.updateDossier(dossier.id, { name: tempName });
+            setDossier({ ...dossier, name: tempName });
+         } catch (error) {
+            console.error("Failed to update name", error);
+         }
       } else {
          setTempName(dossier.name);
       }
       setIsEditingName(!isEditingName);
    };
 
-   const toggleEditAddress = () => {
-      // Mock implementation for UI stability, needs API Update endpoint
+   const toggleEditAddress = async () => {
       if (!dossier) return;
       if (isEditingAddress) {
-         const updated = { ...dossier, address: tempAddress };
-         setDossier(updated);
+         try {
+            await api.updateDossier(dossier.id, { address: tempAddress });
+            setDossier({ ...dossier, address: tempAddress });
+         } catch (error) {
+            console.error("Failed to update address", error);
+         }
       } else {
          setTempAddress(dossier.address);
       }
@@ -126,7 +141,105 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
       setSplitScreen(true);
    };
 
-   if (!dossier) return <div>Loading...</div>;
+   const handleAddAgreement = () => {
+      setIsTemplateModalOpen(true);
+   };
+
+   const handleSelectTemplate = async (templateId: string) => {
+      if (!id) return;
+      setIsCreatingAgreement(true);
+      console.log("Creating agreement for dossier:", id, "with template:", templateId);
+      try {
+         const result = await api.createAgreement(id, templateId);
+         console.log("Agreement created result:", result);
+
+         setIsTemplateModalOpen(false);
+
+         // Refresh dossier to show the new agreement in the track
+         const updatedDossier: any = await api.getDossierById(id);
+         setDossier(updatedDossier as Dossier);
+
+         // Navigate to editor for the new version
+         if (result.versionId) {
+            console.log("Opening editor for version:", result.versionId);
+            onOpenEditor(result.versionId);
+         } else {
+            console.error("No versionId returned from API", result);
+         }
+      } catch (error) {
+         console.error("Failed to create agreement", error);
+         alert("Kon overeenkomst niet aanmaken.");
+      } finally {
+         setIsCreatingAgreement(false);
+      }
+   };
+
+   const handleAddVersionClick = (agreementId: string) => {
+      setActiveAgreementId(agreementId);
+      setIsAddVersionModalOpen(true);
+   };
+
+   const handleDuplicateVersion = async () => {
+      if (!id || !activeAgreementId) return;
+      setIsCreatingVersion(true);
+      try {
+         const formData = new FormData();
+         formData.append('source', 'Copy');
+         // We let backend handle the duplication of sections if sections are missing
+
+         const result = await api.createVersion(activeAgreementId, formData);
+         setIsAddVersionModalOpen(false);
+
+         const updatedDossier: any = await api.getDossierById(id);
+         setDossier(updatedDossier as Dossier);
+
+         if (result.id) {
+            onOpenEditor(result.id);
+         }
+      } catch (error) {
+         console.error("Failed to duplicate version", error);
+         alert("Kon versie niet kopiëren.");
+      } finally {
+         setIsCreatingVersion(false);
+      }
+   };
+
+   const handleFileUploadClick = () => {
+      fileInputRef.current?.click();
+   };
+
+   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file || !id || !activeAgreementId) return;
+
+      setIsCreatingVersion(true);
+      try {
+         const formData = new FormData();
+         formData.append('file', file);
+         formData.append('source', 'Upload');
+
+         const result = await api.createVersion(activeAgreementId, formData);
+         setIsAddVersionModalOpen(false);
+
+         const updatedDossier: any = await api.getDossierById(id);
+         setDossier(updatedDossier as Dossier);
+
+         if (result.id) {
+            // result.file_path is now set in backend
+            onOpenEditor(result.id);
+         }
+      } catch (error) {
+         console.error("Failed to upload version", error);
+         alert("Kon bestand niet uploaden.");
+      } finally {
+         setIsCreatingVersion(false);
+         if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+   };
+
+   if (!dossier) return <div className="flex items-center justify-center min-h-screen">
+      <RefreshCw className="w-8 h-8 animate-spin text-brand-500" />
+   </div>;
 
    return (
       <div className="max-w-7xl mx-auto animate-in fade-in duration-500 relative min-h-[calc(100vh-8rem)]">
@@ -205,21 +318,75 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
          </div>
 
          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Main Content: Timeline & Actions */}
+            {/* Main Content: Agreements & Timeline */}
             <div className="lg:col-span-2 space-y-8">
-               {/* Action Card */}
-               <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm flex flex-col items-center text-center">
-                  <div className="w-16 h-16 bg-brand-50 dark:bg-brand-900/50 rounded-full flex items-center justify-center mb-4">
-                     <FileText className="w-8 h-8 text-brand-600 dark:text-brand-400" />
-                  </div>
-                  <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Huidige Versie: Draft 1.2</h2>
-                  <p className="text-slate-500 max-w-md mb-6">Laatst bewerkt op {dossier.date}. Alle documenten zijn geclassificeerd.</p>
+               {/* Agreement Tracks */}
+               <div className="space-y-4">
+                  {dossier.agreements && dossier.agreements.length > 0 ? dossier.agreements.map((agg) => (
+                     <div key={agg.id} className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm relative overflow-hidden group">
+                        <div className="flex items-center justify-between mb-6">
+                           <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-brand-50 dark:bg-brand-900/30 rounded-lg flex items-center justify-center">
+                                 <FileText className="w-5 h-5 text-brand-600 dark:text-brand-400" />
+                              </div>
+                              <div>
+                                 <h3 className="font-bold text-slate-900 dark:text-white leading-tight">{agg.templateName || 'Zelfgeschreven Overeenkomst'}</h3>
+                                 <span className="text-xs text-slate-400">Verkoopovereenkomst</span>
+                              </div>
+                           </div>
+                        </div>
+
+                        {/* Version Track UI */}
+                        <div className="flex items-center gap-4 py-4 overflow-x-auto no-scrollbar">
+                           {agg.versions.map((ver, idx) => (
+                              <React.Fragment key={ver.id}>
+                                 <div
+                                    onClick={() => onOpenEditor(ver.id)}
+                                    className={`relative flex flex-col items-center min-w-[80px] cursor-pointer transition-all group/ver
+                                       ${ver.isCurrent ? 'scale-110' : 'opacity-60 hover:opacity-100'}
+                                    `}
+                                 >
+                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border-2 mb-2 transition-all group-hover/ver:border-brand-500
+                                       ${ver.isCurrent
+                                          ? 'bg-brand-50 border-brand-500 text-brand-600 dark:bg-brand-900/20 shadow-md'
+                                          : 'bg-white border-slate-100 text-slate-400 dark:bg-slate-800 dark:border-slate-700'}
+                                    `}>
+                                       <span className="font-bold text-sm">v{ver.number}</span>
+                                    </div>
+                                    <span className="text-[10px] uppercase tracking-tighter font-bold text-slate-400 group-hover/ver:text-brand-500 transition-colors">{ver.source}</span>
+                                 </div>
+                                 {idx < agg.versions.length - 1 && (
+                                    <div className="w-8 h-[2px] bg-slate-100 dark:bg-slate-800 shrink-0 mt-[-15px]"></div>
+                                 )}
+                              </React.Fragment>
+                           ))}
+
+                           {/* Add Version Button (+ in the track) */}
+                           <div className="w-8 h-[2px] bg-slate-100 dark:bg-slate-800 shrink-0 mt-[-15px]"></div>
+                           <button
+                              onClick={() => handleAddVersionClick(agg.id)}
+                              className="w-12 h-12 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-300 hover:border-brand-500 hover:text-brand-500 transition-all shrink-0 mb-[18px]"
+                              title="Versie toevoegen"
+                           >
+                              <RefreshCw className="w-5 h-5" />
+                           </button>
+                        </div>
+                     </div>
+                  )) : (
+                     <div className="bg-white dark:bg-slate-900 p-12 rounded-2xl border-2 border-dashed border-gray-100 dark:border-slate-800 text-center">
+                        <p className="text-slate-400 italic">Geen verkoopovereenkomsten gevonden.</p>
+                     </div>
+                  )}
+
+                  {/* Add Agreement Button (Bottom +) */}
                   <button
-                     onClick={() => onOpenEditor(dossier.id)}
-                     className="px-8 py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all flex items-center"
+                     onClick={handleAddAgreement}
+                     className="w-full py-4 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-slate-400 hover:border-brand-500 hover:text-brand-500 hover:bg-brand-50/50 dark:hover:bg-brand-900/10 transition-all group"
                   >
-                     {t.openEdit}
-                     <ArrowLeft className="w-4 h-4 ml-2 rotate-180" />
+                     <div className="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center mb-2 group-hover:bg-brand-100 dark:group-hover:bg-brand-900/30 transition-all">
+                        <FileText className="w-5 h-5" />
+                     </div>
+                     <span className="text-sm font-bold">Nieuwe verkoopovereenkomst starten</span>
                   </button>
                </div>
 
@@ -271,26 +438,154 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-gray-200 dark:border-slate-800">
                   <h3 className="font-bold text-sm uppercase tracking-wider text-slate-500 mb-4">{t.documents}</h3>
                   <div className="space-y-3">
-                     {['EPC.pdf', 'Kadaster.pdf', 'Identiteitskaart.pdf'].map((doc, i) => (
+                     {(dossier as any).documents && (dossier as any).documents.length > 0 ? (dossier as any).documents.map((doc: any, i: number) => (
                         <div
-                           key={i}
-                           onClick={() => openDocument(doc)}
+                           key={doc.id || i}
+                           onClick={() => openDocument(doc.name)}
                            className={`flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer group
-                              ${selectedDocument === doc && splitScreen
+                               ${selectedDocument === doc.name && splitScreen
                                  ? 'bg-brand-50 border-brand-200 dark:bg-brand-900/20 dark:border-brand-800'
                                  : 'bg-gray-50 dark:bg-slate-800/50 border-transparent hover:bg-gray-100 dark:hover:bg-slate-800'}`}
                         >
                            <div className="flex items-center overflow-hidden">
-                              <File className={`w-4 h-4 mr-3 flex-shrink-0 ${selectedDocument === doc && splitScreen ? 'text-brand-600' : 'text-brand-500'}`} />
-                              <span className={`text-sm truncate ${selectedDocument === doc && splitScreen ? 'text-brand-700 dark:text-brand-400 font-bold' : 'text-slate-700 dark:text-slate-300'}`}>{doc}</span>
+                              <File className={`w-4 h-4 mr-3 flex-shrink-0 ${selectedDocument === doc.name && splitScreen ? 'text-brand-600' : 'text-brand-500'}`} />
+                              <div className="flex flex-col overflow-hidden">
+                                 <span className={`text-sm truncate ${selectedDocument === doc.name && splitScreen ? 'text-brand-700 dark:text-brand-400 font-bold' : 'text-slate-700 dark:text-slate-300'}`}>{doc.name}</span>
+                                 {doc.category && <span className="text-[10px] text-slate-400 uppercase tracking-tighter">{doc.category}</span>}
+                              </div>
                            </div>
-                           <ExternalLink className={`w-4 h-4 transition-opacity ${selectedDocument === doc && splitScreen ? 'opacity-100 text-brand-500' : 'opacity-0 group-hover:opacity-100 text-slate-400'}`} />
+                           <ExternalLink className={`w-4 h-4 transition-opacity ${selectedDocument === doc.name && splitScreen ? 'opacity-100 text-brand-500' : 'opacity-0 group-hover:opacity-100 text-slate-400'}`} />
                         </div>
-                     ))}
+                     )) : (
+                        <div className="text-xs text-slate-400 italic py-4 text-center">
+                           Nog geen documenten geüpload.
+                        </div>
+                     )}
                   </div>
                </div>
             </div>
          </div>
+
+         {/* Add Version Modal */}
+         {isAddVersionModalOpen && (
+            <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+               <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-800 overflow-hidden flex flex-col relative">
+                  <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
+                     <div>
+                        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Nieuwe Versie Toevoegen</h2>
+                        <p className="text-sm text-slate-500">Hoe wilt u de nieuwe versie aanmaken?</p>
+                     </div>
+                     <button onClick={() => setIsAddVersionModalOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+                        <X className="w-6 h-6 text-slate-400" />
+                     </button>
+                  </div>
+
+                  <div className="p-6 grid grid-cols-1 gap-4">
+                     <div
+                        onClick={handleFileUploadClick}
+                        className="flex items-center p-6 rounded-xl border border-gray-100 dark:border-slate-800 hover:border-brand-500 hover:bg-brand-50/50 dark:hover:bg-brand-900/10 cursor-pointer transition-all group"
+                     >
+                        <div className="w-12 h-12 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-brand-100 group-hover:text-brand-600 transition-all mr-4">
+                           <File className="w-6 h-6" />
+                        </div>
+                        <div className="flex-1">
+                           <h3 className="font-bold text-slate-900 dark:text-white group-hover:text-brand-700 transition-colors">Bestand uploaden</h3>
+                           <p className="text-sm text-slate-500 leading-tight">Upload een extern PDF of Word document</p>
+                        </div>
+                        <ArrowLeft className="w-5 h-5 text-slate-300 group-hover:text-brand-500 rotate-180 transition-all" />
+                     </div>
+
+                     <div
+                        onClick={handleDuplicateVersion}
+                        className="flex items-center p-6 rounded-xl border border-gray-100 dark:border-slate-800 hover:border-brand-500 hover:bg-brand-50/50 dark:hover:bg-brand-900/10 cursor-pointer transition-all group"
+                     >
+                        <div className="w-12 h-12 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-brand-100 group-hover:text-brand-600 transition-all mr-4">
+                           <RefreshCw className="w-6 h-6" />
+                        </div>
+                        <div className="flex-1">
+                           <h3 className="font-bold text-slate-900 dark:text-white group-hover:text-brand-700 transition-colors">Huidige versie kopiëren</h3>
+                           <p className="text-sm text-slate-500 leading-tight">Start een nieuwe draft op basis van de laatste versie</p>
+                        </div>
+                        <ArrowLeft className="w-5 h-5 text-slate-300 group-hover:text-brand-500 rotate-180 transition-all" />
+                     </div>
+                  </div>
+
+                  {isCreatingVersion && (
+                     <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-[1px] flex items-center justify-center">
+                        <RefreshCw className="w-8 h-8 animate-spin text-brand-600" />
+                     </div>
+                  )}
+               </div>
+            </div>
+         )}
+
+         {/* Template Selection Modal */}
+         {isTemplateModalOpen && (
+            <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+               <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh] relative">
+                  <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
+                     <div>
+                        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Start Nieuwe Overeenkomst</h2>
+                        <p className="text-sm text-slate-500">Kies een template om mee te beginnen</p>
+                     </div>
+                     <button onClick={() => setIsTemplateModalOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+                        <X className="w-6 h-6 text-slate-400" />
+                     </button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-6">
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {templates.map(template => {
+                           const isAiSuggested = template.name?.toLowerCase().includes('vlaanderen');
+                           const isApartment = template.name?.toLowerCase().includes('appartement');
+
+                           return (
+                              <div
+                                 key={template.id}
+                                 onClick={() => handleSelectTemplate(template.id)}
+                                 className="relative flex flex-col p-6 rounded-xl border border-gray-200 dark:border-slate-800 hover:border-brand-500 hover:bg-brand-50/50 dark:hover:bg-brand-900/10 cursor-pointer transition-all group"
+                              >
+                                 {isAiSuggested && (
+                                    <div className="absolute top-0 right-0 bg-brand-500 text-white text-[10px] px-2 py-1 rounded-bl-lg rounded-tr-lg font-bold tracking-wide">
+                                       AANBEVOLEN
+                                    </div>
+                                 )}
+
+                                 <div className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center text-slate-500 group-hover:bg-brand-100 group-hover:text-brand-600 transition-colors mb-4">
+                                    {isApartment ? <Building2 className="w-5 h-5" /> : <Home className="w-5 h-5" />}
+                                 </div>
+
+                                 <h3 className="font-bold text-slate-900 dark:text-white group-hover:text-brand-700 dark:hover:text-brand-400 transition-colors mb-1">{template.name}</h3>
+                                 <ExpandableText
+                                    text={template.description || 'Geen beschrijving beschikbaar.'}
+                                    limit={60}
+                                    className="text-xs text-slate-500 leading-relaxed mb-4"
+                                 />
+
+                                 <div className="mt-auto flex items-center justify-end">
+                                    <ArrowLeft className="w-4 h-4 text-slate-300 group-hover:text-brand-500 rotate-180 transition-all" />
+                                 </div>
+                              </div>
+                           );
+                        })}
+                     </div>
+                  </div>
+                  {isCreatingAgreement && (
+                     <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-[1px] flex items-center justify-center">
+                        <RefreshCw className="w-8 h-8 animate-spin text-brand-600" />
+                     </div>
+                  )}
+               </div>
+            </div>
+         )}
+
+         {/* Hidden File Input */}
+         <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            className="hidden"
+            accept=".pdf,.doc,.docx"
+         />
 
          {/* Premium Side Drawer Viewer */}
          <div className={`fixed inset-y-0 right-0 w-[45%] bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-l border-gray-200 dark:border-slate-800 shadow-2xl z-[100] transform transition-transform duration-500 ease-in-out flex flex-col ${splitScreen ? 'translate-x-0' : 'translate-x-full'}`}>

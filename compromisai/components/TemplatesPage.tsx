@@ -161,6 +161,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
         try {
             await api.updateTemplate(previewTemplate.id, {
                 name: previewTemplate.name,
+                title: previewTemplate.title,
                 description: previewTemplate.description,
                 sections: editedSections
             });
@@ -169,6 +170,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                 t.id === previewTemplate.id ? {
                     ...t,
                     name: previewTemplate.name,
+                    title: previewTemplate.title,
                     description: previewTemplate.description,
                     sections: editedSections
                 } : t
@@ -200,9 +202,9 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
     const handleSaveNew = async () => {
         if (!newName) return alert('Geef een naam op');
 
-        const newTemplate: Template = {
-            id: `custom-${Date.now()}`,
+        const templateToCreate: Omit<Template, 'id'> = {
             name: newName,
+            title: newName,
             description: newDesc,
             type: newType,
             source: 'Custom',
@@ -211,8 +213,12 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
         };
 
         try {
-            await api.createTemplate(newTemplate);
-            setTemplates(prev => [...prev, newTemplate]);
+            const response = await api.createTemplate(templateToCreate as any);
+            const createdTemplate: Template = {
+                ...templateToCreate,
+                id: response.id // Use the ID returned by SQL
+            };
+            setTemplates(prev => [...prev, createdTemplate]);
             setIsCreating(false);
         } catch (error) {
             console.error("Failed to create template:", error);
@@ -235,6 +241,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
 
     const filteredTemplates = templates.filter(tmpl => {
         const matchesSearch = tmpl.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (tmpl.title && tmpl.title.toLowerCase().includes(searchTerm.toLowerCase())) ||
             tmpl.description.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesTab = activeTab === 'all' ||
             (activeTab === 'cib' && tmpl.source === 'CIB') ||
@@ -387,13 +394,15 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                     <div className="flex flex-col gap-2">
                                         <div className="flex items-center gap-2">
                                             <FileText className="w-5 h-5 text-brand-600 shrink-0" />
-                                            <input
-                                                type="text"
-                                                value={previewTemplate.name}
-                                                onChange={(e) => setPreviewTemplate({ ...previewTemplate, name: e.target.value })}
-                                                className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded px-2 py-1 text-sm font-bold w-full focus:ring-1 focus:ring-brand-500 outline-none"
-                                                placeholder="Template Naam"
-                                            />
+                                            <div className="flex-1">
+                                                <input
+                                                    type="text"
+                                                    value={previewTemplate.name}
+                                                    onChange={(e) => setPreviewTemplate({ ...previewTemplate, name: e.target.value })}
+                                                    className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded px-2 py-1 text-sm font-bold w-full focus:ring-1 focus:ring-brand-500 outline-none"
+                                                    placeholder="Template Naam"
+                                                />
+                                            </div>
                                         </div>
                                         <textarea
                                             value={previewTemplate.description}
@@ -464,7 +473,18 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                         <div className="flex-1 overflow-y-auto p-8 bg-slate-100 dark:bg-slate-950/50">
                             <div className="max-w-[800px] mx-auto bg-white dark:bg-slate-900 shadow-lg border border-gray-200 dark:border-slate-800 p-12 text-slate-800 dark:text-slate-200 font-serif leading-relaxed min-h-screen">
                                 <div className="text-center border-b-2 border-slate-900 dark:border-slate-100 pb-4 mb-12">
-                                    <h1 className="text-2xl font-bold uppercase tracking-tight">{previewTemplate.name}</h1>
+                                    {isEditingInPreview ? (
+                                        <div className="flex flex-col gap-1">
+                                            <input
+                                                value={previewTemplate.title || ''}
+                                                onChange={(e) => setPreviewTemplate({ ...previewTemplate, title: e.target.value })}
+                                                className="text-2xl font-bold uppercase tracking-tight text-center w-full bg-slate-50 dark:bg-slate-800/50 border-none focus:ring-2 focus:ring-brand-500 rounded py-2 outline-none transition-all"
+                                                placeholder="Voer de titel van het document in..."
+                                            />
+                                        </div>
+                                    ) : (
+                                        <h1 className="text-2xl font-bold uppercase tracking-tight">{previewTemplate.title || previewTemplate.name}</h1>
+                                    )}
                                 </div>
                                 <div className="space-y-8">
                                     {editedSections.length > 0 ? (

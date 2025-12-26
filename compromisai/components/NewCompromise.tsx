@@ -24,25 +24,6 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
   const [dossierName, setDossierName] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [remarks, setRemarks] = useState('');
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
-
-  // Dynamic Templates State
-  const [templates, setTemplates] = useState<any[]>([]);
-
-  // Load Templates from API
-  React.useEffect(() => {
-    const loadTemplates = async () => {
-      try {
-        console.log("Fetching templates...");
-        const data = await api.getTemplates();
-        console.log("Templates fetched:", data);
-        setTemplates(data);
-      } catch (err) {
-        console.error("Failed to load templates", err);
-      }
-    };
-    loadTemplates();
-  }, [lang]);
 
   // Get translated document checklist
   const requiredDocs = getDocumentChecklist(lang);
@@ -93,30 +74,30 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
   };
 
   const handleGenerate = () => {
-    if (!dossierName || !selectedTemplateId) return;
+    if (!dossierName) return;
     setIsExtracting(true);
   };
 
   const handleExtractionComplete = React.useCallback(async () => {
     try {
-      // 1. Save to Database via API
-      const result = await api.createDossier({
-        titel: dossierName,
-        verkoper_naam: 'Onbekende Verkoper', // We extract this later usually
-        adres: 'Nieuw Pand, Onbekende Straat 1' // Mock/Extracted
+      const formData = new FormData();
+      formData.append('titel', dossierName);
+      formData.append('verkoper_naam', 'Onbekende Verkoper');
+      formData.append('adres', 'Nieuw Pand, Onbekende Straat 1');
+      formData.append('type', 'House');
+      if (remarks) formData.append('remarks', remarks);
+
+      files.forEach(file => {
+        formData.append('files', file);
       });
 
-      console.log("Created Dossier:", result);
-
-      // 2. Navigate to the new ID
-      onComplete(result.dossierId.toString());
-
+      const result = await api.createDossier(formData);
+      onComplete(result.id);
     } catch (error) {
       console.error("Failed to create dossier", error);
       alert("Er ging iets mis bij het opslaan.");
     }
-
-  }, [dossierName, onComplete]);
+  }, [dossierName, remarks, files, onComplete]);
 
   if (isExtracting) {
     return <ExtractionLoading lang={lang} onComplete={handleExtractionComplete} />;
@@ -140,7 +121,7 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 p-8 shadow-sm">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-slate-500">1</div>
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t.step1Title}</h2>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white">Dossier Details & Bestanden</h2>
             </div>
 
             <div className="space-y-6">
@@ -197,79 +178,21 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
                   </div>
                 </div>
               )}
-            </div>
-          </div>
 
-          {/* 2. Template Selection */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 p-8 shadow-sm">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-slate-500">2</div>
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t.chooseTemplate}</h2>
-            </div>
-
-            {/* Classification Status - Inline feedback */}
-            <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/30 flex items-start">
-              <Wand2 className="w-5 h-5 text-brand-600 mt-0.5 mr-3 flex-shrink-0" />
-              <div className="text-sm text-slate-600 dark:text-slate-400">
-                {t.aiSuggestionText} <strong>Standaard Verkoopsovereenkomst (Vlaanderen)</strong> {t.aiSuggestionTextEnd}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  {t.remarks} <span className="text-slate-400 font-normal">({t.optional})</span>
+                </label>
+                <textarea
+                  rows={4}
+                  className="w-full bg-gray-50 dark:bg-slate-950 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none text-sm resize-none"
+                  placeholder={t.remarksPlaceholder}
+                  value={remarks}
+                  onChange={(e) => setRemarks(e.target.value)}
+                />
               </div>
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {templates.map(template => (
-                <div
-                  key={template.id}
-                  onClick={() => setSelectedTemplateId(template.id)}
-                  className={`
-                                  relative rounded-xl p-6 cursor-pointer border-2 transition-all
-                                  ${selectedTemplateId === template.id
-                      ? 'border-brand-500 bg-brand-50/50 dark:bg-brand-900/10'
-                      : 'border-transparent bg-gray-50 dark:bg-slate-800 hover:border-gray-300 dark:hover:border-slate-600'
-                    }
-                              `}
-                >
-                  {template.isAiSuggested && (
-                    <div className="absolute top-0 right-0 bg-brand-500 text-white text-[10px] px-2 py-1 rounded-bl-lg rounded-tr-lg font-bold tracking-wide">
-                      {t.recommended}
-                    </div>
-                  )}
-
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 ${selectedTemplateId === template.id ? 'bg-brand-100 text-brand-600' : 'bg-white dark:bg-slate-700 text-slate-500'}`}>
-                    {template.id.includes('vlaanderen') ? <Home className="w-5 h-5" /> : <Building2 className="w-5 h-5" />}
-                  </div>
-
-                  <h3 className={`font-bold mb-1 ${selectedTemplateId === template.id ? 'text-brand-700 dark:text-brand-400' : 'text-slate-900 dark:text-white'}`}>
-                    {template.name}
-                  </h3>
-                  <ExpandableText
-                    text={template.description}
-                    limit={60}
-                    className="text-xs text-slate-500 leading-relaxed"
-                  />
-
-                  {selectedTemplateId === template.id && (
-                    <div className="absolute bottom-4 right-4 text-brand-600">
-                      <Check className="w-5 h-5" />
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-6">
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                {t.remarks} <span className="text-slate-400 font-normal">({t.optional})</span>
-              </label>
-              <textarea
-                rows={3}
-                className="w-full bg-gray-50 dark:bg-slate-950 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none text-sm resize-none"
-                placeholder={t.remarksPlaceholder}
-                value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
-              />
-            </div>
           </div>
-
         </div>
 
         {/* Right Column: Status & Action */}
@@ -343,14 +266,14 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
             <div className="border-t border-gray-100 dark:border-slate-800 pt-6">
               <button
                 onClick={handleGenerate}
-                disabled={!dossierName || !selectedTemplateId}
+                disabled={!dossierName}
                 className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold shadow-lg shadow-brand-500/20 hover:shadow-brand-500/40 transition-all flex items-center justify-center group"
               >
-                {t.generate}
+                Start Dossier
                 <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
               </button>
               <p className="text-xs text-center text-slate-400 mt-3 px-4">
-                {t.generateDescription}
+                Dossier wordt aangemaakt en geanalyseerd.
               </p>
             </div>
           </div>

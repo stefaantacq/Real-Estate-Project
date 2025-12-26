@@ -20,6 +20,8 @@ Volg deze stappen om het project lokaal draaiende te krijgen.
   - *Check installatie:* `node -v`
 - **SSH logingegevens**: Voor de tunnel naar de database. (Vraag aan Willem (user = mysqltunnel, passwd = 2562))
 
+(ssh -L 3307:127.0.0.1:3306 -N mysqltunnel@mijnfotos.website)
+
 ### 2. Installatie
 
 Clone de repository en installeer de dependencies voor beide projecten:

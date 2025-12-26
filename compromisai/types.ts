@@ -12,8 +12,32 @@ export interface User {
 
 export enum DossierStatus {
   DRAFT = 'draft',
+  ACTIVE = 'active',
   COMPLETED = 'completed',
   ARCHIVED = 'archived'
+}
+
+export interface Version {
+  id: string;
+  number: string;
+  source: 'AI' | 'Upload' | 'Manual';
+  isCurrent: boolean;
+  date: string;
+  sections?: DocumentSection[];
+}
+
+export interface Agreement {
+  id: string;
+  templateId: string;
+  templateName: string;
+  versions: Version[];
+}
+
+export interface SourceDocument {
+  id: string;
+  name: string;
+  type: string;
+  category: string;
 }
 
 export interface TimelineEvent {
@@ -28,13 +52,16 @@ export interface Dossier {
   id: string;
   name: string;
   address: string;
-  date: string; // Last modified
+  date: string;
   creationDate: string;
-  documentCount: number;
   status: DossierStatus;
+  documentCount: number;
+  agreementCount?: number;
+  type: string;
+  remarks?: string;
+  agreements?: Agreement[];
   timeline: TimelineEvent[];
-  type: 'House' | 'Apartment' | 'Commercial';
-  sections?: DocumentSection[];
+  documents: SourceDocument[];
 }
 
 export interface UserSettings {

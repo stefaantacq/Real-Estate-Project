@@ -1,10 +1,10 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Save, Download, FileText, Check, ChevronRight, Wand2, ArrowLeft, Eye, Undo, Redo, MoreHorizontal, Trash2, Plus, X, ListChecks, Maximize2, Split, ArrowUp, ArrowDown, ArrowRight, ExternalLink, Edit2 } from 'lucide-react';
+import { Save, Download, FileText, Check, ChevronRight, Wand2, ArrowLeft, Eye, Undo, Redo, MoreHorizontal, Trash2, Plus, X, ListChecks, Maximize2, Split, ArrowUp, ArrowDown, ArrowRight, ExternalLink, Edit2, RefreshCw } from 'lucide-react';
 import { Language, DocumentSection, PlaceholderSuggestion, Dossier } from '../types';
 import { TRANSLATIONS, MOCK_SECTIONS } from '../constants';
-import { DossierService } from '../services/dossierService';
+import { api } from '../services/api';
 
 interface EditorProps {
     lang: Language;
@@ -21,34 +21,53 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     const { id } = useParams<{ id: string }>();
     const t = TRANSLATIONS[lang];
     const [dossier, setDossier] = useState<Dossier | undefined>(undefined);
-    const [sections, setSections] = useState<DocumentSection[]>(MOCK_SECTIONS);
+    const [sections, setSections] = useState<DocumentSection[]>([]);
     const [sidebarMode, setSidebarMode] = useState<'none' | 'ai' | 'checklist'>('none');
     const [splitScreen, setSplitScreen] = useState<boolean>(false);
     const [activePlaceholderId, setActivePlaceholderId] = useState<string | null>(null);
     const [editingPlaceholder, setEditingPlaceholder] = useState<{ sectionId: string, placeholderId: string } | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
 
     // Initial Load
     useEffect(() => {
-        if (!id) return;
-        DossierService.init();
-        const d = DossierService.getById(id);
-        if (d) {
-            setDossier(d);
-            if (d.sections && d.sections.length > 0) {
-                setSections(d.sections);
+        const fetchVersion = async () => {
+            if (!id) return;
+            setIsLoading(true);
+            try {
+                const ver: any = await api.getVersion(id);
+                // We mock a minimalist dossier object for the header part
+                setDossier({
+                    id: ver.ui_id,
+                    name: "Verkoopovereenkomst",
+                    // ... other required fields
+                } as any);
+
+                if (ver.sections) {
+                    setSections(ver.sections);
+                }
+                setIsInitialized(true);
+            } catch (error) {
+                console.error("Failed to fetch version", error);
+            } finally {
+                setIsLoading(false);
             }
-            setIsInitialized(true);
-        }
+        };
+
+        fetchVersion();
     }, [id]);
 
-    // Save on Change
-    useEffect(() => {
-        if (isInitialized && dossier) {
-            const updatedDossier = { ...dossier, sections };
-            DossierService.update(updatedDossier);
+    // Save on Change (Debounced or explicit)
+    // For simplicity in this demo, we save when sections change but maybe we should add a save button
+    const handleSave = async (updatedSections?: DocumentSection[]) => {
+        if (!id || !isInitialized) return;
+        try {
+            await api.updateVersion(id, updatedSections || sections);
+            // Show some success toast maybe
+        } catch (error) {
+            console.error("Failed to save version:", error);
         }
-    }, [sections, dossier, isInitialized]);
+    };
 
     // Helper to get total validation status
     const totalPlaceholders = sections.flatMap(s => s.placeholders).length;
@@ -56,7 +75,9 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     const progress = Math.round((approvedPlaceholders / totalPlaceholders) * 100);
 
     const toggleApproveSection = (sectionId: string) => {
-        setSections(prev => prev.map(s => s.id === sectionId ? { ...s, isApproved: !s.isApproved } : s));
+        const updatedSections = sections.map(s => s.id === sectionId ? { ...s, isApproved: !s.isApproved } : s);
+        setSections(updatedSections);
+        handleSave(updatedSections);
     };
 
     const removeSection = (sectionId: string) => {
@@ -90,24 +111,36 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     };
 
     const toggleApprovePlaceholder = (sectionId: string, placeholderId: string) => {
-        setSections(prev => prev.map(s => {
+        const updatedSections = sections.map(s => {
             if (s.id !== sectionId) return s;
             return {
                 ...s,
                 placeholders: s.placeholders.map(p => p.id === placeholderId ? { ...p, isApproved: !p.isApproved } : p)
             };
-        }));
+        });
+        setSections(updatedSections);
+        handleSave(updatedSections);
     };
 
-    const updatePlaceholderValue = (sectionId: string, placeholderId: string, newValue: string) => {
-        setSections(prev => prev.map(s => {
+    const updatePlaceholderValue = async (sectionId: string, placeholderId: string, newValue: string) => {
+        const updatedSections = sections.map(s => {
             if (s.id !== sectionId) return s;
             return {
                 ...s,
                 placeholders: s.placeholders.map(p => p.id === placeholderId ? { ...p, currentValue: newValue } : p)
             };
-        }));
+        });
+        setSections(updatedSections);
         setEditingPlaceholder(null);
+
+        // Immediate Save
+        if (id) {
+            try {
+                await api.updateVersion(id, updatedSections);
+            } catch (error) {
+                console.error("Failed to save placeholder update:", error);
+            }
+        }
     };
 
     const handleSourceClick = (id: string) => {
@@ -122,8 +155,17 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
         alert('Document exported to PDF/Word!');
     };
 
-    const handleContentEdit = (sectionId: string, newContent: string) => {
-        setSections(prev => prev.map(s => s.id === sectionId ? { ...s, content: newContent } : s));
+    const handleContentEdit = async (sectionId: string, newContent: string) => {
+        const updatedSections = sections.map(s => s.id === sectionId ? { ...s, content: newContent } : s);
+        setSections(updatedSections);
+
+        if (id) {
+            try {
+                await api.updateVersion(id, updatedSections);
+            } catch (error) {
+                console.error("Failed to save content edit:", error);
+            }
+        }
     };
 
     const handleTitleEdit = (sectionId: string, newTitle: string) => {
@@ -134,22 +176,29 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
         const container = event.currentTarget;
         let content = "";
 
+        // Improved reconstruction to avoid losing tags
         container.childNodes.forEach(node => {
             if (node.nodeType === Node.TEXT_NODE) {
                 content += node.textContent;
             } else if (node.nodeType === Node.ELEMENT_NODE) {
                 const el = node as HTMLElement;
-                const placeholderId = el.getAttribute('data-placeholder-id');
+                // Look for placeholder ID in the element or its children (in case of browser nesting)
+                const placeholderId = el.getAttribute('data-placeholder-id') || el.querySelector('[data-placeholder-id]')?.getAttribute('data-placeholder-id');
                 if (placeholderId) {
                     content += `[placeholder:${placeholderId}]`;
+                } else if (el.tagName === 'BR') {
+                    content += '\n';
                 } else {
-                    // This handles any other text or spans that might have been added
                     content += el.innerText;
                 }
             }
         });
 
-        handleContentEdit(sectionId, content);
+        // Only call edit if content actually changed to avoid redundant saves
+        const currentSection = sections.find(s => s.id === sectionId);
+        if (currentSection && currentSection.content !== content) {
+            handleContentEdit(sectionId, content);
+        }
     };
 
     // Render a placeholder chip within text
@@ -158,7 +207,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
 
         if (isEditing) {
             return (
-                <span key={p.id} className="inline-block align-baseline mx-1" contentEditable={false}>
+                <span key={p.id} data-placeholder-id={p.id} className="inline-block align-baseline mx-1" contentEditable={false}>
                     <input
                         autoFocus
                         type="text"
@@ -204,17 +253,10 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                         <div className="flex gap-1 items-center">
                             <button
                                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleSourceClick(p.id); }}
-                                className="flex-none flex items-center justify-center px-1.5 py-0.5 bg-gray-100 dark:bg-slate-700/50 rounded text-[9px] hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors whitespace-nowrap"
+                                className="flex-none flex items-center justify-center px-2 py-1 bg-gray-100 dark:bg-slate-700/50 rounded text-[10px] hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors whitespace-nowrap"
                                 title={t.source}
                             >
-                                <Eye className="w-3 h-3 mr-0.5" /> {t.source}
-                            </button>
-                            <button
-                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingPlaceholder({ sectionId: section.id, placeholderId: p.id }); }}
-                                className="flex-none flex items-center justify-center px-1.5 py-0.5 bg-gray-100 dark:bg-slate-700/50 rounded text-[9px] hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors whitespace-nowrap"
-                                title="Bewerk"
-                            >
-                                <Edit2 className="w-3 h-3 mr-0.5" /> Bewerk
+                                <Eye className="w-3.5 h-3.5 mr-1" /> {t.source}
                             </button>
                             <button
                                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleApprovePlaceholder(section.id, p.id); }}
@@ -250,6 +292,14 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     // We will make the section contentEditable.
     // We'll trust the user not to break the HTML structure of the placeholders too much.
 
+    if (isLoading) {
+        return (
+            <div className="flex-1 flex items-center justify-center bg-gray-100 dark:bg-slate-950 h-full">
+                <RefreshCw className="w-10 h-10 animate-spin text-brand-600" />
+            </div>
+        );
+    }
+
     return (
         <div className="flex flex-col h-[calc(100vh-6rem)] animate-in fade-in duration-500">
 
@@ -258,6 +308,10 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                 <div className="flex items-center gap-4">
                     <button onClick={onBack} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-500">
                         <ArrowLeft className="w-5 h-5" />
+                    </button>
+                    <button onClick={handleSave} className="flex items-center px-3 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded-lg text-sm font-bold transition-all border border-brand-200">
+                        <Save className="w-4 h-4 mr-2" />
+                        Opslaan
                     </button>
                     <div className="h-6 w-px bg-gray-300 dark:bg-slate-700 mx-2"></div>
                     <div className="flex gap-1">
