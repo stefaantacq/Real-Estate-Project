@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Bell, Shield, Trash2, Eye } from 'lucide-react';
+import { ArrowLeft, Bell, Shield, Trash2, Eye, BrainCircuit } from 'lucide-react';
 import { Language, UserSettings } from '../types';
 import { TRANSLATIONS } from '../constants';
 import { SettingsService } from '../services/settingsService';
@@ -15,6 +15,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ lang, onBack }) => {
 
     const handleToggle = (key: keyof UserSettings) => {
         const updated = SettingsService.updateSettings({ [key]: !settings[key] });
+        setSettings(updated);
+    };
+
+    const handlePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const value = e.target.value;
+        const updated = SettingsService.updateSettings({ aiExtractionPrompt: value });
         setSettings(updated);
     };
 
@@ -40,7 +46,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ lang, onBack }) => {
                         <div className="flex items-center justify-between">
                             <div>
                                 <h3 className="font-medium text-slate-900 dark:text-white">{t.settingsDeleteConfirmation}</h3>
-                                <p className="text-sm text-slate-500">Vraagt om bevestiging voordat een dossier definitief wordt verwijderd.</p>
                             </div>
                             <button
                                 onClick={() => handleToggle('showDeleteConfirmation')}
@@ -50,6 +55,58 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ lang, onBack }) => {
                                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings.showDeleteConfirmation ? 'translate-x-6' : 'translate-x-1'}`}
                                 />
                             </button>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="font-medium text-slate-900 dark:text-white">{t.settingsDeleteVersionConfirmation}</h3>
+                            </div>
+                            <button
+                                onClick={() => handleToggle('showVersionDeleteConfirmation')}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ring-2 ring-offset-2 ring-transparent focus:ring-brand-500 ${settings.showVersionDeleteConfirmation ? 'bg-brand-600' : 'bg-gray-200 dark:bg-slate-700'}`}
+                            >
+                                <span
+                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings.showVersionDeleteConfirmation ? 'translate-x-6' : 'translate-x-1'}`}
+                                />
+                            </button>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="font-medium text-slate-900 dark:text-white">{t.settingsDeleteAgreementConfirmation}</h3>
+                            </div>
+                            <button
+                                onClick={() => handleToggle('showAgreementDeleteConfirmation')}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ring-2 ring-offset-2 ring-transparent focus:ring-brand-500 ${settings.showAgreementDeleteConfirmation ? 'bg-brand-600' : 'bg-gray-200 dark:bg-slate-700'}`}
+                            >
+                                <span
+                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings.showAgreementDeleteConfirmation ? 'translate-x-6' : 'translate-x-1'}`}
+                                />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* AI Settings */}
+                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 overflow-hidden">
+                    <div className="p-6 border-b border-gray-100 dark:border-slate-800">
+                        <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center">
+                            <BrainCircuit className="w-5 h-5 mr-2 text-brand-500" />
+                            AI Instellingen
+                        </h2>
+                    </div>
+                    <div className="p-6 space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                Custom AI Extractie Instructie
+                            </label>
+                            <p className="text-xs text-slate-500 dark:text-slate-500 mb-3">
+                                Geef extra instructies aan de AI voor het scannen van documenten. Bijvoorbeeld: "Focus vooral op de namen van de kopers" of "Formatteer data altijd als DD-MM-YYYY".
+                            </p>
+                            <textarea
+                                value={settings.aiExtractionPrompt || ''}
+                                onChange={handlePromptChange}
+                                placeholder="Typ hier je extra instructies..."
+                                className="w-full h-32 p-4 bg-slate-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all resize-none text-sm"
+                            />
                         </div>
                     </div>
                 </div>

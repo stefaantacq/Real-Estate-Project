@@ -8,10 +8,12 @@ interface DeleteConfirmationModalProps {
     isOpen: boolean;
     onClose: () => void;
     onConfirm: (dontShowAgain: boolean) => void;
+    title?: string;
+    message?: string;
 }
 
 export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({
-    lang, isOpen, onClose, onConfirm
+    lang, isOpen, onClose, onConfirm, title, message
 }) => {
     const t = TRANSLATIONS[lang];
     const [dontShowAgain, setDontShowAgain] = React.useState(false);
@@ -19,7 +21,7 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-800 overflow-hidden animate-in zoom-in-95 duration-200">
                 <div className="p-6">
                     <div className="flex items-center justify-between mb-6">
@@ -35,10 +37,10 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
                     </div>
 
                     <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
-                        {t.deleteDossier}
+                        {title || t.deleteDossier}
                     </h3>
                     <p className="text-slate-500 dark:text-slate-400 mb-6">
-                        {t.deleteConfirmation}
+                        {message || t.deleteConfirmation}
                     </p>
 
                     <label className="flex items-center space-x-3 mb-8 cursor-pointer group">

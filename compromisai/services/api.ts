@@ -5,12 +5,19 @@ export const API_BASE_URL = '/api';
 export const api = {
     // Generic fetch wrapper
     async request(endpoint: string, options: RequestInit = {}) {
+        const headers: Record<string, string> = {
+            ...((options.headers as Record<string, string>) || {}),
+        };
+
+        // Only set Content-Type to application/json if it's not already set 
+        // AND the body is NOT FormData (browser sets boundary for FormData)
+        if (!headers['Content-Type'] && !(options.body instanceof FormData)) {
+            headers['Content-Type'] = 'application/json';
+        }
+
         const response = await fetch(`${API_BASE_URL}${endpoint}`, {
             ...options,
-            headers: {
-                'Content-Type': 'application/json',
-                ...options.headers,
-            },
+            headers,
         });
 
         if (!response.ok) {
@@ -61,10 +68,23 @@ export const api = {
         return this.request(`/dossiers/versions/${id}`);
     },
 
-    async updateVersion(id: string, sections: any[]) {
-        return this.request(`/dossiers/versions/${id}`, {
+    async updateVersion(versionId: string, data: any) {
+        return this.request(`/dossiers/versions/${versionId}`, {
             method: 'PUT',
-            body: JSON.stringify({ sections }),
+            body: JSON.stringify(data),
+        });
+    },
+
+    async renameVersion(versionId: string, newName: string) {
+        return this.request(`/dossiers/versions/${versionId}/rename`, {
+            method: 'PATCH',
+            body: JSON.stringify({ name: newName }),
+        });
+    },
+
+    async deleteVersion(id: string) {
+        return this.request(`/dossiers/versions/${id}`, {
+            method: 'DELETE',
         });
     },
 
@@ -72,6 +92,12 @@ export const api = {
         return this.request(`/dossiers/${dossierId}/agreements`, {
             method: 'POST',
             body: JSON.stringify({ template_id: templateId }),
+        });
+    },
+
+    async deleteAgreement(agreementId: string) {
+        return this.request(`/dossiers/agreements/${agreementId}`, {
+            method: 'DELETE',
         });
     },
 

@@ -23,6 +23,7 @@ export interface Version {
   source: 'AI' | 'Upload' | 'Manual';
   isCurrent: boolean;
   date: string;
+  path?: string;
   sections?: DocumentSection[];
 }
 
@@ -38,6 +39,7 @@ export interface SourceDocument {
   name: string;
   type: string;
   category: string;
+  path?: string;
 }
 
 export interface TimelineEvent {
@@ -66,6 +68,9 @@ export interface Dossier {
 
 export interface UserSettings {
   showDeleteConfirmation: boolean;
+  showVersionDeleteConfirmation: boolean;
+  showAgreementDeleteConfirmation: boolean;
+  aiExtractionPrompt?: string;
 }
 
 export interface Template {

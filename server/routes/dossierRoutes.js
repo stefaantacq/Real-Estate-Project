@@ -11,9 +11,12 @@ router.delete('/:id', dossierController.deleteDossier);
 // Versions
 router.get('/versions/:id', dossierController.getVersionById);
 router.put('/versions/:id', dossierController.updateVersion);
+router.delete('/versions/:id', dossierController.deleteVersion);
+router.patch('/versions/:id/rename', dossierController.renameVersion);
 
 // Agreements
 router.post('/:id/agreements', dossierController.createAgreement);
 router.post('/agreements/:id/versions', (req, res, next) => req.app.get('upload').single('file')(req, res, next), dossierController.createVersion);
+router.delete('/agreements/:id', dossierController.deleteAgreement);
 
 module.exports = router;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Calendar, MapPin, FileText, Clock, GitCompare, Archive, ExternalLink, RefreshCw, File, Trash2, X, Home, Building2 } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, FileText, Clock, GitCompare, Archive, ExternalLink, RefreshCw, File, Trash2, X, Home, Building2, Edit2 } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { Language, Dossier, DossierStatus } from '../types';
 import { TRANSLATIONS } from '../constants';
@@ -22,14 +22,23 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
    // Fetch from storage
    const [dossier, setDossier] = React.useState<Dossier | undefined>(undefined);
    const [deleteModalOpen, setDeleteModalOpen] = React.useState(false);
+   const [deleteModalType, setDeleteModalType] = React.useState<'dossier' | 'version' | 'agreement'>('dossier');
+   const [versionToDelete, setVersionToDelete] = React.useState<string | null>(null);
+   const [agreementToDelete, setAgreementToDelete] = React.useState<string | null>(null);
+   const [versionToRename, setVersionToRename] = React.useState<string | null>(null);
+   const [newName, setNewName] = React.useState('');
+   const [isRenameModalOpen, setIsRenameModalOpen] = React.useState(false);
+   const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number; versionId: string; agreementId: string } | null>(null);
    const [splitScreen, setSplitScreen] = React.useState(false);
-   const [selectedDocument, setSelectedDocument] = React.useState<string | null>(null);
+   const [selectedDocument, setSelectedDocument] = React.useState<{ name: string, path?: string } | null>(null);
 
    // Editing states
    const [isEditingName, setIsEditingName] = React.useState(false);
    const [isEditingAddress, setIsEditingAddress] = React.useState(false);
    const [tempName, setTempName] = React.useState('');
    const [tempAddress, setTempAddress] = React.useState('');
+   const [isScanning, setIsScanning] = React.useState(false);
+   const [scanProgress, setScanProgress] = React.useState(0);
 
    // Templates state for "Add Agreement"
    const [templates, setTemplates] = React.useState<any[]>([]);
@@ -64,7 +73,55 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
 
       fetchDossier();
       fetchTemplates();
+
+      // Polling for AI scan status
+      let pollInterval: any;
+
+      const checkScanningStatus = async () => {
+         if (!id) return;
+         try {
+            const data: any = await api.getDossierById(id);
+            const events = data.timeline || [];
+            const hasCreated = events.some((e: any) => e.title === 'Dossier aangemaakt');
+            const hasAICompleted = events.some((e: any) => e.title === 'AI Analyse Voltooid');
+
+            if (hasCreated && !hasAICompleted && data.documents?.length > 0) {
+               setIsScanning(true);
+            } else {
+               setIsScanning(false);
+            }
+         } catch (e) {
+            console.error("Status check failed", e);
+         }
+      };
+
+      if (id) {
+         checkScanningStatus();
+         pollInterval = setInterval(checkScanningStatus, 5000);
+      }
+
+      // Close context menu on click outside
+      const handleClickOutside = () => setContextMenu(null);
+      document.addEventListener('click', handleClickOutside);
+      return () => {
+         document.removeEventListener('click', handleClickOutside);
+         if (pollInterval) clearInterval(pollInterval);
+      };
    }, [id]);
+
+   React.useEffect(() => {
+      let progInterval: any;
+      if (isScanning) {
+         progInterval = setInterval(() => {
+            setScanProgress(p => (p < 95 ? p + 2 : p));
+         }, 1000);
+      } else {
+         setScanProgress(0);
+      }
+      return () => {
+         if (progInterval) clearInterval(progInterval);
+      };
+   }, [isScanning]);
 
    const handleArchive = async () => {
       if (!dossier) return;
@@ -78,11 +135,82 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
    };
 
    const handleDeleteClick = () => {
+      setDeleteModalType('dossier');
       const settings = SettingsService.getSettings();
       if (settings.showDeleteConfirmation) {
          setDeleteModalOpen(true);
       } else {
          performDelete();
+      }
+   };
+
+   const handleDeleteVersionClick = (e: React.MouseEvent, versionId: string) => {
+      e.stopPropagation();
+      setDeleteModalType('version');
+      setVersionToDelete(versionId);
+      const settings = SettingsService.getSettings();
+      if (settings.showVersionDeleteConfirmation) {
+         setDeleteModalOpen(true);
+      } else {
+         performDeleteVersion(versionId);
+      }
+   };
+
+   const handleDeleteAgreementClick = (e: React.MouseEvent, agreementId: string) => {
+      e.stopPropagation();
+      setDeleteModalType('agreement');
+      setAgreementToDelete(agreementId);
+      const settings = SettingsService.getSettings();
+      if (settings.showAgreementDeleteConfirmation) {
+         setDeleteModalOpen(true);
+      } else {
+         performDeleteAgreement(agreementId);
+      }
+   };
+
+   const handleVersionContextMenu = (e: React.MouseEvent, versionId: string, agreementId: string) => {
+      e.preventDefault();
+      setContextMenu({ x: e.clientX, y: e.clientY, versionId, agreementId });
+   };
+
+   const handleContextMenuDelete = () => {
+      if (contextMenu) {
+         // Create a dummy event object for handleDeleteVersionClick
+         const dummyEvent = {
+            stopPropagation: () => { },
+            // Add other properties if handleDeleteVersionClick expects them, e.g., target, currentTarget
+            // For now, just stopPropagation is enough as it's the only one used.
+         } as React.MouseEvent;
+         handleDeleteVersionClick(dummyEvent, contextMenu.versionId);
+         setContextMenu(null);
+      }
+   };
+
+   const handleContextMenuRename = () => {
+      if (contextMenu) {
+         setVersionToRename(contextMenu.versionId);
+         // Find current version name to pre-fill
+         const agreement = dossier?.agreements?.find(a => a.id === contextMenu.agreementId);
+         const version = agreement?.versions.find(v => v.id === contextMenu.versionId);
+         setNewName(version?.number || '');
+         setIsRenameModalOpen(true);
+         setContextMenu(null);
+      }
+   };
+
+   const performRename = async () => {
+      if (!versionToRename || !newName.trim()) return;
+      try {
+         await api.renameVersion(versionToRename, newName.trim());
+         setIsRenameModalOpen(false);
+         setVersionToRename(null);
+         setNewName('');
+         // Refresh dossier
+         const data: any = await api.getDossierById(id!);
+         setDossier(data as Dossier);
+      } catch (error: any) {
+         console.error("Failed to rename version", error);
+         alert("Kon versie niet hernoemen: " + (error.message || "Onbekende fout"));
       }
    };
 
@@ -98,12 +226,61 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
       }
    };
 
+   const performDeleteVersion = async (versionId: string) => {
+      if (!id) return;
+      try {
+         await api.deleteVersion(versionId);
+         // Close modal first
+         setDeleteModalOpen(false);
+         setVersionToDelete(null);
+         // Refresh dossier
+         const data: any = await api.getDossierById(id);
+         setDossier(data as Dossier);
+      } catch (error: any) {
+         console.error("Failed to delete version", error);
+         const errorMessage = error?.message || "Kon versie niet verwijderen.";
+         alert(errorMessage);
+      }
+   };
+
+   const performDeleteAgreement = async (agreementId: string) => {
+      if (!id) return;
+      try {
+         await api.deleteAgreement(agreementId);
+         // Close modal first
+         setDeleteModalOpen(false);
+         setAgreementToDelete(null);
+         // Refresh dossier
+         const data: any = await api.getDossierById(id);
+         setDossier(data as Dossier);
+      } catch (error: any) {
+         console.error("Failed to delete agreement", error);
+         const errorMessage = error?.message || "Kon overeenkomst niet verwijderen.";
+         alert(errorMessage);
+      }
+   };
+
    const handleConfirmDelete = (dontShowAgain: boolean) => {
       if (dontShowAgain) {
-         SettingsService.updateSettings({ showDeleteConfirmation: false });
+         // Update the correct setting based on what's being deleted
+         if (deleteModalType === 'dossier') {
+            SettingsService.updateSettings({ showDeleteConfirmation: false });
+         } else if (deleteModalType === 'version') {
+            SettingsService.updateSettings({ showVersionDeleteConfirmation: false });
+         } else if (deleteModalType === 'agreement') {
+            SettingsService.updateSettings({ showAgreementDeleteConfirmation: false });
+         }
       }
-      performDelete();
+      if (deleteModalType === 'dossier') {
+         performDelete();
+      } else if (deleteModalType === 'version' && versionToDelete) {
+         performDeleteVersion(versionToDelete);
+      } else if (deleteModalType === 'agreement' && agreementToDelete) {
+         performDeleteAgreement(agreementToDelete);
+      }
       setDeleteModalOpen(false);
+      setVersionToDelete(null);
+      setAgreementToDelete(null);
    };
 
    const toggleEditName = async () => {
@@ -136,8 +313,8 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
       setIsEditingAddress(!isEditingAddress);
    };
 
-   const openDocument = (docName: string) => {
-      setSelectedDocument(docName);
+   const openDocument = (doc: any) => {
+      setSelectedDocument({ name: doc.name, path: doc.path });
       setSplitScreen(true);
    };
 
@@ -248,7 +425,81 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
             isOpen={deleteModalOpen}
             onClose={() => setDeleteModalOpen(false)}
             onConfirm={handleConfirmDelete}
+            title={deleteModalType === 'version' ? t.deleteVersion : deleteModalType === 'agreement' ? 'Overeenkomst verwijderen' : t.deleteDossier}
+            message={deleteModalType === 'version' ? t.deleteVersionConfirmation : deleteModalType === 'agreement' ? 'Ben je zeker dat je deze overeenkomst wilt verwijderen?' : t.deleteConfirmation}
          />
+
+         {/* Context Menu */}
+         {contextMenu && (
+            <div
+               className="fixed bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-gray-200 dark:border-slate-700 py-1 z-[200] min-w-[160px]"
+               style={{ top: contextMenu.y, left: contextMenu.x }}
+               onClick={(e) => e.stopPropagation()}
+            >
+               <button
+                  onClick={handleContextMenuRename}
+                  className="w-full px-4 py-2 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2"
+               >
+                  <Edit2 className="w-4 h-4" />
+                  Hernoem versie
+               </button>
+               <button
+                  onClick={handleContextMenuDelete}
+                  className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
+               >
+                  <Trash2 className="w-4 h-4" />
+                  Verwijder versie
+               </button>
+            </div>
+         )}
+
+         {/* Rename Modal */}
+         {isRenameModalOpen && (
+            <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setIsRenameModalOpen(false)}>
+               <div
+                  className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-800 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
+                  onClick={e => e.stopPropagation()}
+               >
+                  <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
+                     <h3 className="text-xl font-bold text-slate-900 dark:text-white">Versie hernoemen</h3>
+                     <button onClick={() => setIsRenameModalOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                        <X className="w-5 h-5" />
+                     </button>
+                  </div>
+                  <div className="p-6 space-y-4">
+                     <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                           Nieuwe naam voor versie
+                        </label>
+                        <input
+                           type="text"
+                           value={newName}
+                           onChange={(e) => setNewName(e.target.value)}
+                           onKeyDown={(e) => e.key === 'Enter' && performRename()}
+                           autoFocus
+                           className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none transition-all"
+                           placeholder="Bijv. Concept v2, Finale Versie..."
+                        />
+                     </div>
+                  </div>
+                  <div className="p-6 bg-slate-50 dark:bg-slate-800/50 flex items-center justify-end gap-3">
+                     <button
+                        onClick={() => setIsRenameModalOpen(false)}
+                        className="px-4 py-2 text-slate-600 dark:text-slate-400 font-medium hover:text-slate-900 dark:hover:text-white transition-colors"
+                     >
+                        Annuleren
+                     </button>
+                     <button
+                        onClick={performRename}
+                        disabled={!newName.trim()}
+                        className="px-6 py-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg shadow-brand-500/20 transition-all flex items-center gap-2"
+                     >
+                        Opslaan
+                     </button>
+                  </div>
+               </div>
+            </div>
+         )}
 
          {/* Header / Nav */}
          <div className="mb-8 flex items-center justify-between">
@@ -323,34 +574,42 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                {/* Agreement Tracks */}
                <div className="space-y-4">
                   {dossier.agreements && dossier.agreements.length > 0 ? dossier.agreements.map((agg) => (
-                     <div key={agg.id} className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm relative overflow-hidden group">
-                        <div className="flex items-center justify-between mb-6">
+                     <div key={agg.id} className="bg-white dark:bg-slate-900 p-3 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm relative overflow-hidden group">
+                        <div className="flex items-center justify-between mb-3">
                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-brand-50 dark:bg-brand-900/30 rounded-lg flex items-center justify-center">
-                                 <FileText className="w-5 h-5 text-brand-600 dark:text-brand-400" />
+                              <div className="w-8 h-8 bg-brand-50 dark:bg-brand-900/30 rounded-lg flex items-center justify-center">
+                                 <FileText className="w-4 h-4 text-brand-600 dark:text-brand-400" />
                               </div>
                               <div>
                                  <h3 className="font-bold text-slate-900 dark:text-white leading-tight">{agg.templateName || 'Zelfgeschreven Overeenkomst'}</h3>
-                                 <span className="text-xs text-slate-400">Verkoopovereenkomst</span>
                               </div>
                            </div>
+                           {/* Delete Agreement Button */}
+                           <button
+                              onClick={(e) => handleDeleteAgreementClick(e, agg.id)}
+                              className="opacity-0 group-hover:opacity-100 p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                              title="Overeenkomst verwijderen"
+                           >
+                              <Trash2 className="w-4 h-4" />
+                           </button>
                         </div>
 
                         {/* Version Track UI */}
-                        <div className="flex items-center gap-4 py-4 overflow-x-auto no-scrollbar">
+                        <div className="flex items-center gap-4 py-4 px-4 overflow-x-auto no-scrollbar">
                            {agg.versions.map((ver, idx) => (
                               <React.Fragment key={ver.id}>
                                  <div
                                     onClick={() => onOpenEditor(ver.id)}
-                                    className={`relative flex flex-col items-center min-w-[80px] cursor-pointer transition-all group/ver
+                                    onContextMenu={(e) => handleVersionContextMenu(e, ver.id, agg.id)}
+                                    className={`group/ver cursor-pointer flex flex-col items-center transition-all duration-300
                                        ${ver.isCurrent ? 'scale-110' : 'opacity-60 hover:opacity-100'}
                                     `}
                                  >
                                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border-2 mb-2 transition-all group-hover/ver:border-brand-500
-                                       ${ver.isCurrent
+                                        ${ver.isCurrent
                                           ? 'bg-brand-50 border-brand-500 text-brand-600 dark:bg-brand-900/20 shadow-md'
                                           : 'bg-white border-slate-100 text-slate-400 dark:bg-slate-800 dark:border-slate-700'}
-                                    `}>
+                                     `}>
                                        <span className="font-bold text-sm">v{ver.number}</span>
                                     </div>
                                     <span className="text-[10px] uppercase tracking-tighter font-bold text-slate-400 group-hover/ver:text-brand-500 transition-colors">{ver.source}</span>
@@ -441,20 +700,20 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                      {(dossier as any).documents && (dossier as any).documents.length > 0 ? (dossier as any).documents.map((doc: any, i: number) => (
                         <div
                            key={doc.id || i}
-                           onClick={() => openDocument(doc.name)}
+                           onClick={() => openDocument(doc)}
                            className={`flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer group
-                               ${selectedDocument === doc.name && splitScreen
+                               ${selectedDocument?.name === doc.name && splitScreen
                                  ? 'bg-brand-50 border-brand-200 dark:bg-brand-900/20 dark:border-brand-800'
                                  : 'bg-gray-50 dark:bg-slate-800/50 border-transparent hover:bg-gray-100 dark:hover:bg-slate-800'}`}
                         >
                            <div className="flex items-center overflow-hidden">
-                              <File className={`w-4 h-4 mr-3 flex-shrink-0 ${selectedDocument === doc.name && splitScreen ? 'text-brand-600' : 'text-brand-500'}`} />
+                              <File className={`w-4 h-4 mr-3 flex-shrink-0 ${selectedDocument?.name === doc.name && splitScreen ? 'text-brand-600' : 'text-brand-500'}`} />
                               <div className="flex flex-col overflow-hidden">
-                                 <span className={`text-sm truncate ${selectedDocument === doc.name && splitScreen ? 'text-brand-700 dark:text-brand-400 font-bold' : 'text-slate-700 dark:text-slate-300'}`}>{doc.name}</span>
+                                 <span className={`text-sm truncate ${selectedDocument?.name === doc.name && splitScreen ? 'text-brand-700 dark:text-brand-400 font-bold' : 'text-slate-700 dark:text-slate-300'}`}>{doc.name}</span>
                                  {doc.category && <span className="text-[10px] text-slate-400 uppercase tracking-tighter">{doc.category}</span>}
                               </div>
                            </div>
-                           <ExternalLink className={`w-4 h-4 transition-opacity ${selectedDocument === doc.name && splitScreen ? 'opacity-100 text-brand-500' : 'opacity-0 group-hover:opacity-100 text-slate-400'}`} />
+                           <ExternalLink className={`w-4 h-4 transition-opacity ${selectedDocument?.name === doc.name && splitScreen ? 'opacity-100 text-brand-500' : 'opacity-0 group-hover:opacity-100 text-slate-400'}`} />
                         </div>
                      )) : (
                         <div className="text-xs text-slate-400 italic py-4 text-center">
@@ -596,12 +855,12 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                   </div>
                   <div>
                      <span className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 block leading-none mb-1">Document Preview</span>
-                     <span className="text-sm font-bold text-slate-900 dark:text-white">{selectedDocument}</span>
+                     <span className="text-sm font-bold text-slate-900 dark:text-white">{selectedDocument?.name}</span>
                   </div>
                </div>
                <div className="flex items-center gap-2">
                   <button
-                     onClick={() => window.open('#', '_blank')}
+                     onClick={() => selectedDocument?.path && window.open(selectedDocument.path, '_blank')}
                      className="p-2 text-slate-500 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-slate-800 rounded-lg transition-all"
                      title="Open in browser"
                   >
@@ -617,31 +876,18 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
             </div>
 
             <div className="flex-1 p-8 overflow-y-auto bg-slate-50/50 dark:bg-slate-950/50">
-               <div className="max-w-2xl mx-auto w-full aspect-[1/1.414] bg-white dark:bg-slate-900 shadow-2xl border border-gray-200 dark:border-slate-800 rounded-sm overflow-hidden relative p-12 group">
-                  {/* More Realistic PDF Simulation */}
-                  <div className="space-y-6">
-                     <div className="h-4 bg-brand-600/20 rounded w-1/3 mb-10"></div>
-                     <div className="space-y-4">
-                        {[...Array(12)].map((_, i) => (
-                           <div key={i} className="h-2.5 bg-slate-100 dark:bg-slate-800 rounded w-full" style={{ width: `${Math.random() * 30 + 70}%` }}></div>
-                        ))}
+               <div className="max-w-4xl mx-auto w-full h-full bg-white dark:bg-slate-900 shadow-2xl border border-gray-200 dark:border-slate-800 rounded-sm overflow-hidden relative group">
+                  {selectedDocument?.path ? (
+                     <iframe
+                        src={selectedDocument.path}
+                        className="w-full h-full border-none"
+                        title={selectedDocument.name}
+                     />
+                  ) : (
+                     <div className="flex items-center justify-center h-full text-slate-400">
+                        Selecteer een document om te bekijken
                      </div>
-                     <div className="grid grid-cols-2 gap-8 py-8">
-                        <div className="h-32 bg-slate-50 dark:bg-slate-800/50 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700"></div>
-                        <div className="h-32 bg-slate-50 dark:bg-slate-800/50 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700"></div>
-                     </div>
-                     <div className="space-y-4">
-                        {[...Array(8)].map((_, i) => (
-                           <div key={i} className="h-2.5 bg-slate-100 dark:bg-slate-800 rounded w-full" style={{ width: `${Math.random() * 30 + 70}%` }}></div>
-                        ))}
-                     </div>
-                  </div>
-
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-white/20 dark:bg-slate-900/20 backdrop-blur-[2px]">
-                     <span className="bg-white dark:bg-slate-800 px-6 py-3 rounded-xl shadow-2xl font-bold text-slate-900 dark:text-white border border-gray-200 dark:border-slate-700">
-                        [ {selectedDocument} Full Preview ]
-                     </span>
-                  </div>
+                  )}
                </div>
             </div>
          </div>

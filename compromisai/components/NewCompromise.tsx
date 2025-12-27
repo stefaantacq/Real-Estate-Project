@@ -1,12 +1,12 @@
 
 import React, { useState } from 'react';
-import { Upload, FileText, X, Home, Building2, Check, AlertCircle, Wand2, ArrowRight, ChevronDown, ChevronRight } from 'lucide-react';
+import { Upload, FileText, X, Home, Building2, Check, AlertCircle, Wand2, ArrowRight, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
 import { Language, Dossier, DossierStatus } from '../types';
 import { TRANSLATIONS, getTemplates, MOCK_SECTIONS } from '../constants';
 import { ExpandableText } from './ExpandableText';
-import { ExtractionLoading } from './ExtractionLoading';
 import { getDocumentChecklist } from '../documentChecklist';
 import { api } from '../services/api';
+import { SettingsService } from '../services/settingsService';
 
 interface NewCompromiseProps {
   lang: Language;
@@ -20,7 +20,7 @@ interface NewCompromiseProps {
 
 export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, onComplete }) => {
   const t = TRANSLATIONS[lang];
-  const [isExtracting, setIsExtracting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [dossierName, setDossierName] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [remarks, setRemarks] = useState('');
@@ -73,19 +73,27 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
     return categories;
   };
 
-  const handleGenerate = () => {
-    if (!dossierName) return;
-    setIsExtracting(true);
-  };
+  const handleGenerate = async () => {
+    if (!dossierName || isSubmitting) return;
+    setIsSubmitting(true);
 
-  const handleExtractionComplete = React.useCallback(async () => {
     try {
+      // Fetch templates to get a default if none selected (or just use first)
+      const templates = await api.getTemplates();
+      const defaultTemplateId = templates.length > 0 ? templates[0].template_id : null;
+
       const formData = new FormData();
       formData.append('titel', dossierName);
       formData.append('verkoper_naam', 'Onbekende Verkoper');
       formData.append('adres', 'Nieuw Pand, Onbekende Straat 1');
       formData.append('type', 'House');
       if (remarks) formData.append('remarks', remarks);
+      if (defaultTemplateId) formData.append('template_id', defaultTemplateId.toString());
+
+      const settings = SettingsService.getSettings();
+      if (settings.aiExtractionPrompt) {
+        formData.append('ai_extraction_prompt', settings.aiExtractionPrompt);
+      }
 
       files.forEach(file => {
         formData.append('files', file);
@@ -95,13 +103,11 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
       onComplete(result.id);
     } catch (error) {
       console.error("Failed to create dossier", error);
-      alert("Er ging iets mis bij het opslaan.");
+      alert("Er ging iets mis bij het aanmaken van het dossier. Probeer het opnieuw.");
+    } finally {
+      setIsSubmitting(false);
     }
-  }, [dossierName, remarks, files, onComplete]);
-
-  if (isExtracting) {
-    return <ExtractionLoading lang={lang} onComplete={handleExtractionComplete} />;
-  }
+  };
 
   return (
     <div className="max-w-5xl mx-auto pb-20 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -266,11 +272,20 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
             <div className="border-t border-gray-100 dark:border-slate-800 pt-6">
               <button
                 onClick={handleGenerate}
-                disabled={!dossierName}
+                disabled={!dossierName || isSubmitting}
                 className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold shadow-lg shadow-brand-500/20 hover:shadow-brand-500/40 transition-all flex items-center justify-center group"
               >
-                Start Dossier
-                <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                {isSubmitting ? (
+                  <>
+                    <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
+                    Dossier aanmaken...
+                  </>
+                ) : (
+                  <>
+                    Start Dossier
+                    <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                  </>
+                )}
               </button>
               <p className="text-xs text-center text-slate-400 mt-3 px-4">
                 Dossier wordt aangemaakt en geanalyseerd.

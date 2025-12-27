@@ -120,7 +120,11 @@ export const TRANSLATIONS = {
     deleteConfirmation: 'Ben je zeker dat je dit wilt verwijderen?',
     dontShowAgain: 'Dit niet meer tonen',
     confirmDelete: 'Verwijderen',
-    settingsDeleteConfirmation: 'Toon bevestigingspop-up bij verwijderen',
+    settingsDeleteConfirmation: 'Toon bevestigingspop-up bij verwijderen van een dossier',
+    settingsDeleteVersionConfirmation: 'Toon bevestigingspop-up bij verwijderen van een versie',
+    settingsDeleteAgreementConfirmation: 'Toon bevestigingspop-up bij verwijderen van een overeenkomst',
+    deleteVersion: 'Versie verwijderen',
+    deleteVersionConfirmation: 'Ben je zeker dat je deze versie wilt verwijderen?',
     cancel: 'Annuleren',
   },
   [Language.FR]: {
@@ -217,6 +221,8 @@ export const TRANSLATIONS = {
     dontShowAgain: 'Ne plus afficher',
     confirmDelete: 'Supprimer',
     settingsDeleteConfirmation: 'Afficher la confirmation de suppression',
+    deleteVersion: 'Supprimer la version',
+    deleteVersionConfirmation: 'Êtes-vous sûr de vouloir supprimer cette version ?',
     cancel: 'Annuler',
   },
   [Language.EN]: {
@@ -317,68 +323,7 @@ export const TRANSLATIONS = {
   }
 };
 
-export const MOCK_DOSSIERS: Dossier[] = [
-  {
-    id: '1',
-    name: 'Appartement Brussels',
-    address: 'Kerkstraat 123, 1000 Brussel',
-    date: '2025-11-20',
-    creationDate: '2025-11-01',
-    documentCount: 2,
-    status: DossierStatus.DRAFT,
-    type: 'Apartment',
-    timeline: [
-      { id: 't1', date: '2025-11-01', title: 'Dossier aangemaakt', description: 'Initiele creatie', user: 'Jan' },
-      { id: 't2', date: '2025-11-02', title: 'Documenten geupload', description: 'EPC en Kadaster toegevoegd', user: 'Jan' },
-      { id: 't3', date: '2025-11-20', title: 'Draft v1', description: 'Eerste versie gegenereerd', user: 'AI' },
-    ]
-  },
-  {
-    id: '2',
-    name: 'Huis Antwerpen',
-    address: 'Meir 1, 2000 Antwerpen',
-    date: '2025-11-18',
-    creationDate: '2025-10-15',
-    documentCount: 3,
-    status: DossierStatus.COMPLETED,
-    type: 'House',
-    timeline: [
-      { id: 't2-1', date: '2025-10-15', title: 'Dossier aangemaakt', description: 'Nieuw dossier gestart', user: 'Jan' },
-      { id: 't2-2', date: '2025-10-20', title: 'Certificaten ontvangen', description: 'EPC en Bodemattest aanwezig', user: 'Systeem' },
-      { id: 't2-3', date: '2025-11-18', title: 'Voltooid', description: 'Compromis volledig getekend', user: 'Jan' },
-    ]
-  },
-  {
-    id: '3',
-    name: 'Villa Gent',
-    address: 'Veldstraat 40, 9000 Gent',
-    date: '2025-11-15',
-    creationDate: '2025-09-01',
-    documentCount: 5,
-    status: DossierStatus.ARCHIVED,
-    type: 'House',
-    timeline: [
-      { id: 't3-1', date: '2025-09-01', title: 'Dossier aangemaakt', description: 'Start dossier Villa Gent', user: 'Sofie' },
-      { id: 't3-2', date: '2025-10-01', title: 'Documentatie compleet', description: 'Alle 5 documenten geüpload', user: 'Sofie' },
-      { id: 't3-3', date: '2025-11-15', title: 'Gearchiveerd', description: 'Transactie afgerond en gearchiveerd', user: 'Sofie' },
-    ]
-  },
-  {
-    id: '4',
-    name: 'Studio Leuven',
-    address: 'Bondgenotenlaan 55, 3000 Leuven',
-    date: '2025-10-01',
-    creationDate: '2025-09-20',
-    documentCount: 4,
-    status: DossierStatus.ARCHIVED,
-    type: 'Apartment',
-    timeline: [
-      { id: 't4-1', date: '2025-09-20', title: 'Dossier aangemaakt', description: 'Creatie Studio Leuven', user: 'Wouter' },
-      { id: 't4-2', date: '2025-09-25', title: 'AI Analyse', description: 'Data extractie uitgevoerd', user: 'AI' },
-      { id: 't4-3', date: '2025-10-01', title: 'Gearchiveerd', description: 'Dossier gesloten', user: 'Wouter' },
-    ]
-  }
-];
+
 
 // Deprecated: Use API instead
 export const getTemplates = (lang: Language): Template[] => {

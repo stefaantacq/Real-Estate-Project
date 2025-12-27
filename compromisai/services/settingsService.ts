@@ -4,6 +4,8 @@ const STORAGE_KEY = 'compromisai_settings';
 
 const DEFAULT_SETTINGS: UserSettings = {
     showDeleteConfirmation: true,
+    showVersionDeleteConfirmation: true,
+    showAgreementDeleteConfirmation: true,
 };
 
 export const SettingsService = {

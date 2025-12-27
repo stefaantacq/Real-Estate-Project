@@ -25,6 +25,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     const [sidebarMode, setSidebarMode] = useState<'none' | 'ai' | 'checklist'>('none');
     const [splitScreen, setSplitScreen] = useState<boolean>(false);
     const [activePlaceholderId, setActivePlaceholderId] = useState<string | null>(null);
+    const [selectedSourceDoc, setSelectedSourceDoc] = useState<{ name: string, path?: string } | null>(null);
     const [editingPlaceholder, setEditingPlaceholder] = useState<{ sectionId: string, placeholderId: string } | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -40,8 +41,12 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                 setDossier({
                     id: ver.ui_id,
                     name: "Verkoopovereenkomst",
-                    // ... other required fields
+                    documents: ver.dossier_documents || []
                 } as any);
+
+                if (ver.path) {
+                    setSelectedSourceDoc({ name: ver.number, path: ver.path });
+                }
 
                 if (ver.sections) {
                     setSections(ver.sections);
@@ -143,8 +148,18 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
         }
     };
 
-    const handleSourceClick = (id: string) => {
-        setActivePlaceholderId(id);
+    const handleSourceClick = (placeholderId: string) => {
+        setActivePlaceholderId(placeholderId);
+
+        // Try to find the document path from the dossier if available
+        const placeholder = sections.flatMap(s => s.placeholders).find(p => p.id === placeholderId);
+        if (placeholder && placeholder.sourceDoc && dossier?.documents) {
+            const doc = dossier.documents.find(d => d.name === placeholder.sourceDoc);
+            if (doc) {
+                setSelectedSourceDoc({ name: doc.name, path: doc.path });
+            }
+        }
+
         setSplitScreen(true);
     };
 
@@ -457,12 +472,12 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                             <div className="flex items-center">
                                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center mr-3">
                                     <FileText className="w-3 h-3 mr-2" />
-                                    {activePlaceholderId && NAME_PLACEHOLDERS.includes(activePlaceholderId)
+                                    {selectedSourceDoc ? `Bron: ${selectedSourceDoc.name}` : (activePlaceholderId && NAME_PLACEHOLDERS.includes(activePlaceholderId)
                                         ? 'Bron: Identiteitskaart.jpg'
-                                        : 'Bron Document: Kadaster.pdf'}
+                                        : 'Bron Document: Kadaster.pdf')}
                                 </span>
                                 <button
-                                    onClick={() => window.open('#', '_blank')}
+                                    onClick={() => selectedSourceDoc?.path && window.open(selectedSourceDoc.path, '_blank')}
                                     className="p-1 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded transition-colors"
                                     title="Open in drowser"
                                 >
@@ -475,7 +490,13 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                         </div>
                         <div className="flex-1 p-6 overflow-hidden bg-slate-100 dark:bg-slate-950">
                             <div className="w-full h-full bg-white shadow-lg flex flex-col items-center justify-center text-slate-300 border border-gray-200 overflow-hidden relative group">
-                                {activePlaceholderId && NAME_PLACEHOLDERS.includes(activePlaceholderId) ? (
+                                {selectedSourceDoc?.path ? (
+                                    <iframe
+                                        src={selectedSourceDoc.path}
+                                        className="w-full h-full border-none"
+                                        title={selectedSourceDoc.name}
+                                    />
+                                ) : activePlaceholderId && NAME_PLACEHOLDERS.includes(activePlaceholderId) ? (
                                     <div className="relative w-full h-full flex items-center justify-center bg-slate-200">
                                         <img
                                             src="/id_card_evidence.png"
@@ -491,7 +512,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                     </div>
                                 ) : (
                                     <>
-                                        {/* Fake PDF Lines */}
+                                        {/* Fake PDF Lines as fallback */}
                                         <div className="absolute inset-0 p-8 space-y-4 opacity-50 pointer-events-none">
                                             {[...Array(20)].map((_, i) => (
                                                 <div key={i} className="h-2 bg-slate-200 rounded w-full" style={{ width: `${Math.random() * 40 + 60}%` }}></div>
@@ -503,7 +524,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                             <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-bold shadow-sm">Gevonden Data</span>
                                         </div>
 
-                                        <span className="relative z-10 font-medium text-slate-400 bg-white/80 px-4 py-2 rounded-lg backdrop-blur-sm">[ PDF Preview Mock ]</span>
+                                        <span className="relative z-10 font-medium text-slate-400 bg-white/80 px-4 py-2 rounded-lg backdrop-blur-sm">[ Geen bron gevonden ]</span>
                                     </>
                                 )}
                             </div>
