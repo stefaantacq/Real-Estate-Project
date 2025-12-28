@@ -81,6 +81,7 @@ export interface Template {
   type: 'House' | 'Apartment' | 'Commercial';
   source: 'CIB' | 'Custom';
   isAiSuggested?: boolean;
+  isArchived?: boolean;
   sections?: DocumentSection[];
 }
 
@@ -92,6 +93,7 @@ export interface PlaceholderSuggestion {
   sourcePage: number;
   confidence: 'High' | 'Medium' | 'Low';
   isApproved: boolean;
+  type?: string;
 }
 
 export interface DocumentSection {

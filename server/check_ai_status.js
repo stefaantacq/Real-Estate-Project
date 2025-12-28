@@ -21,14 +21,12 @@ async function checkStatus() {
 
         console.log('\n--- Placeholders with Values (Non-empty) ---');
         const [placeholders] = await pool.query(`
-            SELECT p.naam, ap.ingevulde_waarde, asub.tekst_inhoud, s.titel as section_title
+            SELECT pl.sleutel as naam, ap.ingevulde_waarde
             FROM AangepastePlaceholder ap
-            JOIN Placeholder p ON ap.placeholder_id = p.placeholder_id
-            LEFT JOIN AangepasteSectie asub ON ap.aangepaste_sectie_id = asub.aangepaste_sectie_id
-            LEFT JOIN Sectie s ON asub.sectie_id = s.sectie_id
+            JOIN PlaceholderLibrary pl ON ap.placeholder_id = pl.id
             WHERE ap.dossier_id = ? AND ap.ingevulde_waarde IS NOT NULL AND ap.ingevulde_waarde != ''
         `, [dossierId]);
-        placeholders.forEach(p => console.log(`- ${p.naam}: ${p.ingevulde_waarde} (${p.section_title || 'Master'})`));
+        placeholders.forEach(p => console.log(`- ${p.naam}: ${p.ingevulde_waarde}`));
 
         process.exit(0);
     } catch (err) {

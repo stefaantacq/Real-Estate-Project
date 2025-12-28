@@ -125,16 +125,25 @@ export const api = {
         });
     },
 
-    async createTemplate(data: Template) {
+    async createTemplate(data: any) {
         return this.request('/templates', {
             method: 'POST',
-            body: JSON.stringify(data),
+            body: data,
+            headers: data instanceof FormData ? {} : { 'Content-Type': 'application/json' },
         });
     },
 
     async deleteTemplate(id: string) {
         return this.request(`/templates/${id}`, {
             method: 'DELETE',
+        });
+    },
+
+    async archiveTemplate(id: string, isArchived: boolean) {
+        return this.request(`/templates/${id}/archive`, {
+            method: 'PATCH',
+            body: JSON.stringify({ is_archived: isArchived }),
+            headers: { 'Content-Type': 'application/json' }
         });
     }
 };

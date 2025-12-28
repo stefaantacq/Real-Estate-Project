@@ -3,6 +3,17 @@ const { extractTextFromPDF, analyzeDocument } = require('../services/aiService')
 const path = require('path');
 
 const fetchFullVersionContent = async (versie_id) => {
+    // Get dossier_id first to fetch master data placeholders
+    const [verRows] = await pool.query(`
+        SELECT ouv.dossier_id 
+        FROM Versie v 
+        JOIN Verkoopsovereenkomst ouv ON v.overeenkomst_id = ouv.overeenkomst_id 
+        WHERE v.versie_id = ?
+    `, [versie_id]);
+
+    if (verRows.length === 0) return [];
+    const dossierId = verRows[0].dossier_id;
+
     const [sections] = await pool.query(`
         SELECT asub.*, s.titel, s.tekst_content as original_content
         FROM AangepasteSectie asub
@@ -12,19 +23,28 @@ const fetchFullVersionContent = async (versie_id) => {
     `, [versie_id]);
 
     for (let section of sections) {
+        // Fetch placeholders linked to this section via the intersection table
         const [placeholders] = await pool.query(`
-            SELECT ap.*, p.naam, p.type
-            FROM AangepastePlaceholder ap
-            JOIN Placeholder p ON ap.placeholder_id = p.placeholder_id
-            WHERE ap.aangepaste_sectie_id = ?
-        `, [section.aangepaste_sectie_id]);
+            SELECT 
+                pl.id as placeholder_id, 
+                pl.sleutel as naam, 
+                pl.type, 
+                sp.pdf_label,
+                ap.ingevulde_waarde,
+                ap.onzekerheidsscore,
+                ap.validatiestatus as placeholder_validatiestatus
+            FROM SectiePlaceholder sp
+            JOIN PlaceholderLibrary pl ON sp.placeholder_id = pl.id
+            LEFT JOIN AangepastePlaceholder ap ON pl.id = ap.placeholder_id AND ap.dossier_id = ?
+            WHERE sp.sectie_id = ?
+        `, [dossierId, section.sectie_id]);
 
         section.placeholders = placeholders.map(p => ({
             id: p.naam,
-            label: p.naam, // For now, use name as label
+            label: p.pdf_label || p.naam,
             currentValue: p.ingevulde_waarde || '',
             confidence: p.onzekerheidsscore > 0.8 ? 'High' : (p.onzekerheidsscore > 0.5 ? 'Medium' : 'Low'),
-            isApproved: p.validatiestatus === 'approved',
+            isApproved: p.placeholder_validatiestatus === 'approved',
             type: p.type
         }));
 
@@ -41,33 +61,24 @@ const fetchFullVersionContent = async (versie_id) => {
 const initializeVersionFromTemplate = async (verId, template_id, dossierId) => {
     const [templateSecties] = await pool.query('SELECT * FROM Sectie WHERE template_id = ? ORDER BY volgorde ASC', [template_id]);
     for (const ts of templateSecties) {
-        const [asResult] = await pool.query(
+        await pool.query(
             'INSERT INTO AangepasteSectie (versie_id, sectie_id, tekst_inhoud, validatiestatus) VALUES (?, ?, ?, ?)',
             [verId, ts.sectie_id, ts.tekst_content, 'pending']
         );
-        const asId = asResult.insertId;
 
-        const [templatePlaceholders] = await pool.query('SELECT * FROM Placeholder WHERE sectie_id = ?', [ts.sectie_id]);
+        const [templatePlaceholders] = await pool.query(`
+            SELECT pl.* 
+            FROM PlaceholderLibrary pl 
+            JOIN SectiePlaceholder sp ON pl.id = sp.placeholder_id 
+            WHERE sp.sectie_id = ?
+        `, [ts.sectie_id]);
+
         for (const tp of templatePlaceholders) {
-            // Priority 1: Check Master Placeholder (direct dossier link, no section)
-            // Priority 2: Check other agreements in same dossier
-            const [existingValueRows] = await pool.query(`
-                SELECT ap.ingevulde_waarde 
-                FROM AangepastePlaceholder ap
-                LEFT JOIN Placeholder p ON ap.placeholder_id = p.placeholder_id
-                WHERE ap.dossier_id = ? 
-                AND p.naam = ? 
-                AND ap.ingevulde_waarde IS NOT NULL 
-                AND ap.ingevulde_waarde != ''
-                ORDER BY (ap.aangepaste_sectie_id IS NULL) DESC, ap.aangepaste_placeholder_id DESC
-                LIMIT 1
-            `, [dossierId, tp.naam]);
-
-            const sharedValue = existingValueRows[0]?.ingevulde_waarde || '';
-
+            // Ensure Master Placeholder exists for the dossier
+            // We use INSERT IGNORE based on unique_dossier_placeholder index
             await pool.query(
-                'INSERT INTO AangepastePlaceholder (aangepaste_sectie_id, placeholder_id, ingevulde_waarde, validatiestatus, dossier_id) VALUES (?, ?, ?, ?, ?)',
-                [asId, tp.placeholder_id, sharedValue, 'pending', dossierId]
+                'INSERT IGNORE INTO AangepastePlaceholder (dossier_id, placeholder_id, ingevulde_waarde, validatiestatus) VALUES (?, ?, ?, ?)',
+                [dossierId, tp.id, '', 'unverified']
             );
         }
     }
@@ -76,58 +87,26 @@ const initializeVersionFromTemplate = async (verId, template_id, dossierId) => {
 const copyVersionContent = async (sourceVersionId, targetVersionId) => {
     const [oldSecties] = await pool.query('SELECT * FROM AangepasteSectie WHERE versie_id = ?', [sourceVersionId]);
     for (const os of oldSecties) {
-        const [asResult] = await pool.query(
+        await pool.query(
             'INSERT INTO AangepasteSectie (versie_id, sectie_id, tekst_inhoud, validatiestatus) VALUES (?, ?, ?, ?)',
             [targetVersionId, os.sectie_id, os.tekst_inhoud, os.validatiestatus]
         );
-        const newAsId = asResult.insertId;
-
-        const [oldPlaceholders] = await pool.query('SELECT * FROM AangepastePlaceholder WHERE aangepaste_sectie_id = ?', [os.aangepaste_sectie_id]);
-        for (const op of oldPlaceholders) {
-            await pool.query(
-                'INSERT INTO AangepastePlaceholder (aangepaste_sectie_id, placeholder_id, ingevulde_waarde, onzekerheidsscore, correctheid, validatiestatus, dossier_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                [newAsId, op.placeholder_id, op.ingevulde_waarde, op.onzekerheidsscore, op.correctheid, op.validatiestatus, op.dossier_id]
-            );
-        }
+        // Note: AangepastePlaceholder entries are dossier-level and don't need copying per version
     }
 };
 
 const syncDossierMasterData = async (dossierId, tag, value) => {
     try {
-        // 1. Update/Insert Master Placeholder (aangepaste_sectie_id IS NULL)
-        // Check if placeholder exists for this tag/dossier
-        const [pRows] = await pool.query(`
-            SELECT ap.aangepaste_placeholder_id 
-            FROM AangepastePlaceholder ap
-            JOIN Placeholder p ON ap.placeholder_id = p.placeholder_id
-            WHERE ap.dossier_id = ? AND p.naam = ? AND ap.aangepaste_sectie_id IS NULL
-        `, [dossierId, tag]);
-
-        if (pRows.length > 0) {
-            await pool.query(
-                'UPDATE AangepastePlaceholder SET ingevulde_waarde = ? WHERE aangepaste_placeholder_id = ?',
-                [value, pRows[0].aangepaste_placeholder_id]
-            );
-        } else {
-            // Find placeholder definition id
-            const [pDef] = await pool.query('SELECT placeholder_id FROM Placeholder WHERE naam = ? LIMIT 1', [tag]);
-            if (pDef.length > 0) {
-                await pool.query(
-                    'INSERT INTO AangepastePlaceholder (dossier_id, placeholder_id, ingevulde_waarde) VALUES (?, ?, ?)',
-                    [dossierId, pDef[0].placeholder_id, value]
-                );
-            }
+        // 1. Update/Insert Master Placeholder
+        const [pDef] = await pool.query('SELECT id FROM PlaceholderLibrary WHERE sleutel = ? LIMIT 1', [tag]);
+        if (pDef.length > 0) {
+            const placeholderId = pDef[0].id;
+            await pool.query(`
+                INSERT INTO AangepastePlaceholder (dossier_id, placeholder_id, ingevulde_waarde, validatiestatus) 
+                VALUES (?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE ingevulde_waarde = VALUES(ingevulde_waarde)
+            `, [dossierId, placeholderId, value, 'unverified']);
         }
-
-        // 2. Sync to all current versions' placeholders with same tag
-        await pool.query(`
-            UPDATE AangepastePlaceholder ap
-            JOIN Placeholder p ON ap.placeholder_id = p.placeholder_id
-            JOIN AangepasteSectie asub ON ap.aangepaste_sectie_id = asub.aangepaste_sectie_id
-            JOIN Versie v ON asub.versie_id = v.versie_id
-            SET ap.ingevulde_waarde = ?
-            WHERE ap.dossier_id = ? AND p.naam = ? AND v.is_current = true
-        `, [value, dossierId, tag]);
 
         // 3. If tag is address-related, sync to Dossier table
         const addressTags = ['adres_eigendom', 'ligging', 'ligging_eigendom', 'ObjectAdres', 'property_street', 'property_municipality', 'property_address'];
@@ -146,19 +125,40 @@ const processDossierDocuments = async (dossierId, files, customPrompt = null) =>
     try {
         console.log(`Starting AI extraction for dossier ${dossierId} with ${files.length} documents...`);
 
-        // 1. Get all possible placeholders with context (section title)
+        // 1. Get all possible placeholders from the library for extraction
+        // We fetch the pdf_label (usually Dutch) from the intersection table to help the AI map fields
         const [pRows] = await pool.query(`
-            SELECT p.naam, p.type, s.titel as section_title
-            FROM Placeholder p
-            JOIN Sectie s ON p.sectie_id = s.sectie_id
+            SELECT pl.sleutel as naam, pl.type, s.titel as section_title, sp.pdf_label
+            FROM PlaceholderLibrary pl
+            LEFT JOIN SectiePlaceholder sp ON pl.id = sp.placeholder_id
+            LEFT JOIN Sectie s ON sp.sectie_id = s.sectie_id
         `);
 
-        const tagsToExtract = Array.from(new Set(pRows.map(r => r.naam)));
-        const fieldContexts = pRows.map(r => ({
-            naam: r.naam,
-            type: r.type,
-            section: r.section_title
+        // Consolidate: if a placeholder appears multiple times (different sections), 
+        // combine the labels/contexts to give Gemini a better chance.
+        const consolidatedMap = {};
+        for (const row of pRows) {
+            if (!consolidatedMap[row.naam]) {
+                consolidatedMap[row.naam] = {
+                    naam: row.naam,
+                    type: row.type,
+                    labels: new Set(),
+                    sections: new Set()
+                };
+            }
+            if (row.pdf_label) consolidatedMap[row.naam].labels.add(row.pdf_label);
+            if (row.section_title) consolidatedMap[row.naam].sections.add(row.section_title);
+        }
+
+        const tagsToExtract = Object.keys(consolidatedMap);
+        const fieldContexts = Object.values(consolidatedMap).map(ctx => ({
+            naam: ctx.naam,
+            type: ctx.type,
+            label: Array.from(ctx.labels).join(', ') || ctx.naam,
+            sections: Array.from(ctx.sections).join(', ') || 'General'
         }));
+
+        console.log(`Sending ${tagsToExtract.length} unique tags to Gemini for extraction.`);
 
         let combinedExtractedData = {};
 
@@ -180,6 +180,7 @@ const processDossierDocuments = async (dossierId, files, customPrompt = null) =>
                     );
 
                     const extractedData = await analyzeDocument(text, tagsToExtract, customPrompt, fieldContexts);
+                    console.log(`Gemini extracted data for ${file.originalname}:`, JSON.stringify(extractedData, null, 2));
                     // Merge data (later documents can overwrite or supplement)
                     combinedExtractedData = { ...combinedExtractedData, ...extractedData };
                 } else {
@@ -515,26 +516,15 @@ const dossierController = {
 
                 if (Array.isArray(s.placeholders)) {
                     for (const p of s.placeholders) {
-                        // Update AangepastePlaceholder
-                        const [apRows] = await pool.query(
-                            'SELECT ap.aangepaste_placeholder_id, p.naam FROM AangepastePlaceholder ap JOIN Placeholder p ON ap.placeholder_id = p.placeholder_id WHERE ap.aangepaste_sectie_id = ? AND p.naam = ?',
-                            [s.id, p.id]
-                        );
-
-                        if (apRows.length > 0) {
-                            const apId = apRows[0].aangepaste_placeholder_id;
-                            const placeholderName = apRows[0].naam;
-
-                            await pool.query(
-                                'UPDATE AangepastePlaceholder SET ingevulde_waarde = ?, validatiestatus = ? WHERE aangepaste_placeholder_id = ?',
-                                [p.currentValue, p.isApproved ? 'approved' : 'pending', apId]
-                            );
-
-                            // --- SHARE LOGIC ---
-                            // Update Master Placeholder and sync across dossier
-                            if (dossierId) {
-                                await syncDossierMasterData(dossierId, placeholderName, p.currentValue);
-                            }
+                        // Update AangepastePlaceholder (Master Data)
+                        const [pRows] = await pool.query('SELECT id FROM PlaceholderLibrary WHERE sleutel = ?', [p.id]);
+                        if (pRows.length > 0) {
+                            const placeholderId = pRows[0].id;
+                            await pool.query(`
+                                INSERT INTO AangepastePlaceholder (dossier_id, placeholder_id, ingevulde_waarde, validatiestatus)
+                                VALUES (?, ?, ?, ?)
+                                ON DUPLICATE KEY UPDATE ingevulde_waarde = VALUES(ingevulde_waarde), validatiestatus = VALUES(validatiestatus)
+                            `, [dossierId, placeholderId, p.currentValue, p.isApproved ? 'approved' : 'pending']);
                         }
                     }
                 }
@@ -677,9 +667,9 @@ const dossierController = {
 
             const { versie_id, overeenkomst_id, is_current } = verRows[0];
 
-            // 1. Delete associated data
-            // Placeholders are deleted first due to FKs
-            await pool.query('DELETE FROM AangepastePlaceholder WHERE aangepaste_sectie_id IN (SELECT aangepaste_sectie_id FROM AangepasteSectie WHERE versie_id = ?)', [versie_id]);
+            // Placeholder links are in SectiePlaceholder and are global, 
+            // but dossier-level values are in AangepastePlaceholder. 
+            // We only delete AangepasteSections for the version.
             await pool.query('DELETE FROM AangepasteSectie WHERE versie_id = ?', [versie_id]);
 
             // 2. Delete the version itself
@@ -725,9 +715,8 @@ const dossierController = {
             // 1. Get all versions for this agreement
             const [versions] = await pool.query('SELECT versie_id FROM Versie WHERE overeenkomst_id = ?', [overeenkomst_id]);
 
-            // 2. Delete all associated data for each version
+            // 2. Delete all associated sections for each version
             for (const version of versions) {
-                await pool.query('DELETE FROM AangepastePlaceholder WHERE aangepaste_sectie_id IN (SELECT aangepaste_sectie_id FROM AangepasteSectie WHERE versie_id = ?)', [version.versie_id]);
                 await pool.query('DELETE FROM AangepasteSectie WHERE versie_id = ?', [version.versie_id]);
             }
 

@@ -6,16 +6,17 @@ interface ExpandableTextProps {
     className?: string;
 }
 
-export const ExpandableText: React.FC<ExpandableTextProps> = ({ text, limit = 100, className }) => {
+export const ExpandableText: React.FC<ExpandableTextProps> = ({ text = '', limit = 100, className }) => {
     const [isExpanded, setIsExpanded] = useState(false);
-    const shouldTruncate = text.length > limit;
+    const content = text || '';
+    const shouldTruncate = content.length > limit;
 
-    if (!shouldTruncate) return <p className={className}>{text}</p>;
+    if (!shouldTruncate) return <p className={className}>{content}</p>;
 
     return (
         <div className={className}>
             <p>
-                {isExpanded ? text : `${text.slice(0, limit)}...`}
+                {isExpanded ? content : `${content.slice(0, limit)}...`}
                 <button
                     onClick={(e) => {
                         e.stopPropagation();

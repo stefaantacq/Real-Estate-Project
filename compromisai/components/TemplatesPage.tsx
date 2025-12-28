@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Plus, FileText, ChevronRight, Layout as LayoutIcon, Globe, Lock, MoreVertical, Edit2, Trash2, Copy, Eye, X, Check } from 'lucide-react';
+import { Search, Plus, FileText, ChevronRight, Layout as LayoutIcon, Globe, Lock, MoreVertical, Edit2, Trash2, Copy, Eye, X, Check, RefreshCw, Archive } from 'lucide-react';
 import { Language, Template, DocumentSection, PlaceholderSuggestion } from '../types';
 import { TRANSLATIONS, SUPPORTED_PLACEHOLDERS } from '../constants';
 import { api } from '../services/api'; // Integrated API
@@ -54,7 +54,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
     const t = TRANSLATIONS[lang];
     const [templates, setTemplates] = useState<Template[]>([]); // Initialized empty
     const [searchTerm, setSearchTerm] = useState('');
-    const [activeTab, setActiveTab] = useState<'all' | 'cib' | 'custom'>('all');
+    const [activeTab, setActiveTab] = useState<'all' | 'cib' | 'custom' | 'archived'>('all');
 
     // Fetch templates from API
     React.useEffect(() => {
@@ -85,11 +85,36 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
     const [newName, setNewName] = useState('');
     const [newDesc, setNewDesc] = useState('');
     const [newType, setNewType] = useState<'House' | 'Apartment' | 'Commercial'>('House');
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [analyzedSections, setAnalyzedSections] = useState<DocumentSection[]>([]);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
-    const handleOpenPreview = (template: Template) => {
+    const handleOpenPreview = async (template: Template) => {
         setPreviewTemplate(template);
-        setEditedSections(template.sections || []);
         setIsEditingInPreview(false);
+
+        // If template has no sections (lazy loaded), fetch full content
+        if (!template.sections || template.sections.length === 0) {
+            setIsPreviewLoading(true);
+            try {
+                const fullTemplate = await api.getTemplateById(template.id);
+                setPreviewTemplate(fullTemplate);
+                setEditedSections(fullTemplate.sections || []);
+
+                // Update the templates list so it's cached for this session
+                setTemplates(prev => prev.map(t => t.id === template.id ? fullTemplate : t));
+            } catch (error: any) {
+                console.error("Failed to fetch full template:", error);
+                alert(`Fout bij het laden van template details: ${error.message}`);
+                setPreviewTemplate(null);
+            } finally {
+                setIsPreviewLoading(false);
+            }
+        } else {
+            setEditedSections(template.sections || []);
+        }
     };
 
     const handleEditToggle = () => {
@@ -157,13 +182,63 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
 
     const handleSaveEdits = async () => {
         if (!previewTemplate) return;
+        setIsSaving(true);
+
+        // Helper to extract placeholders from content
+        const syncPlaceholders = (section: DocumentSection): DocumentSection => {
+            const matches = Array.from(section.content.matchAll(/\[placeholder:([a-zA-Z0-9_]+)\]/g));
+            const foundIds = new Set(matches.map(m => m[1]));
+
+            const currentPlaceholders = section.placeholders || [];
+
+            // 1. Keep existing placeholders that are still in content
+            const validPlaceholders = currentPlaceholders.filter(p => foundIds.has(p.id));
+
+            // 2. Add new placeholders found in content but not in array
+            const existingIds = new Set(validPlaceholders.map(p => p.id));
+
+            foundIds.forEach(id => {
+                if (!existingIds.has(id)) {
+                    // Try to find definition in SUPPORTED_PLACEHOLDERS
+                    const supported = SUPPORTED_PLACEHOLDERS.find(sp => sp.id === id);
+                    if (supported) {
+                        validPlaceholders.push({
+                            id: supported.id,
+                            label: supported.label,
+                            currentValue: '',
+                            type: 'text', // Default or from supported
+                            sourceDoc: '',
+                            sourcePage: 0,
+                            confidence: 'High',
+                            isApproved: true
+                        });
+                    } else {
+                        // Unknown placeholder (maybe manual entry), adding generic
+                        validPlaceholders.push({
+                            id: id,
+                            label: id, // Fallback label
+                            currentValue: '',
+                            type: 'text',
+                            sourceDoc: '',
+                            sourcePage: 0,
+                            confidence: 'Medium',
+                            isApproved: true
+                        });
+                    }
+                }
+            });
+
+            return { ...section, placeholders: validPlaceholders };
+        };
+
+        const sectionsToSave = editedSections.map(syncPlaceholders);
 
         try {
             await api.updateTemplate(previewTemplate.id, {
                 name: previewTemplate.name,
                 title: previewTemplate.title,
                 description: previewTemplate.description,
-                sections: editedSections
+                sections: sectionsToSave
             });
 
             const updatedTemplates = templates.map(t =>
@@ -172,23 +247,26 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                     name: previewTemplate.name,
                     title: previewTemplate.title,
                     description: previewTemplate.description,
-                    sections: editedSections
+                    sections: sectionsToSave
                 } : t
             );
 
             setTemplates(updatedTemplates);
             setPreviewTemplate({
                 ...previewTemplate,
-                sections: editedSections
+                sections: sectionsToSave
             });
+            setEditedSections(sectionsToSave); // Update local state too
             setIsEditingInPreview(false);
 
             // Show non-blocking toast
             setShowSaveToast(true);
             setTimeout(() => setShowSaveToast(false), 3000);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to save template:", error);
-            alert("Er is een fout opgetreden bij het opslaan.");
+            alert(`Er is een fout opgetreden bij het opslaan: ${error.message}`);
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -196,33 +274,39 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
         setNewName('');
         setNewDesc('');
         setNewType('House');
+        setAnalyzedSections([]);
+        setSelectedFile(null);
         setIsCreating(true);
     };
 
     const handleSaveNew = async () => {
         if (!newName) return alert('Geef een naam op');
 
-        const templateToCreate: Omit<Template, 'id'> = {
-            name: newName,
-            title: newName,
-            description: newDesc,
-            type: newType,
-            source: 'Custom',
-            isAiSuggested: false,
-            sections: []
-        };
+        // Keep the modal open to show analysis progress
+        setIsAnalyzing(true);
 
         try {
-            const response = await api.createTemplate(templateToCreate as any);
-            const createdTemplate: Template = {
-                ...templateToCreate,
-                id: response.id // Use the ID returned by SQL
-            };
-            setTemplates(prev => [...prev, createdTemplate]);
+            const formData = new FormData();
+            formData.append('name', newName);
+            formData.append('title', newName);
+            formData.append('description', newDesc);
+            formData.append('type', newType);
+            formData.append('source', 'Custom');
+
+            if (selectedFile) {
+                formData.append('file', selectedFile);
+            }
+
+            const response = await api.createTemplate(formData);
+            const newTemplate: Template = response.template;
+
+            setTemplates([newTemplate, ...templates]);
             setIsCreating(false);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to create template:", error);
-            alert("Fout bij aanmaken template");
+            alert(`Fout bij het aanmaken van de template: ${error.message}`);
+        } finally {
+            setIsAnalyzing(false);
         }
     };
 
@@ -232,32 +316,72 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                 await api.deleteTemplate(templateToDelete.id);
                 setTemplates(prev => prev.filter(t => t.id !== templateToDelete.id));
                 setTemplateToDelete(null);
-            } catch (error) {
+            } catch (error: any) {
                 console.error("Failed to delete template:", error);
-                alert("Fout bij verwijderen template");
+
+                // Check if it's the specific foreign key error (simple string check or status code)
+                if (error.message?.includes('in gebruik') || error.message?.includes('gekoppeld')) {
+                    if (confirm(`Deze template is in gebruik en kan niet verwijderd worden.\nWilt u deze template in plaats daarvan archiveren?`)) {
+                        await handleArchive(templateToDelete, true);
+                        setTemplateToDelete(null);
+                        return;
+                    }
+                }
+                alert(`Fout bij verwijderen template: ${error.message}`);
             }
         }
     };
 
+    const handleArchive = async (template: Template, archiveStatus: boolean) => {
+        try {
+            await api.archiveTemplate(template.id, archiveStatus);
+            setTemplates(prev => prev.map(t =>
+                t.id === template.id ? { ...t, isArchived: archiveStatus } : t
+            ));
+
+            // Also update preview if open
+            if (previewTemplate && previewTemplate.id === template.id) {
+                setPreviewTemplate({ ...previewTemplate, isArchived: archiveStatus });
+            }
+        } catch (error: any) {
+            console.error("Failed to archive template:", error);
+            alert(`Fout bij archiveren: ${error.message}`);
+        }
+    };
+
     const filteredTemplates = templates.filter(tmpl => {
-        const matchesSearch = tmpl.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (tmpl.title && tmpl.title.toLowerCase().includes(searchTerm.toLowerCase())) ||
-            tmpl.description.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesTab = activeTab === 'all' ||
+        const nameMatch = (tmpl.name || '').toLowerCase().includes(searchTerm.toLowerCase());
+        const titleMatch = (tmpl.title || '').toLowerCase().includes(searchTerm.toLowerCase());
+        const descMatch = (tmpl.description || '').toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesSearch = nameMatch || titleMatch || descMatch;
+
+        const matchesTab =
+            (activeTab === 'all') ||
             (activeTab === 'cib' && tmpl.source === 'CIB') ||
-            (activeTab === 'custom' && tmpl.source === 'Custom');
+            (activeTab === 'custom' && tmpl.source === 'Custom') ||
+            (activeTab === 'archived' && tmpl.isArchived);
+
+        // Optional: If you want to hide archived templates from "All", "CIB", "Custom", uncomment below:
+        // if (activeTab !== 'archived' && tmpl.isArchived) return false;
+
         return matchesSearch && matchesTab;
+    }).sort((a, b) => {
+        // Sort archived to bottom
+        if (a.isArchived && !b.isArchived) return 1;
+        if (!a.isArchived && b.isArchived) return -1;
+        return 0;
     });
 
     const renderPlaceholder = (p: PlaceholderSuggestion) => (
         <span
             key={p.id}
-            className="inline-block px-1.5 py-0.5 rounded border border-gray-300 bg-gray-50 dark:bg-slate-800 text-slate-400 text-xs font-serif font-bold mx-1 cursor-help align-baseline translate-y-[-1px]"
-            title={p.label}
+            className="inline-flex items-center px-2 py-1 rounded-md bg-brand-50 dark:bg-brand-900/40 text-brand-700 dark:text-brand-200 border border-brand-200 dark:border-brand-700 text-xs font-bold mx-1 cursor-help align-middle transition-all hover:scale-[1.02] shadow-sm"
+            title={`${p.label}`}
         >
             {p.label}
         </span>
     );
+
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500 pb-20">
@@ -299,6 +423,12 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                     >
                         Eigen
                     </button>
+                    <button
+                        onClick={() => setActiveTab('archived')}
+                        className={`flex-1 md:flex-none px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'archived' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                    >
+                        Gearchiveerd
+                    </button>
                 </div>
 
                 <div className="relative w-full md:w-80">
@@ -331,6 +461,11 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                     Eigen Template
                                 </span>
                             )}
+                            {template.isArchived && (
+                                <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-[10px] font-bold rounded-full uppercase tracking-wider border border-gray-200 dark:border-gray-700">
+                                    Gearchiveerd
+                                </span>
+                            )}
                         </div>
 
                         <div className="p-6">
@@ -359,6 +494,18 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                         title="Verwijderen"
                                     >
                                         <Trash2 className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleArchive(template, !template.isArchived);
+                                        }}
+                                        className={`p-2 rounded-lg transition-colors ${template.isArchived
+                                            ? 'text-orange-400 hover:text-orange-600 hover:bg-orange-50'
+                                            : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50'}`}
+                                        title={template.isArchived ? "Dearchiveren" : "Archiveren"}
+                                    >
+                                        <Archive className="w-4 h-4" />
                                     </button>
                                 </div>
                             </div>
@@ -445,10 +592,11 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                 {isEditingInPreview ? (
                                     <button
                                         onClick={handleSaveEdits}
-                                        className="flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-bold shadow-sm transition-all"
+                                        disabled={isSaving}
+                                        className="flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-bold shadow-sm transition-all"
                                     >
-                                        <Copy className="w-4 h-4 mr-2" />
-                                        Opslaan
+                                        {isSaving ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Copy className="w-4 h-4 mr-2" />}
+                                        {isSaving ? 'Opslaan...' : 'Opslaan'}
                                     </button>
                                 ) : (
                                     <button
@@ -461,6 +609,15 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                 )}
                                 <div className="w-px h-6 bg-gray-200 dark:bg-slate-700 mx-1"></div>
                                 <button
+                                    onClick={() => handleArchive(previewTemplate, !previewTemplate.isArchived)}
+                                    className={`p-2 rounded-lg transition-colors ${previewTemplate.isArchived
+                                        ? 'text-orange-400 hover:text-orange-600 hover:bg-orange-50'
+                                        : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50'}`}
+                                    title={previewTemplate.isArchived ? "Dearchiveren" : "Archiveren"}
+                                >
+                                    <Archive className="w-4 h-4" />
+                                </button>
+                                <button
                                     onClick={() => setPreviewTemplate(null)}
                                     className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
                                     title="Sluiten"
@@ -471,112 +628,119 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-8 bg-slate-100 dark:bg-slate-950/50">
-                            <div className="max-w-[800px] mx-auto bg-white dark:bg-slate-900 shadow-lg border border-gray-200 dark:border-slate-800 p-12 text-slate-800 dark:text-slate-200 font-serif leading-relaxed min-h-screen">
-                                <div className="text-center border-b-2 border-slate-900 dark:border-slate-100 pb-4 mb-12">
-                                    {isEditingInPreview ? (
-                                        <div className="flex flex-col gap-1">
-                                            <input
-                                                value={previewTemplate.title || ''}
-                                                onChange={(e) => setPreviewTemplate({ ...previewTemplate, title: e.target.value })}
-                                                className="text-2xl font-bold uppercase tracking-tight text-center w-full bg-slate-50 dark:bg-slate-800/50 border-none focus:ring-2 focus:ring-brand-500 rounded py-2 outline-none transition-all"
-                                                placeholder="Voer de titel van het document in..."
-                                            />
-                                        </div>
-                                    ) : (
-                                        <h1 className="text-2xl font-bold uppercase tracking-tight">{previewTemplate.title || previewTemplate.name}</h1>
-                                    )}
+                            {isPreviewLoading ? (
+                                <div className="flex flex-col items-center justify-center py-20 pointer-events-none">
+                                    <RefreshCw className="w-10 h-10 text-brand-500 animate-spin mb-4" />
+                                    <p className="text-slate-500 dark:text-slate-400 font-medium font-sans">Template details laden...</p>
                                 </div>
-                                <div className="space-y-8">
-                                    {editedSections.length > 0 ? (
-                                        editedSections.map((section) => (
-                                            <div key={section.id} className="space-y-3 group/section relative">
-                                                {isEditingInPreview && (
-                                                    <div className="absolute top-0 right-0 opacity-0 group-hover/section:opacity-100 transition-opacity">
-                                                        <button
-                                                            onClick={() => handleDeleteSection(section.id)}
-                                                            className="p-1 text-red-500 hover:bg-red-50 rounded"
-                                                        >
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </button>
-                                                    </div>
-                                                )}
+                            ) : (
+                                <div className="max-w-[800px] mx-auto bg-white dark:bg-slate-900 shadow-lg border border-gray-200 dark:border-slate-800 p-12 text-slate-800 dark:text-slate-200 font-serif leading-relaxed min-h-screen">
+                                    <div className="text-center border-b-2 border-slate-900 dark:border-slate-100 pb-4 mb-12">
+                                        {isEditingInPreview ? (
+                                            <div className="flex flex-col gap-1">
+                                                <input
+                                                    value={previewTemplate.title || ''}
+                                                    onChange={(e) => setPreviewTemplate({ ...previewTemplate, title: e.target.value })}
+                                                    className="text-2xl font-bold uppercase tracking-tight text-center w-full bg-slate-50 dark:bg-slate-800/50 border-none focus:ring-2 focus:ring-brand-500 rounded py-2 outline-none transition-all"
+                                                    placeholder="Voer de titel van het document in..."
+                                                />
+                                            </div>
+                                        ) : (
+                                            <h1 className="text-2xl font-bold uppercase tracking-tight">{previewTemplate.title || previewTemplate.name}</h1>
+                                        )}
+                                    </div>
+                                    <div className="space-y-8">
+                                        {editedSections.length > 0 ? (
+                                            editedSections.map((section) => (
+                                                <div key={section.id} className="space-y-3 group/section relative">
+                                                    {isEditingInPreview && (
+                                                        <div className="absolute top-0 right-0 opacity-0 group-hover/section:opacity-100 transition-opacity">
+                                                            <button
+                                                                onClick={() => handleDeleteSection(section.id)}
+                                                                className="p-1 text-red-500 hover:bg-red-50 rounded"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </button>
+                                                        </div>
+                                                    )}
 
-                                                {isEditingInPreview ? (
-                                                    <input
-                                                        value={section.title}
-                                                        onChange={(e) => handleUpdateSectionTitle(section.id, e.target.value)}
-                                                        className="font-bold text-base uppercase border-b border-gray-100 dark:border-slate-800 pb-1 w-full bg-transparent outline-none focus:border-brand-500 transition-colors"
-                                                    />
-                                                ) : (
-                                                    <h3 className="font-bold text-base uppercase border-b border-gray-100 dark:border-slate-800 pb-1">{section.title}</h3>
-                                                )}
-
-                                                {isEditingInPreview ? (
-                                                    <div className="relative">
-                                                        <AutoResizeTextarea
-                                                            value={section.content}
-                                                            onChange={(val, target) => handleSectionContentChange(section.id, val, target)}
-                                                            className="w-full p-0 font-serif text-sm bg-transparent border-none focus:ring-0 outline-none transition-all text-justify leading-relaxed text-slate-800 dark:text-slate-200 antialiased"
-                                                            placeholder="Voer hier de sectie-inhoud in..."
+                                                    {isEditingInPreview ? (
+                                                        <input
+                                                            value={section.title}
+                                                            onChange={(e) => handleUpdateSectionTitle(section.id, e.target.value)}
+                                                            className="font-bold text-base uppercase border-b border-gray-100 dark:border-slate-800 pb-1 w-full bg-transparent outline-none focus:border-brand-500 transition-colors"
                                                         />
+                                                    ) : (
+                                                        <h3 className="font-bold text-base uppercase border-b border-gray-100 dark:border-slate-800 pb-1">{section.title}</h3>
+                                                    )}
 
-                                                        {suggestionState.active && suggestionState.sectionId === section.id && (
-                                                            <div className="absolute z-50 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg shadow-xl mt-1 w-64 max-h-48 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200">
-                                                                <div className="p-2 border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50">
-                                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Kies een placeholder</span>
+                                                    {isEditingInPreview ? (
+                                                        <div className="relative">
+                                                            <AutoResizeTextarea
+                                                                value={section.content}
+                                                                onChange={(val, target) => handleSectionContentChange(section.id, val, target)}
+                                                                className="w-full p-0 font-serif text-sm bg-transparent border-none focus:ring-0 outline-none transition-all text-justify leading-relaxed text-slate-800 dark:text-slate-200 antialiased"
+                                                                placeholder="Voer hier de sectie-inhoud in..."
+                                                            />
+
+                                                            {suggestionState.active && suggestionState.sectionId === section.id && (
+                                                                <div className="absolute z-50 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg shadow-xl mt-1 w-64 max-h-48 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200">
+                                                                    <div className="p-2 border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50">
+                                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Kies een placeholder</span>
+                                                                    </div>
+                                                                    {SUPPORTED_PLACEHOLDERS
+                                                                        .filter(p => p.id.includes(suggestionState.query) || p.label.toLowerCase().includes(suggestionState.query))
+                                                                        .map(p => (
+                                                                            <button
+                                                                                key={p.id}
+                                                                                onClick={() => handleSelectPlaceholder(p.id)}
+                                                                                className="w-full text-left px-4 py-2 text-xs hover:bg-brand-50 dark:hover:bg-brand-900/20 text-slate-700 dark:text-slate-300 flex flex-col border-b border-gray-50 dark:border-slate-700/50 last:border-0"
+                                                                            >
+                                                                                <span className="font-bold text-brand-600">{p.label}</span>
+                                                                                <span className="text-[10px] text-slate-400 opacity-70">placeholder:{p.id}</span>
+                                                                            </button>
+                                                                        ))}
+                                                                    {SUPPORTED_PLACEHOLDERS.filter(p => p.id.includes(suggestionState.query) || p.label.toLowerCase().includes(suggestionState.query)).length === 0 && (
+                                                                        <div className="px-4 py-3 text-xs text-slate-400 italic">Geen overeenkomende placeholders...</div>
+                                                                    )}
                                                                 </div>
-                                                                {SUPPORTED_PLACEHOLDERS
-                                                                    .filter(p => p.id.includes(suggestionState.query) || p.label.toLowerCase().includes(suggestionState.query))
-                                                                    .map(p => (
-                                                                        <button
-                                                                            key={p.id}
-                                                                            onClick={() => handleSelectPlaceholder(p.id)}
-                                                                            className="w-full text-left px-4 py-2 text-xs hover:bg-brand-50 dark:hover:bg-brand-900/20 text-slate-700 dark:text-slate-300 flex flex-col border-b border-gray-50 dark:border-slate-700/50 last:border-0"
-                                                                        >
-                                                                            <span className="font-bold text-brand-600">{p.label}</span>
-                                                                            <span className="text-[10px] text-slate-400 opacity-70">placeholder:{p.id}</span>
-                                                                        </button>
-                                                                    ))}
-                                                                {SUPPORTED_PLACEHOLDERS.filter(p => p.id.includes(suggestionState.query) || p.label.toLowerCase().includes(suggestionState.query)).length === 0 && (
-                                                                    <div className="px-4 py-3 text-xs text-slate-400 italic">Geen overeenkomende placeholders...</div>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                ) : (
-                                                    <div className="font-serif text-sm leading-relaxed text-justify whitespace-pre-wrap text-slate-800 dark:text-slate-200 antialiased">
-                                                        {section.content.split(/(\[placeholder:[a-z0-9_]+\])/g).map((part, i) => {
-                                                            const match = part.match(/\[placeholder:([a-z0-9_]+)\]/);
-                                                            if (match) {
-                                                                const placeholderId = match[1];
-                                                                const p = section.placeholders.find(ph => ph.id === placeholderId);
-                                                                if (p) return renderPlaceholder(p);
-                                                            }
-                                                            return <span key={`${section.id}-part-${i}`}>{part}</span>;
-                                                        })}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ))
-                                    ) : (
-                                        !isEditingInPreview && (
-                                            <div className="py-20 text-center text-slate-400 italic font-sans">
-                                                Geen inhoud beschikbaar om te bekijken of te bewerken.
-                                            </div>
-                                        )
-                                    )}
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="font-serif text-sm leading-relaxed text-justify whitespace-pre-wrap text-slate-800 dark:text-slate-200 antialiased" style={{ textAlign: 'justify' }}>
+                                                            {(section.content || '').split(/(\[placeholder:[a-z0-9_]+\])/g).map((part, i) => {
+                                                                const match = part.match(/\[placeholder:([a-z0-9_]+)\]/);
+                                                                if (match) {
+                                                                    const placeholderId = match[1];
+                                                                    const p = section.placeholders?.find(ph => ph.id === placeholderId);
+                                                                    if (p) return renderPlaceholder(p);
+                                                                }
+                                                                return <span key={`${section.id}-part-${i}`}>{part}</span>;
+                                                            })}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))
+                                        ) : (
+                                            !isEditingInPreview && (
+                                                <div className="py-20 text-center text-slate-400 italic font-sans">
+                                                    Geen inhoud beschikbaar om te bekijken of te bewerken.
+                                                </div>
+                                            )
+                                        )}
 
-                                    {isEditingInPreview && (
-                                        <button
-                                            onClick={handleAddSection}
-                                            className="w-full py-4 border-2 border-dashed border-gray-300 dark:border-slate-700 rounded-xl text-slate-400 hover:border-brand-500 hover:text-brand-500 transition-all flex items-center justify-center font-bold"
-                                        >
-                                            <Plus className="w-5 h-5 mr-2" />
-                                            Sectie Toevoegen
-                                        </button>
-                                    )}
+                                        {isEditingInPreview && (
+                                            <button
+                                                onClick={handleAddSection}
+                                                className="w-full py-4 border-2 border-dashed border-gray-300 dark:border-slate-700 rounded-xl text-slate-400 hover:border-brand-500 hover:text-brand-500 transition-all flex items-center justify-center font-bold"
+                                            >
+                                                <Plus className="w-5 h-5 mr-2" />
+                                                Sectie Toevoegen
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
+                            )}
                         </div>
 
                         {/* Modal Footer */}
@@ -632,10 +796,44 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                     <option value="Commercial">Commercial</option>
                                 </select>
                             </div>
+                            <div className="pt-4 border-t border-gray-100 dark:border-slate-800">
+                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Of start vanaf een PDF (AI Analyse)</label>
+                                <div className="flex flex-col gap-3">
+                                    <input
+                                        type="file"
+                                        accept=".pdf"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0] || null;
+                                            setSelectedFile(file);
+                                            if (file && !newName) setNewName(file.name.replace('.pdf', ''));
+                                        }}
+                                        className="text-xs file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 dark:file:bg-slate-800 dark:file:text-slate-300"
+                                    />
+                                    <p className="text-[10px] text-slate-500 italic">
+                                        Gemini zal de PDF analyseren tijdens het opslaan om secties en placeholders te identificeren.
+                                    </p>
+                                </div>
+                            </div>
                         </div>
                         <div className="px-6 py-4 border-t border-gray-100 dark:border-slate-800 flex justify-end gap-3 bg-gray-50/50 dark:bg-slate-900/50">
                             <button onClick={() => setIsCreating(false)} className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900">Annuleren</button>
-                            <button onClick={handleSaveNew} className="px-6 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm font-bold shadow-sm transition-all">Opslaan</button>
+                            <button
+                                onClick={handleSaveNew}
+                                disabled={isAnalyzing}
+                                className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-brand-700 transition-colors disabled:opacity-50"
+                            >
+                                {isAnalyzing ? (
+                                    <>
+                                        <RefreshCw className="w-4 h-4 animate-spin" />
+                                        Bezig met analyseren & opslaan...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Check className="w-4 h-4" />
+                                        Template Opslaan
+                                    </>
+                                )}
+                            </button>
                         </div>
                     </div>
                 </div>
