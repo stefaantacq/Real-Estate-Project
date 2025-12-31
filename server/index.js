@@ -38,6 +38,24 @@ const templateRoutes = require('./routes/templateRoutes');
 app.use('/api/dossiers', dossierRoutes);
 app.use('/api/templates', templateRoutes);
 
+// AI Status Endpoint
+const aiService = require('./services/aiService');
+app.get('/api/ai/status', async (req, res) => {
+    try {
+        const isConnected = await aiService.checkConnection();
+        res.json({
+            status: isConnected ? 'online' : 'offline',
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        res.json({
+            status: 'offline',
+            message: error.message,
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
 // Test Endpoint
 app.get('/api/test', async (req, res) => {
     try {

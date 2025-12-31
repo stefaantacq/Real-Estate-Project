@@ -143,6 +143,27 @@ const analyzeTemplate = async (text, libraryPlaceholders) => {
 
 module.exports = {
     extractTextFromPDF,
+
+    // Check connection to Gemini
+    checkConnection: async () => {
+        try {
+            if (!genAI) {
+                console.error("Gemini AI instance not initialized");
+                return false;
+            }
+            console.log("Checking connection using model: gemini-2.0-flash-exp");
+            const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+            const result = await model.generateContent("Ping");
+            const response = await result.response;
+            const text = response.text();
+            console.log("Connection check response:", text);
+            return !!text;
+        } catch (error) {
+            console.error("Gemini Connection Check Failed:", error.message);
+            return false;
+        }
+    },
+
     analyzeDocument,
     analyzeTemplate
 };

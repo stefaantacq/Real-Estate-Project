@@ -71,6 +71,7 @@ export interface UserSettings {
   showVersionDeleteConfirmation: boolean;
   showAgreementDeleteConfirmation: boolean;
   aiExtractionPrompt?: string;
+  showAiStatus?: boolean;
 }
 
 export interface Template {

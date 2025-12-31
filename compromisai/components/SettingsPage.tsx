@@ -124,15 +124,28 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ lang, onBack }) => {
                     </div>
                 </div>
 
-                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 opacity-50">
+                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800">
                     <div className="p-6 border-b border-gray-100 dark:border-slate-800">
                         <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center">
-                            <Eye className="w-5 h-5 mr-2 text-slate-400" />
+                            <Eye className="w-5 h-5 mr-2 text-brand-500" />
                             Weergave
                         </h2>
                     </div>
-                    <div className="p-12 text-center text-slate-400">
-                        <p>Binnenkort beschikbaar</p>
+                    <div className="p-6 space-y-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="font-medium text-slate-900 dark:text-white">Toon AI Status Indicator</h3>
+                                <p className="text-sm text-slate-500">Toon een visuele indicator in de zijbalk die de status van de AI-verbinding weergeeft.</p>
+                            </div>
+                            <button
+                                onClick={() => handleToggle('showAiStatus')}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ring-2 ring-offset-2 ring-transparent focus:ring-brand-500 ${settings.showAiStatus ? 'bg-brand-600' : 'bg-gray-200 dark:bg-slate-700'}`}
+                            >
+                                <span
+                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings.showAiStatus ? 'translate-x-6' : 'translate-x-1'}`}
+                                />
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

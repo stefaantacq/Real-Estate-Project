@@ -145,5 +145,9 @@ export const api = {
             body: JSON.stringify({ is_archived: isArchived }),
             headers: { 'Content-Type': 'application/json' }
         });
+    },
+
+    async checkAiStatus() {
+        return this.request('/ai/status', { method: 'GET' });
     }
 };
