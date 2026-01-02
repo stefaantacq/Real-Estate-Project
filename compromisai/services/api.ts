@@ -82,6 +82,26 @@ export const api = {
         });
     },
 
+    async exportVersion(versionId: string, format: 'pdf' | 'docx') {
+        // Since we want to trigger a download, we can't easily use the request wrapper 
+        // because it parses JSON. We'll do a direct fetch or window.open.
+        // Direct fetch allows token auth if we need it later.
+        const response = await fetch(`${API_BASE_URL}/dossiers/versions/${versionId}/export?format=${format}`);
+        if (!response.ok) throw new Error('Export failed');
+
+        // Handle Blob download
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `document.${format}`; // Server sets this, but backup here
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        return true;
+    },
+
     async deleteVersion(id: string) {
         return this.request(`/dossiers/versions/${id}`, {
             method: 'DELETE',

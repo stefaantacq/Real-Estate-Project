@@ -13,6 +13,8 @@ import { Language } from '../types';
 import { Compare } from './Compare';
 import { api } from '../services/api';
 
+
+
 const MainApp: React.FC = () => {
   // State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -107,10 +109,12 @@ const MainApp: React.FC = () => {
               lang={language}
               onBack={() => navigate('/dashboard')}
               onOpenEditor={(id) => navigate(`/editor/${id}`)}
+              onOpenCollabora={(id) => navigate(`/collabora/${id}`)}
               onCompare={(id) => navigate(`/compare/${id}`)}
             />
           }
         />
+
         <Route
           path="/editor/:id"
           element={

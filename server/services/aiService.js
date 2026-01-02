@@ -105,7 +105,8 @@ const analyzeTemplate = async (text, libraryPlaceholders) => {
         2. CAPTURE TITLES: For each section, extract the exact title found in the text. DO NOT return an empty title.
         3. REFLOW TEXT: The input text may have hard line breaks from PDF extraction. Remove these and REFLOW the text into clean, justified paragraphs. Preserving the flow is critical for "Word-like" justification.
         4. TABS & SPACES: Preserve indentation and tab-like spacing where it appears significant (e.g., in lists or specific aligned data). Use spaces or \t as necessary.
-        5. MAP PLACEHOLDERS: Look for spots where data should be filled in. This includes:
+        5. LISTS: Inspect the text for numbered lists (e.g. 1. or 1° or a)) or bullet points. Format these as PLAIN TEXT with line breaks (\n) before each item. Do NOT use HTML <ul> or <ol> tags. Ensure there is NO empty line between list items (single spacing).
+        6. MAP PLACEHOLDERS: Look for spots where data should be filled in. This includes:
            - Explicit marks: Dotted lines (.......), bracketed text ([naam]), or blanks.
            - Filled Personal Data (GENERALIZATION): If the document appears to be a filled-in contract, identify specific personal information that should be variable. For example: names of parties, birth dates, birth places, addresses of parties, and the property address.
         6. USE LIBRARY KEYS: Replace those spots with the exact placeholder tag from the library in the format [placeholder:sleutel].

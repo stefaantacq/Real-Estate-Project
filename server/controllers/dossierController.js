@@ -755,6 +755,55 @@ const dossierController = {
             console.error(error);
             res.status(500).json({ error: error.message });
         }
+    },
+
+    // GET /api/dossiers/versions/:id/export?format=pdf
+    exportVersion: async (req, res) => {
+        const { id } = req.params;
+        const { format } = req.query; // 'pdf' or 'docx'
+
+        try {
+            const [verRows] = await pool.query('SELECT versie_id, versie_nummer FROM Versie WHERE ui_id = ?', [id]);
+            if (verRows.length === 0) return res.status(404).json({ error: 'Versie niet gevonden' });
+
+            const internalVerId = verRows[0].versie_id;
+            const sections = await fetchFullVersionContent(internalVerId);
+
+            // Resolve placeholders in content?
+            // Generate DOCX
+            const exportService = require('../services/exportService');
+            // Log what we are getting
+            console.log(`Exporting version ${internalVerId}, found ${sections.length} sections.`);
+
+            const docxBuffer = await exportService.generateDocx(sections, `Verkoopsovereenkomst v${verRows[0].versie_nummer}`);
+
+            // DEBUG: Save the buffer to disk to verify it is valid BEFORE sending
+            const fs = require('fs');
+            const path = require('path');
+            try {
+                const debugPath = path.join(__dirname, `../debug_server_export_${id}.docx`);
+                fs.writeFileSync(debugPath, docxBuffer);
+                console.log(`SAVED DEBUG DOCX TO: ${debugPath} (Size: ${docxBuffer.length})`);
+            } catch (err) {
+                console.error("Failed to save debug docx:", err);
+            }
+
+            if (format === 'pdf') {
+                const pdfBuffer = await exportService.convertToPdf(docxBuffer);
+
+                res.setHeader('Content-Type', 'application/pdf');
+                res.setHeader('Content-Disposition', `attachment; filename="verkoopsovereenkomst_${id}.pdf"`);
+                res.send(pdfBuffer);
+            } else {
+                res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+                res.setHeader('Content-Disposition', `attachment; filename="verkoopsovereenkomst_${id}.docx"`);
+                res.send(docxBuffer);
+            }
+
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ error: error.message });
+        }
     }
 };
 

@@ -163,11 +163,24 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
         setSplitScreen(true);
     };
 
-    const handleExport = () => {
+    const handleExport = async (format: 'pdf' | 'docx' = 'pdf') => {
+        if (!id) return;
         if (progress < 100) {
             if (!window.confirm(t.warningUnapproved)) return;
         }
-        alert('Document exported to PDF/Word!');
+
+        try {
+            // Save first ensuring backend has latest
+            // However, handleSave is async but we need to wait. 
+            // In a real app we'd await this.handleSave() but handleSave is defined inside render cycle (ok)
+            // But it relies on state 'sections'. 
+            await api.updateVersion(id, sections);
+
+            await api.exportVersion(id, format);
+        } catch (error) {
+            console.error(error);
+            alert('Export failed. Please check backend logs.');
+        }
     };
 
     const handleContentEdit = async (sectionId: string, newContent: string) => {
@@ -328,14 +341,24 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                         <Save className="w-4 h-4 mr-2" />
                         Opslaan
                     </button>
-                    <div className="h-6 w-px bg-gray-300 dark:bg-slate-700 mx-2"></div>
-                    <div className="flex gap-1">
-                        <button className="p-2 text-slate-500 hover:bg-gray-100 dark:hover:bg-slate-800 rounded transition-colors" title={t.undo}>
-                            <Undo className="w-4 h-4" />
-                        </button>
-                        <button className="p-2 text-slate-500 hover:bg-gray-100 dark:hover:bg-slate-800 rounded transition-colors" title={t.redo}>
-                            <Redo className="w-4 h-4" />
-                        </button>
+                    <div className="flex items-center gap-2">
+                        <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-1 mr-2">
+                            <button
+                                onClick={() => handleExport('docx')}
+                                className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white dark:hover:bg-slate-600 rounded-md transition-all text-xs font-medium flex items-center gap-1"
+                                title="Export to Word"
+                            >
+                                <FileText className="w-4 h-4" /> DOCX
+                            </button>
+                            <div className="w-[1px] bg-slate-300 dark:bg-slate-600 mx-1"></div>
+                            <button
+                                onClick={() => handleExport('pdf')}
+                                className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-white dark:hover:bg-slate-600 rounded-md transition-all text-xs font-medium flex items-center gap-1"
+                                title="Export to PDF"
+                            >
+                                <Download className="w-4 h-4" /> PDF
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -363,15 +386,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                         <Wand2 className="w-5 h-5" />
                     </button>
 
-                    <div className="h-6 w-px bg-gray-300 dark:bg-slate-700 mx-2"></div>
 
-                    <button
-                        onClick={handleExport}
-                        className="flex items-center px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm hover:shadow"
-                    >
-                        <Download className="w-4 h-4 mr-2" />
-                        {t.export}
-                    </button>
                 </div>
             </div>
 
@@ -425,7 +440,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
 
                                                 {/* Editable Content Area */}
                                                 <div
-                                                    className="text-base text-justify text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-brand-100 rounded p-1 -ml-1 min-h-[1.5em]"
+                                                    className="text-base text-justify text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-brand-100 rounded p-1 -ml-1 min-h-[1.5em] whitespace-pre-wrap"
                                                     contentEditable={!editingPlaceholder}
                                                     suppressContentEditableWarning
                                                     onBlur={(e) => handleContentBlur(section.id, e)}

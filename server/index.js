@@ -37,6 +37,7 @@ const templateRoutes = require('./routes/templateRoutes');
 
 app.use('/api/dossiers', dossierRoutes);
 app.use('/api/templates', templateRoutes);
+app.use('/wopi', require('./routes/wopiRoutes')); // Register WOPI routes
 
 // AI Status Endpoint
 const aiService = require('./services/aiService');

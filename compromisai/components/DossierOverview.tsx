@@ -12,10 +12,11 @@ interface DossierOverviewProps {
    lang: Language;
    onBack: () => void;
    onOpenEditor: (id: string) => void;
+   onOpenCollabora: (id: string) => void;
    onCompare: (id: string) => void;
 }
 
-export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, onOpenEditor, onCompare }) => {
+export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, onOpenEditor, onOpenCollabora, onCompare }) => {
    const t = TRANSLATIONS[lang];
    const { id } = useParams<{ id: string }>();
 
@@ -614,9 +615,11 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                                     </div>
                                     <span className="text-[10px] uppercase tracking-tighter font-bold text-slate-400 group-hover/ver:text-brand-500 transition-colors">{ver.source}</span>
                                  </div>
-                                 {idx < agg.versions.length - 1 && (
-                                    <div className="w-8 h-[2px] bg-slate-100 dark:bg-slate-800 shrink-0 mt-[-15px]"></div>
-                                 )}
+                                 {
+                                    idx < agg.versions.length - 1 && (
+                                       <div className="w-8 h-[2px] bg-slate-100 dark:bg-slate-800 shrink-0 mt-[-15px]"></div>
+                                    )
+                                 }
                               </React.Fragment>
                            ))}
 
@@ -726,116 +729,120 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
          </div>
 
          {/* Add Version Modal */}
-         {isAddVersionModalOpen && (
-            <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-               <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-800 overflow-hidden flex flex-col relative">
-                  <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
-                     <div>
-                        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Nieuwe Versie Toevoegen</h2>
-                        <p className="text-sm text-slate-500">Hoe wilt u de nieuwe versie aanmaken?</p>
+         {
+            isAddVersionModalOpen && (
+               <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+                  <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-800 overflow-hidden flex flex-col relative">
+                     <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
+                        <div>
+                           <h2 className="text-xl font-bold text-slate-900 dark:text-white">Nieuwe Versie Toevoegen</h2>
+                           <p className="text-sm text-slate-500">Hoe wilt u de nieuwe versie aanmaken?</p>
+                        </div>
+                        <button onClick={() => setIsAddVersionModalOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+                           <X className="w-6 h-6 text-slate-400" />
+                        </button>
                      </div>
-                     <button onClick={() => setIsAddVersionModalOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors">
-                        <X className="w-6 h-6 text-slate-400" />
-                     </button>
+
+                     <div className="p-6 grid grid-cols-1 gap-4">
+                        <div
+                           onClick={handleFileUploadClick}
+                           className="flex items-center p-6 rounded-xl border border-gray-100 dark:border-slate-800 hover:border-brand-500 hover:bg-brand-50/50 dark:hover:bg-brand-900/10 cursor-pointer transition-all group"
+                        >
+                           <div className="w-12 h-12 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-brand-100 group-hover:text-brand-600 transition-all mr-4">
+                              <File className="w-6 h-6" />
+                           </div>
+                           <div className="flex-1">
+                              <h3 className="font-bold text-slate-900 dark:text-white group-hover:text-brand-700 transition-colors">Bestand uploaden</h3>
+                              <p className="text-sm text-slate-500 leading-tight">Upload een extern PDF of Word document</p>
+                           </div>
+                           <ArrowLeft className="w-5 h-5 text-slate-300 group-hover:text-brand-500 rotate-180 transition-all" />
+                        </div>
+
+                        <div
+                           onClick={handleDuplicateVersion}
+                           className="flex items-center p-6 rounded-xl border border-gray-100 dark:border-slate-800 hover:border-brand-500 hover:bg-brand-50/50 dark:hover:bg-brand-900/10 cursor-pointer transition-all group"
+                        >
+                           <div className="w-12 h-12 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-brand-100 group-hover:text-brand-600 transition-all mr-4">
+                              <RefreshCw className="w-6 h-6" />
+                           </div>
+                           <div className="flex-1">
+                              <h3 className="font-bold text-slate-900 dark:text-white group-hover:text-brand-700 transition-colors">Huidige versie kopiëren</h3>
+                              <p className="text-sm text-slate-500 leading-tight">Start een nieuwe draft op basis van de laatste versie</p>
+                           </div>
+                           <ArrowLeft className="w-5 h-5 text-slate-300 group-hover:text-brand-500 rotate-180 transition-all" />
+                        </div>
+                     </div>
+
+                     {isCreatingVersion && (
+                        <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-[1px] flex items-center justify-center">
+                           <RefreshCw className="w-8 h-8 animate-spin text-brand-600" />
+                        </div>
+                     )}
                   </div>
-
-                  <div className="p-6 grid grid-cols-1 gap-4">
-                     <div
-                        onClick={handleFileUploadClick}
-                        className="flex items-center p-6 rounded-xl border border-gray-100 dark:border-slate-800 hover:border-brand-500 hover:bg-brand-50/50 dark:hover:bg-brand-900/10 cursor-pointer transition-all group"
-                     >
-                        <div className="w-12 h-12 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-brand-100 group-hover:text-brand-600 transition-all mr-4">
-                           <File className="w-6 h-6" />
-                        </div>
-                        <div className="flex-1">
-                           <h3 className="font-bold text-slate-900 dark:text-white group-hover:text-brand-700 transition-colors">Bestand uploaden</h3>
-                           <p className="text-sm text-slate-500 leading-tight">Upload een extern PDF of Word document</p>
-                        </div>
-                        <ArrowLeft className="w-5 h-5 text-slate-300 group-hover:text-brand-500 rotate-180 transition-all" />
-                     </div>
-
-                     <div
-                        onClick={handleDuplicateVersion}
-                        className="flex items-center p-6 rounded-xl border border-gray-100 dark:border-slate-800 hover:border-brand-500 hover:bg-brand-50/50 dark:hover:bg-brand-900/10 cursor-pointer transition-all group"
-                     >
-                        <div className="w-12 h-12 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-brand-100 group-hover:text-brand-600 transition-all mr-4">
-                           <RefreshCw className="w-6 h-6" />
-                        </div>
-                        <div className="flex-1">
-                           <h3 className="font-bold text-slate-900 dark:text-white group-hover:text-brand-700 transition-colors">Huidige versie kopiëren</h3>
-                           <p className="text-sm text-slate-500 leading-tight">Start een nieuwe draft op basis van de laatste versie</p>
-                        </div>
-                        <ArrowLeft className="w-5 h-5 text-slate-300 group-hover:text-brand-500 rotate-180 transition-all" />
-                     </div>
-                  </div>
-
-                  {isCreatingVersion && (
-                     <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-[1px] flex items-center justify-center">
-                        <RefreshCw className="w-8 h-8 animate-spin text-brand-600" />
-                     </div>
-                  )}
                </div>
-            </div>
-         )}
+            )
+         }
 
          {/* Template Selection Modal */}
-         {isTemplateModalOpen && (
-            <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-               <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh] relative">
-                  <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
-                     <div>
-                        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Start Nieuwe Overeenkomst</h2>
-                        <p className="text-sm text-slate-500">Kies een template om mee te beginnen</p>
+         {
+            isTemplateModalOpen && (
+               <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+                  <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh] relative">
+                     <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
+                        <div>
+                           <h2 className="text-xl font-bold text-slate-900 dark:text-white">Start Nieuwe Overeenkomst</h2>
+                           <p className="text-sm text-slate-500">Kies een template om mee te beginnen</p>
+                        </div>
+                        <button onClick={() => setIsTemplateModalOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+                           <X className="w-6 h-6 text-slate-400" />
+                        </button>
                      </div>
-                     <button onClick={() => setIsTemplateModalOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors">
-                        <X className="w-6 h-6 text-slate-400" />
-                     </button>
-                  </div>
-                  <div className="flex-1 overflow-y-auto p-6">
-                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {templates.map(template => {
-                           const isAiSuggested = template.name?.toLowerCase().includes('vlaanderen');
-                           const isApartment = template.name?.toLowerCase().includes('appartement');
+                     <div className="flex-1 overflow-y-auto p-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                           {templates.map(template => {
+                              const isAiSuggested = template.name?.toLowerCase().includes('vlaanderen');
+                              const isApartment = template.name?.toLowerCase().includes('appartement');
 
-                           return (
-                              <div
-                                 key={template.id}
-                                 onClick={() => handleSelectTemplate(template.id)}
-                                 className="relative flex flex-col p-6 rounded-xl border border-gray-200 dark:border-slate-800 hover:border-brand-500 hover:bg-brand-50/50 dark:hover:bg-brand-900/10 cursor-pointer transition-all group"
-                              >
-                                 {isAiSuggested && (
-                                    <div className="absolute top-0 right-0 bg-brand-500 text-white text-[10px] px-2 py-1 rounded-bl-lg rounded-tr-lg font-bold tracking-wide">
-                                       AANBEVOLEN
+                              return (
+                                 <div
+                                    key={template.id}
+                                    onClick={() => handleSelectTemplate(template.id)}
+                                    className="relative flex flex-col p-6 rounded-xl border border-gray-200 dark:border-slate-800 hover:border-brand-500 hover:bg-brand-50/50 dark:hover:bg-brand-900/10 cursor-pointer transition-all group"
+                                 >
+                                    {isAiSuggested && (
+                                       <div className="absolute top-0 right-0 bg-brand-500 text-white text-[10px] px-2 py-1 rounded-bl-lg rounded-tr-lg font-bold tracking-wide">
+                                          AANBEVOLEN
+                                       </div>
+                                    )}
+
+                                    <div className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center text-slate-500 group-hover:bg-brand-100 group-hover:text-brand-600 transition-colors mb-4">
+                                       {isApartment ? <Building2 className="w-5 h-5" /> : <Home className="w-5 h-5" />}
                                     </div>
-                                 )}
 
-                                 <div className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center text-slate-500 group-hover:bg-brand-100 group-hover:text-brand-600 transition-colors mb-4">
-                                    {isApartment ? <Building2 className="w-5 h-5" /> : <Home className="w-5 h-5" />}
+                                    <h3 className="font-bold text-slate-900 dark:text-white group-hover:text-brand-700 dark:hover:text-brand-400 transition-colors mb-1">{template.name}</h3>
+                                    <ExpandableText
+                                       text={template.description || 'Geen beschrijving beschikbaar.'}
+                                       limit={60}
+                                       className="text-xs text-slate-500 leading-relaxed mb-4"
+                                    />
+
+                                    <div className="mt-auto flex items-center justify-end">
+                                       <ArrowLeft className="w-4 h-4 text-slate-300 group-hover:text-brand-500 rotate-180 transition-all" />
+                                    </div>
                                  </div>
-
-                                 <h3 className="font-bold text-slate-900 dark:text-white group-hover:text-brand-700 dark:hover:text-brand-400 transition-colors mb-1">{template.name}</h3>
-                                 <ExpandableText
-                                    text={template.description || 'Geen beschrijving beschikbaar.'}
-                                    limit={60}
-                                    className="text-xs text-slate-500 leading-relaxed mb-4"
-                                 />
-
-                                 <div className="mt-auto flex items-center justify-end">
-                                    <ArrowLeft className="w-4 h-4 text-slate-300 group-hover:text-brand-500 rotate-180 transition-all" />
-                                 </div>
-                              </div>
-                           );
-                        })}
+                              );
+                           })}
+                        </div>
                      </div>
+                     {isCreatingAgreement && (
+                        <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-[1px] flex items-center justify-center">
+                           <RefreshCw className="w-8 h-8 animate-spin text-brand-600" />
+                        </div>
+                     )}
                   </div>
-                  {isCreatingAgreement && (
-                     <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-[1px] flex items-center justify-center">
-                        <RefreshCw className="w-8 h-8 animate-spin text-brand-600" />
-                     </div>
-                  )}
                </div>
-            </div>
-         )}
+            )
+         }
 
          {/* Hidden File Input */}
          <input
@@ -891,6 +898,6 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                </div>
             </div>
          </div>
-      </div>
+      </div >
    );
 };
