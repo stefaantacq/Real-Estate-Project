@@ -4,7 +4,10 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 require('dotenv').config();
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
+const model = genAI.getGenerativeModel({
+    model: process.env.GEMINI_MODEL || 'gemini-2.0-flash-exp',
+    generationConfig: { maxOutputTokens: 16000 }
+});
 
 /**
  * Extracts raw text from a PDF file.
@@ -131,8 +134,15 @@ const analyzeTemplate = async (text, libraryPlaceholders) => {
         const response = await result.response;
         const textResponse = response.text();
         console.log('Gemini raw response length:', textResponse?.length || 0);
+        fs.writeFileSync('debug_raw_response.txt', textResponse);
 
-        const jsonText = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
+        let jsonText = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
+        const firstBracket = jsonText.indexOf('[');
+        const lastBracket = jsonText.lastIndexOf(']');
+        if (firstBracket !== -1 && lastBracket !== -1) {
+            jsonText = jsonText.substring(firstBracket, lastBracket + 1);
+        }
+
         const parsed = JSON.parse(jsonText);
         console.log(`Successfully parsed ${parsed?.length || 0} sections.`);
         return parsed;

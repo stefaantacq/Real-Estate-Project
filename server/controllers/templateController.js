@@ -235,20 +235,23 @@ const templateController = {
                 const { extractTextFromPDF, analyzeTemplate } = require('../services/aiService');
                 const path = require('path');
                 const filePath = path.join(__dirname, '..', 'uploads', req.file.filename);
+                const fs = require('fs');
 
                 const text = await extractTextFromPDF(filePath);
                 console.log(`Extracted text length: ${text?.length || 0}`);
+                fs.writeFileSync('debug_controller_text.txt', text || 'EMPTY');
 
                 if (!text || text.trim().length === 0) {
                     console.error('Text extraction failed or returned empty content.');
-                    // We continue but with a warning, or we could throw error
                 } else {
                     console.log('Fetching library placeholders for AI analysis...');
                     const [libraryPlaceholders] = await pool.query('SELECT sleutel, beschrijving, type FROM PlaceholderLibrary');
                     console.log(`Found ${libraryPlaceholders.length} library placeholders.`);
+                    fs.writeFileSync('debug_controller_placeholders.json', JSON.stringify(libraryPlaceholders, null, 2));
 
                     const aiSections = await analyzeTemplate(text, libraryPlaceholders);
                     console.log(`AI identified ${aiSections?.length || 0} sections.`);
+                    fs.writeFileSync('debug_controller_sections.json', JSON.stringify(aiSections || [], null, 2));
 
                     if (aiSections && aiSections.length > 0) {
                         sections = aiSections;
