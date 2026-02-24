@@ -6,6 +6,7 @@ Dit is een monorepo voor de CompromisAI applicatie, bestaande uit een Node.js/Ex
 
 - **`/server`**: De Node.js API backend.
 - **`/compromisai`**: De React frontend.
+- **`/MySQL+Collabora`**: De MySQL database en Collabora office suite.
 
 ## 🚀 Getting Started voor Developers
 
@@ -18,9 +19,9 @@ Volg deze stappen om het project lokaal draaiende te krijgen.
   - **Mac (Homebrew):** `brew install node`
   - Of download de installer via [nodejs.org](https://nodejs.org/).
   - *Check installatie:* `node -v`
-- **SSH logingegevens**: Voor de tunnel naar de database. (Vraag aan Willem (user = mysqltunnel, passwd = 2562))
-
-(ssh -L 3307:127.0.0.1:3306 -N mysqltunnel@mijnfotos.website)
+  - **Docker Desktop**:
+    - Download en installeer Docker Desktop via [docker.com](https://www.docker.com/).
+    - *Check installatie:* `docker --version`
 
 ### 2. Installatie
 
@@ -37,26 +38,14 @@ cp .env.example .env
 # Frontend installatie
 cd ../compromisai
 npm install
+
+cd ../MySQL+Collabora
+docker-compose up -d
 ```
 
-### 3. Database Verbinding (Tunnel) 🔑
+### 3. Applicatie Starten
 
-**LET OP:** De development database draait op een externe VPS (met Docker). Om hier lokaal mee te verbinden, heb je een **SSH Tunnel** nodig.
-
-Zonder deze tunnel zal de backend niet kunnen starten (`ECONNREFUSED`).
-
-**Open een terminal (cmd) en draai dit commando (laat deze open staan!):**
-
-```powershell
-# Vervang 'path/to/key' met je private key en 'user@ip' met de server details
-ssh -L 3307:127.0.0.1:3306 -N -i "pad/naar/je/ssh/key" user@jouw-vps-ip
-```
-
-*Dit zorgt ervoor dat jouw lokale poort `3307` wordt doorgestuurd naar de database op de server.*
-
-### 4. Applicatie Starten
-
-Je hebt twee terminals nodig in antigravity of vscode:
+Je hebt drie terminals nodig in antigravity of vscode:
 
 **Terminal 1 (Backend):**
 ```bash
@@ -72,14 +61,15 @@ npm run dev
 # Frontend draait op http://localhost:5173
 ```
 
+**Terminal 3 (MySQL+Collabora):**
+```bash
+cd MySQL+Collabora
+docker-compose up -d
+# MySQL draait op http://localhost:3307
+# Collabora draait op http://localhost:9980
+```
+
 ## 🛠️ Tech Stack
 
 - **Frontend:** React, Vite, TailwindCSS, TypeScript
-- **Backend:** Node.js, Express, MySQL (mysql2)
-- **Deployment:** Dockge, Caddy (Reverse Proxy)
-
-## 🐳 Alternatief: Volledig Lokaal (Docker)
-
-Als je geen SSH toegang hebt of offline wilt werken, kun je een lokale database opspinnen via Docker (als je Docker Desktop hebt):
-
-*(Moet nog ingericht worden - zie `docker-compose.dev.yml` in de toekomst)*
+- **Backend:** Node.js, Express,Collabora, MySQL
