@@ -6,6 +6,8 @@ const DEFAULT_SETTINGS: UserSettings = {
     showDeleteConfirmation: true,
     showVersionDeleteConfirmation: true,
     showAgreementDeleteConfirmation: true,
+    customDocumentPrompt: '',
+    customTemplatePrompt: '',
 };
 
 export const SettingsService = {
@@ -13,7 +15,14 @@ export const SettingsService = {
         const stored = localStorage.getItem(STORAGE_KEY);
         if (!stored) return { ...DEFAULT_SETTINGS };
         try {
-            return { ...DEFAULT_SETTINGS, ...JSON.parse(stored) };
+            const parsed = JSON.parse(stored);
+            // Migration: rename aiExtractionPrompt to customDocumentPrompt
+            if (parsed.aiExtractionPrompt && !parsed.customDocumentPrompt) {
+                parsed.customDocumentPrompt = parsed.aiExtractionPrompt;
+                delete parsed.aiExtractionPrompt;
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+            }
+            return { ...DEFAULT_SETTINGS, ...parsed };
         } catch (e) {
             return { ...DEFAULT_SETTINGS };
         }

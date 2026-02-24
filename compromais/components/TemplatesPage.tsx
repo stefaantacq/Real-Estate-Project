@@ -3,6 +3,7 @@ import { Search, Plus, FileText, ChevronRight, Layout as LayoutIcon, Globe, Lock
 import { Language, Template, DocumentSection, PlaceholderSuggestion } from '../types';
 import { TRANSLATIONS, SUPPORTED_PLACEHOLDERS } from '../constants';
 import { api } from '../services/api'; // Integrated API
+import { SettingsService } from '../services/settingsService';
 
 interface TemplatesPageProps {
     lang: Language;
@@ -295,6 +296,11 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
 
             if (selectedFile) {
                 formData.append('file', selectedFile);
+            }
+
+            const settings = SettingsService.getSettings();
+            if (settings.customTemplatePrompt) {
+                formData.append('custom_template_prompt', settings.customTemplatePrompt);
             }
 
             const response = await api.createTemplate(formData);

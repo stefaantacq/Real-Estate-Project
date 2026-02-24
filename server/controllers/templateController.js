@@ -249,7 +249,8 @@ const templateController = {
                     console.log(`Found ${libraryPlaceholders.length} library placeholders.`);
                     fs.writeFileSync('debug_controller_placeholders.json', JSON.stringify(libraryPlaceholders, null, 2));
 
-                    const aiSections = await analyzeTemplate(text, libraryPlaceholders);
+                    const customTemplatePrompt = req.body.custom_template_prompt || null;
+                    const aiSections = await analyzeTemplate(text, libraryPlaceholders, customTemplatePrompt);
                     console.log(`AI identified ${aiSections?.length || 0} sections.`);
                     fs.writeFileSync('debug_controller_sections.json', JSON.stringify(aiSections || [], null, 2));
 

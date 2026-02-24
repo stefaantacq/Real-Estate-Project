@@ -18,9 +18,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ lang, onBack }) => {
         setSettings(updated);
     };
 
-    const handlePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const handleDocumentPromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const value = e.target.value;
-        const updated = SettingsService.updateSettings({ aiExtractionPrompt: value });
+        const updated = SettingsService.updateSettings({ customDocumentPrompt: value });
+        setSettings(updated);
+    };
+
+    const handleTemplatePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const value = e.target.value;
+        const updated = SettingsService.updateSettings({ customTemplatePrompt: value });
         setSettings(updated);
     };
 
@@ -90,22 +96,37 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ lang, onBack }) => {
                     <div className="p-6 border-b border-gray-100 dark:border-slate-800">
                         <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center">
                             <BrainCircuit className="w-5 h-5 mr-2 text-brand-500" />
-                            AI Instellingen
+                            AI Verrijking (Advanced)
                         </h2>
                     </div>
-                    <div className="p-6 space-y-4">
+                    <div className="p-6 space-y-6">
                         <div>
                             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                Custom AI Extractie Instructie
+                                Document Analyse Verrijking
                             </label>
                             <p className="text-xs text-slate-500 dark:text-slate-500 mb-3">
-                                Geef extra instructies aan de AI voor het scannen van documenten. Bijvoorbeeld: "Focus vooral op de namen van de kopers" of "Formatteer data altijd als DD-MM-YYYY".
+                                Wordt gebruikt bij het scannen van dossiers (ID's, aktes, etc.). Bijvoorbeeld: "Focus vooral op de namen van de kopers" of "Formatteer data altijd als DD-MM-YYYY".
                             </p>
                             <textarea
-                                value={settings.aiExtractionPrompt || ''}
-                                onChange={handlePromptChange}
-                                placeholder="Typ hier je extra instructies..."
-                                className="w-full h-32 p-4 bg-slate-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all resize-none text-sm"
+                                value={settings.customDocumentPrompt || ''}
+                                onChange={handleDocumentPromptChange}
+                                placeholder="Typ hier je extra instructies voor data extractie..."
+                                className="w-full h-24 p-4 bg-slate-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all resize-none text-sm"
+                            />
+                        </div>
+
+                        <div className="pt-4 border-t border-gray-100 dark:border-slate-800/50">
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                Template Analyse Verrijking
+                            </label>
+                            <p className="text-xs text-slate-500 dark:text-slate-500 mb-3">
+                                Wordt gebruikt bij het analyseren van nieuwe PDF sjablonen (layouts en secties). Bijvoorbeeld: "Maak voor elk lidwoord een aparte placeholder" of "Groepeer alle adressen in één sectie".
+                            </p>
+                            <textarea
+                                value={settings.customTemplatePrompt || ''}
+                                onChange={handleTemplatePromptChange}
+                                placeholder="Typ hier je extra instructies voor sjabloon analyse..."
+                                className="w-full h-24 p-4 bg-slate-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all resize-none text-sm"
                             />
                         </div>
                     </div>

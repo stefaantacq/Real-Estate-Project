@@ -91,8 +91,8 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
       if (defaultTemplateId) formData.append('template_id', defaultTemplateId.toString());
 
       const settings = SettingsService.getSettings();
-      if (settings.aiExtractionPrompt) {
-        formData.append('ai_extraction_prompt', settings.aiExtractionPrompt);
+      if (settings.customDocumentPrompt) {
+        formData.append('ai_extraction_prompt', settings.customDocumentPrompt);
       }
 
       files.forEach(file => {

@@ -70,7 +70,9 @@ export interface UserSettings {
   showDeleteConfirmation: boolean;
   showVersionDeleteConfirmation: boolean;
   showAgreementDeleteConfirmation: boolean;
-  aiExtractionPrompt?: string;
+  customDocumentPrompt?: string;
+  customTemplatePrompt?: string;
+  aiExtractionPrompt?: string; // Kept for migration
   showAiStatus?: boolean;
 }
 

@@ -88,8 +88,12 @@ const analyzeDocument = async (text, fieldNames, customPrompt = null, fieldConte
 /**
  * Analyzes a template PDF to identify sections and place library placeholders.
  */
-const analyzeTemplate = async (text, libraryPlaceholders) => {
+const analyzeTemplate = async (text, libraryPlaceholders, customPrompt = null) => {
     const placeholderList = libraryPlaceholders.map(p => `- ${p.sleutel}: ${p.beschrijving} (Type: ${p.type})`).join('\n');
+
+    const userInstruction = customPrompt
+        ? `\nADDITIONAL USER INSTRUCTION: ${customPrompt}\n`
+        : '';
 
     const prompt = `
         You are an AI assistant for a Belgian real estate platform.
@@ -126,6 +130,8 @@ const analyzeTemplate = async (text, libraryPlaceholders) => {
              }
            ]
         10. Only return the JSON object, nothing else.
+
+        ${userInstruction}
     `;
 
     try {

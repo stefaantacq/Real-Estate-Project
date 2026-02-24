@@ -136,7 +136,7 @@ export const Layout: React.FC<LayoutProps> = ({
         {/* Settings / Theme */}
         <button
           onClick={toggleDarkMode}
-          className="p-3 text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
+          className="p-3 rounded-xl text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
           title="Toggle Theme"
         >
           {darkMode ? <Sun className="w-6 h-6" /> : <Moon className="w-6 h-6" />}
@@ -144,7 +144,7 @@ export const Layout: React.FC<LayoutProps> = ({
 
         <button
           onClick={() => navigate('/settings')}
-          className={`p-3 transition-colors ${activePage === 'settings' ? 'bg-brand-50 text-brand-600 dark:bg-slate-800 dark:text-brand-400 font-bold' : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+          className={`p-3 rounded-xl transition-colors ${activePage === 'settings' ? 'bg-brand-50 text-brand-600 dark:bg-slate-800 dark:text-brand-400 font-bold' : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
           title={t.settings}
         >
           <Settings className="w-6 h-6" />
