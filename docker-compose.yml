@@ -1,0 +1,32 @@
+services:
+  mysql:
+    image: mysql:8.0.45
+    container_name: compromais_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: compromAIs
+      MYSQL_USER: willem
+      MYSQL_PASSWORD: compromais_pw
+    ports:
+      - "3307:3306"
+    volumes:
+      - ./compromAIs.sql:/docker-entrypoint-initdb.d/compromAIs.sql
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "willem", "-pcompromais_pw" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  collabora:
+    image: collabora/code
+    container_name: compromais_collabora
+    restart: always
+    ports:
+      - "9980:9980"
+    environment:
+      - "extra_params=--o:ssl.enable=false --o:ssl.termination=true"
+      - "username=admin"
+      - "password=admin"
+      - "domain=localhost"
+    cap_add:
+      - MKNOD
