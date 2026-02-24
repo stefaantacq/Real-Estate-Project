@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Mail, Lock, User, CreditCard, CheckCircle, ArrowRight, Building2, Sun, Moon } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../constants';
+import { api } from '../services/api';
 
 interface AuthProps {
   onLogin: () => void;
@@ -12,7 +13,7 @@ interface AuthProps {
   toggleDarkMode: () => void;
 }
 
-type AuthParams = 'login' | 'register' | 'payment';
+type AuthParams = 'login' | 'register';
 
 export const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, darkMode, toggleDarkMode }) => {
   const t = TRANSLATIONS[lang];
@@ -23,25 +24,49 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, darkMode, to
   const [regData, setRegData] = useState({
     name: '',
     email: '',
-    password: '',
-    cibId: ''
+    password: ''
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Login State
+  const [loginData, setLoginData] = useState({
+    email: '',
+    password: ''
+  });
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError(null);
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
       if (view === 'login') {
+        await api.logIn(loginData);
         onLogin();
       } else if (view === 'register') {
-        setView('payment');
-      } else if (view === 'payment') {
+        await api.register(regData);
+        // Automatically login after registration
+        await api.logIn({ email: regData.email, password: regData.password });
         onLogin();
       }
-    }, 1500);
+    } catch (err: any) {
+      setError(err.message || 'An error occurred');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDevLogin = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      await api.logIn({ email: 'admin@test.be', password: 'password123' });
+      onLogin();
+    } catch (err: any) {
+      setError(err.message || 'Dev Login failed');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -78,24 +103,19 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, darkMode, to
           <p className="text-slate-500 dark:text-slate-400">
             {view === 'login' && 'Welkom terug! Log in op uw account.'}
             {view === 'register' && 'Maak een nieuw account aan als makelaar.'}
-            {view === 'payment' && 'Verifieer uw licentie status.'}
           </p>
         </div>
 
         {/* Card */}
         <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-gray-100 dark:border-slate-800 overflow-hidden relative">
 
-          {/* Progress Bar (Mock) */}
-          {view !== 'login' && (
-            <div className="h-1 bg-gray-100 dark:bg-slate-800 w-full">
-              <div
-                className="h-full bg-brand-500 transition-all duration-500"
-                style={{ width: view === 'register' ? '50%' : '100%' }}
-              ></div>
-            </div>
-          )}
-
+          {/* Progress Bar (Mock) - Removed as redundant for 2 steps */}
           <div className="p-8">
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-600 dark:text-red-400 text-sm">
+                {error}
+              </div>
+            )}
             <form onSubmit={handleSubmit} className="space-y-5">
 
               {view === 'login' && (
@@ -109,6 +129,8 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, darkMode, to
                         required
                         className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none transition-all dark:text-white"
                         placeholder="naam@kantoor.be"
+                        value={loginData.email}
+                        onChange={e => setLoginData({ ...loginData, email: e.target.value })}
                       />
                     </div>
                   </div>
@@ -121,6 +143,8 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, darkMode, to
                         required
                         className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none transition-all dark:text-white"
                         placeholder="••••••••"
+                        value={loginData.password}
+                        onChange={e => setLoginData({ ...loginData, password: e.target.value })}
                       />
                     </div>
                   </div>
@@ -129,6 +153,13 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, darkMode, to
                     className="w-full py-2 border border-gray-200 dark:border-slate-700 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors dark:text-white"
                   >
                     <span className="font-bold text-[#E1306C]">CIB</span> Log in met CIB
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDevLogin}
+                    className="w-full py-2 text-slate-400 hover:text-slate-600 text-xs font-medium"
+                  >
+                    Dev Login (admin@test.be)
                   </button>
                   <button
                     type="button"
@@ -153,20 +184,6 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, darkMode, to
                         placeholder="Jan Janssens"
                         value={regData.name}
                         onChange={e => setRegData({ ...regData, name: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">CIB Nummer</label>
-                    <div className="relative">
-                      <div className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 flex items-center justify-center font-bold text-xs border rounded w-5 h-5">#</div>
-                      <input
-                        type="text"
-                        required
-                        className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none transition-all dark:text-white"
-                        placeholder="1234567"
-                        value={regData.cibId}
-                        onChange={e => setRegData({ ...regData, cibId: e.target.value })}
                       />
                     </div>
                   </div>
@@ -208,26 +225,6 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, darkMode, to
                 </>
               )}
 
-              {view === 'payment' && (
-                <div className="text-center py-4">
-                  <div className="mb-6 flex justify-center">
-                    <CreditCard className="w-12 h-12 text-brand-600 animate-pulse" />
-                  </div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Licentie Activering</h3>
-                  <p className="text-sm text-slate-500 mb-6">Om uw account te activeren is een betaling vereist. Dit is een simulatie.</p>
-
-                  <div className="bg-gray-50 dark:bg-slate-800 p-4 rounded-xl mb-6 text-left border border-gray-100 dark:border-slate-700">
-                    <div className="flex justify-between mb-2">
-                      <span className="text-sm text-slate-500">Premium Licentie</span>
-                      <span className="font-bold dark:text-white">€49.00 / mnd</span>
-                    </div>
-                    <div className="flex justify-between border-t border-gray-200 dark:border-slate-700 pt-2 mt-2">
-                      <span className="font-bold text-slate-900 dark:text-white">Totaal</span>
-                      <span className="font-bold text-brand-600">€49.00</span>
-                    </div>
-                  </div>
-                </div>
-              )}
 
               <button
                 type="submit"
@@ -239,8 +236,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, darkMode, to
                 ) : (
                   <>
                     {view === 'login' && 'Log in'}
-                    {view === 'register' && 'Ga naar betaling'}
-                    {view === 'payment' && 'Bevestig & Activeer'}
+                    {view === 'register' && 'Registreer account'}
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </>
                 )}

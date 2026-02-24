@@ -9,6 +9,12 @@ export const api = {
             ...((options.headers as Record<string, string>) || {}),
         };
 
+        // Add Authorization header if token exists
+        const token = localStorage.getItem('auth_token');
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
         // Only set Content-Type to application/json if it's not already set 
         // AND the body is NOT FormData (browser sets boundary for FormData)
         if (!headers['Content-Type'] && !(options.body instanceof FormData)) {
@@ -31,6 +37,35 @@ export const api = {
     // Test connection
     async testConnection() {
         return this.request('/test');
+    },
+
+    // Auth
+    async logIn(credentials: any) {
+        const data = await this.request('/auth/login', {
+            method: 'POST',
+            body: JSON.stringify(credentials)
+        });
+        if (data.token) {
+            localStorage.setItem('auth_token', data.token);
+            localStorage.setItem('auth_user', JSON.stringify(data.user));
+        }
+        return data;
+    },
+
+    async register(userData: any) {
+        return this.request('/auth/register', {
+            method: 'POST',
+            body: JSON.stringify(userData)
+        });
+    },
+
+    async getMe() {
+        return this.request('/auth/me');
+    },
+
+    logOut() {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth_user');
     },
 
     // Dossiers

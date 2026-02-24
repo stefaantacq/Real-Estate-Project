@@ -17,9 +17,13 @@ import { api } from '../services/api';
 
 const MainApp: React.FC = () => {
   // State
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => !!localStorage.getItem('auth_token'));
   const [darkMode, setDarkMode] = useState(true); // Default to Dark as per screens
   const [language, setLanguage] = useState<Language>(Language.NL);
+  const [user, setUser] = useState(() => {
+    const saved = localStorage.getItem('auth_user');
+    return saved ? JSON.parse(saved) : null;
+  });
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -35,13 +39,17 @@ const MainApp: React.FC = () => {
 
   const toggleDarkMode = () => setDarkMode(!darkMode);
 
-  // Authentication Mock
+  // Authentication
   const handleLogin = () => {
+    const savedUser = localStorage.getItem('auth_user');
+    if (savedUser) setUser(JSON.parse(savedUser));
     setIsAuthenticated(true);
     navigate('/dashboard');
   };
 
   const handleLogout = () => {
+    api.logOut();
+    setUser(null);
     setIsAuthenticated(false);
     navigate('/');
   };
@@ -71,6 +79,7 @@ const MainApp: React.FC = () => {
       onLogout={handleLogout}
       activePage={activePage}
       navigate={navigate}
+      user={user}
     >
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard" />} />

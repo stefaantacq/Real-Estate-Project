@@ -227,8 +227,9 @@ const dossierController = {
                 (SELECT COUNT(*) FROM Documenten doc WHERE doc.dossier_id = d.dossier_id) as documentCount,
                 (SELECT COUNT(*) FROM Verkoopsovereenkomst v WHERE v.dossier_id = d.dossier_id) as agreementCount
                 FROM Dossier d 
+                WHERE d.account_id = ?
                 ORDER BY d.last_modified DESC
-            `);
+            `, [req.user.id]);
 
             const dossiers = rows.map(row => ({
                 id: row.ui_id || row.dossier_id.toString(),
@@ -260,14 +261,9 @@ const dossierController = {
         }
 
         const ui_id = `dos-${Date.now()}`;
-        const account_id = 1;
+        const account_id = req.user.id;
 
         try {
-            await pool.query(`
-                INSERT IGNORE INTO Account (account_id, naam, email, wachtwoord_hash) 
-                VALUES (1, 'Dev User', 'dev@local', 'hash')
-            `);
-
             const [dosResult] = await pool.query(
                 `INSERT INTO Dossier (account_id, ui_id, titel, verkoper_naam, adres, type, status, remarks) 
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -344,7 +340,7 @@ const dossierController = {
     getDossierById: async (req, res) => {
         const { id } = req.params;
         try {
-            const [rows] = await pool.query('SELECT * FROM Dossier WHERE ui_id = ? OR dossier_id = ?', [id, id]);
+            const [rows] = await pool.query('SELECT * FROM Dossier WHERE (ui_id = ? OR dossier_id = ?) AND account_id = ?', [id, id, req.user.id]);
             if (rows.length === 0) {
                 return res.status(404).json({ error: 'Dossier niet gevonden' });
             }

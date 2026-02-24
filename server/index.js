@@ -32,11 +32,14 @@ const upload = multer({ storage });
 app.set('upload', upload); // Make it accessible in routes
 
 // Routes
+const authRoutes = require('./routes/authRoutes');
 const dossierRoutes = require('./routes/dossierRoutes');
 const templateRoutes = require('./routes/templateRoutes');
+const authMiddleware = require('./middleware/authMiddleware');
 
-app.use('/api/dossiers', dossierRoutes);
-app.use('/api/templates', templateRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/dossiers', authMiddleware, dossierRoutes);
+app.use('/api/templates', authMiddleware, templateRoutes);
 app.use('/wopi', require('./routes/wopiRoutes')); // Register WOPI routes
 
 // AI Status Endpoint

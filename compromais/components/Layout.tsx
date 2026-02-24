@@ -14,10 +14,11 @@ interface LayoutProps {
   onLogout: () => void;
   activePage: string;
   navigate: (path: string) => void;
+  user?: { id: number; name: string; email: string } | null;
 }
 
 export const Layout: React.FC<LayoutProps> = ({
-  children, darkMode, toggleDarkMode, lang, setLang, onLogout, activePage, navigate
+  children, darkMode, toggleDarkMode, lang, setLang, onLogout, activePage, navigate, user
 }) => {
   const t = TRANSLATIONS[lang];
   const [showAiStatus, setShowAiStatus] = useState(false);
@@ -153,7 +154,7 @@ export const Layout: React.FC<LayoutProps> = ({
         {/* User / Logout */}
         <div className="relative group">
           <button className="w-10 h-10 rounded-full bg-brand-900 dark:bg-brand-700 flex items-center justify-center text-white text-sm font-medium hover:ring-2 ring-brand-500 transition-all">
-            J
+            {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
           </button>
           {/* Logout Popover */}
           <div className="absolute left-full bottom-0 ml-2 w-32 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-700 hidden group-hover:block p-1">
