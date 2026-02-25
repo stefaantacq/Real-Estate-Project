@@ -150,10 +150,10 @@ export const api = {
         });
     },
 
-    async createAgreement(dossierId: string, templateId: string) {
+    async createAgreement(dossierId: string, templateId: string, remarks?: string) {
         return this.request(`/dossiers/${dossierId}/agreements`, {
             method: 'POST',
-            body: JSON.stringify({ template_id: templateId }),
+            body: JSON.stringify({ template_id: templateId, remarks }),
         });
     },
 

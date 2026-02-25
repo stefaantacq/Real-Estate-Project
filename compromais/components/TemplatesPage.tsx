@@ -803,20 +803,23 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                 </select>
                             </div>
                             <div className="pt-4 border-t border-gray-100 dark:border-slate-800">
-                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Of start vanaf een PDF (AI Analyse)</label>
+                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Of start vanaf een PDF of Word bestand (AI Analyse)</label>
                                 <div className="flex flex-col gap-3">
                                     <input
                                         type="file"
-                                        accept=".pdf"
+                                        accept=".pdf,.docx"
                                         onChange={(e) => {
                                             const file = e.target.files?.[0] || null;
                                             setSelectedFile(file);
-                                            if (file && !newName) setNewName(file.name.replace('.pdf', ''));
+                                            if (file && !newName) {
+                                                const cleanName = file.name.replace(/\.pdf$/i, '').replace(/\.docx$/i, '');
+                                                setNewName(cleanName);
+                                            }
                                         }}
                                         className="text-xs file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 dark:file:bg-slate-800 dark:file:text-slate-300"
                                     />
                                     <p className="text-[10px] text-slate-500 italic">
-                                        Gemini zal de PDF analyseren tijdens het opslaan om secties en placeholders te identificeren.
+                                        Gemini zal het bestand analyseren tijdens het opslaan om secties en placeholders te identificeren.
                                     </p>
                                 </div>
                             </div>

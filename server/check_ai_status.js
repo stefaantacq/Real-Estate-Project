@@ -3,27 +3,27 @@ const { pool } = require('./config/db');
 async function checkStatus() {
     try {
         console.log('--- Most Recent Dossier ---');
-        const [dossiers] = await pool.query('SELECT dossier_id, titel, last_modified FROM Dossier ORDER BY dossier_id DESC LIMIT 1');
+        const [dossiers] = await pool.query('SELECT dossier_id, titel, last_modified, datum_aanmaak FROM Dossier ORDER BY dossier_id DESC LIMIT 1');
         if (dossiers.length === 0) {
             console.log('No dossiers found.');
             process.exit(0);
         }
         const dossierId = dossiers[0].dossier_id;
-        console.log(`Dossier: ${dossiers[0].titel} (ID: ${dossierId}) Created: ${dossiers[0].created_at}`);
+        console.log(`Dossier: ${dossiers[0].titel} (ID: ${dossierId}) Created: ${dossiers[0].datum_aanmaak}`);
 
         console.log('\n--- Documents for this Dossier ---');
-        const [docs] = await pool.query('SELECT naam, bestand_pad FROM Documenten WHERE dossier_id = ?', [dossierId]);
-        docs.forEach(d => console.log(`- ${d.naam} (${d.bestand_pad})`));
+        const [docs] = await pool.query('SELECT name, file_path FROM Documenten WHERE dossier_id = ?', [dossierId]);
+        docs.forEach(d => console.log(`- ${d.name} (${d.file_path})`));
 
         console.log('\n--- Timeline Events ---');
-        const [events] = await pool.query('SELECT title, description, event_date FROM TimelineEvent WHERE dossier_id = ? ORDER BY event_date ASC', [dossierId]);
-        events.forEach(e => console.log(`[${e.event_date}] ${e.title}: ${e.description}`));
+        const [events] = await pool.query('SELECT title, beschrijving, event_date FROM TimelineEvent WHERE dossier_id = ? ORDER BY event_date ASC', [dossierId]);
+        events.forEach(e => console.log(`[${e.event_date}] ${e.title}: ${e.beschrijving}`));
 
         console.log('\n--- Placeholders with Values (Non-empty) ---');
         const [placeholders] = await pool.query(`
             SELECT pl.sleutel as naam, ap.ingevulde_waarde
-            FROM AangepastePlaceholder ap
-            JOIN PlaceholderLibrary pl ON ap.placeholder_id = pl.id
+            FROM Aangepaste_Placeholder ap
+            JOIN Placeholder_Library pl ON ap.placeholder_id = pl.placeholder_id
             WHERE ap.dossier_id = ? AND ap.ingevulde_waarde IS NOT NULL AND ap.ingevulde_waarde != ''
         `, [dossierId]);
         placeholders.forEach(p => console.log(`- ${p.naam}: ${p.ingevulde_waarde}`));

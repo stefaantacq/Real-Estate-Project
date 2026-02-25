@@ -26,13 +26,13 @@ const seedAuth = async () => {
             if (existing.length > 0) {
                 console.log(`Updating existing user: ${user.email}`);
                 await pool.query(
-                    'UPDATE Account SET naam = ?, wachtwoord_hash = ? WHERE email = ?',
+                    'UPDATE Account SET naam = ?, password_hash = ? WHERE email = ?',
                     [user.name, hashedPassword, user.email]
                 );
             } else {
                 console.log(`Creating new user: ${user.email}`);
                 await pool.query(
-                    'INSERT INTO Account (naam, email, wachtwoord_hash) VALUES (?, ?, ?)',
+                    'INSERT INTO Account (naam, email, password_hash) VALUES (?, ?, ?)',
                     [user.name, user.email, hashedPassword]
                 );
             }

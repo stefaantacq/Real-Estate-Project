@@ -23,7 +23,6 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dossierName, setDossierName] = useState('');
   const [files, setFiles] = useState<File[]>([]);
-  const [remarks, setRemarks] = useState('');
 
   // Get translated document checklist
   const requiredDocs = getDocumentChecklist(lang);
@@ -78,28 +77,20 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
     setIsSubmitting(true);
 
     try {
-      // Fetch templates to get a default if none selected (or just use first)
-      const templates = await api.getTemplates();
-      const defaultTemplateId = templates.length > 0 ? templates[0].template_id : null;
-
+      console.log("Preparing FormData for dossier creation...");
       const formData = new FormData();
       formData.append('titel', dossierName);
       formData.append('verkoper_naam', 'Onbekende Verkoper');
       formData.append('adres', 'Nieuw Pand, Onbekende Straat 1');
       formData.append('type', 'House');
-      if (remarks) formData.append('remarks', remarks);
-      if (defaultTemplateId) formData.append('template_id', defaultTemplateId.toString());
-
-      const settings = SettingsService.getSettings();
-      if (settings.customDocumentPrompt) {
-        formData.append('ai_extraction_prompt', settings.customDocumentPrompt);
-      }
 
       files.forEach(file => {
         formData.append('files', file);
       });
 
+      console.log("Sending createDossier request...");
       const result = await api.createDossier(formData);
+      console.log("Dossier created successfully:", result.id);
       onComplete(result.id);
     } catch (error) {
       console.error("Failed to create dossier", error);
@@ -185,18 +176,6 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
                 </div>
               )}
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  {t.remarks} <span className="text-slate-400 font-normal">({t.optional})</span>
-                </label>
-                <textarea
-                  rows={4}
-                  className="w-full bg-gray-50 dark:bg-slate-950 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none text-sm resize-none"
-                  placeholder={t.remarksPlaceholder}
-                  value={remarks}
-                  onChange={(e) => setRemarks(e.target.value)}
-                />
-              </div>
             </div>
           </div>
         </div>
@@ -288,7 +267,7 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
                 )}
               </button>
               <p className="text-xs text-center text-slate-400 mt-3 px-4">
-                Dossier wordt aangemaakt en geanalyseerd.
+                Dossier wordt aangemaakt.
               </p>
             </div>
           </div>

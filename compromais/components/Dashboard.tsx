@@ -210,6 +210,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
     });
   };
 
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Ben je zeker dat je dit dossier wilt verwijderen?')) return;
+    try {
+      await api.deleteDossier(id);
+      setDossiers(prev => prev.filter(d => d.id !== id));
+    } catch (err) {
+      console.error("Failed to delete dossier", err);
+      alert("Kon dossier niet verwijderen.");
+    }
+  };
+
   const renderCard = (dossier: Dossier) => (
     <div
       key={dossier.id}
@@ -466,6 +477,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
           currentStatus={contextMenu.status}
           onClose={() => setContextMenu(null)}
           onMove={(newStatus) => handleMoveTo(contextMenu.id, newStatus)}
+          onDelete={() => handleDelete(contextMenu.id)}
         />
       )}
     </div>

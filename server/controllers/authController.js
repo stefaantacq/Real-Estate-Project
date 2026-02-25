@@ -24,7 +24,7 @@ const authController = {
 
             // Insert user
             const [result] = await pool.query(
-                'INSERT INTO Account (naam, email, wachtwoord_hash) VALUES (?, ?, ?)',
+                'INSERT INTO Account (naam, email, password_hash) VALUES (?, ?, ?)',
                 [name, email, hashedPassword]
             );
 
@@ -56,7 +56,7 @@ const authController = {
             const user = rows[0];
 
             // Verify password
-            const isMatch = await bcrypt.compare(password, user.wachtwoord_hash);
+            const isMatch = await bcrypt.compare(password, user.password_hash);
             if (!isMatch) {
                 return res.status(401).json({ error: 'Ongeldige inloggegevens' });
             }

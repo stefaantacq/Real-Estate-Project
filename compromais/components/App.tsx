@@ -131,7 +131,7 @@ const MainApp: React.FC = () => {
           element={
             <Editor
               lang={language}
-              onBack={() => navigate(-1)}
+              onBack={(dossierId) => dossierId ? navigate(`/dossier/${dossierId}`) : navigate(-1)}
             />
           }
         />

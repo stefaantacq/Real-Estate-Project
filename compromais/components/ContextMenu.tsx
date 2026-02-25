@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Layout, CheckCircle, Archive, ArrowRightLeft } from 'lucide-react';
+import { Layout, CheckCircle, Archive, ArrowRightLeft, Trash2 } from 'lucide-react';
 import { DossierStatus } from '../types';
 
 interface ContextMenuProps {
@@ -7,10 +7,11 @@ interface ContextMenuProps {
     y: number;
     onClose: () => void;
     onMove: (status: DossierStatus) => void;
+    onDelete: () => void;
     currentStatus: DossierStatus;
 }
 
-export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose, onMove, currentStatus }) => {
+export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose, onMove, onDelete, currentStatus }) => {
     const menuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -46,6 +47,13 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose, onMove,
             icon: <Archive className="w-4 h-4" />,
             show: currentStatus !== DossierStatus.ARCHIVED
         },
+        {
+            id: 'delete',
+            label: 'Verwijder dossier',
+            icon: <Trash2 className="w-4 h-4 text-red-500" />,
+            show: true,
+            isDelete: true
+        }
     ];
 
     return (
@@ -63,10 +71,17 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose, onMove,
                 <button
                     key={item.id}
                     onClick={() => {
-                        onMove(item.id as DossierStatus);
+                        if (item.id === 'delete') {
+                            onDelete();
+                        } else {
+                            onMove(item.id as DossierStatus);
+                        }
                         onClose();
                     }}
-                    className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-brand-50 dark:hover:bg-brand-900/30 hover:text-brand-600 dark:hover:text-brand-400 flex items-center gap-3 transition-colors"
+                    className={`w-full text-left px-3 py-2 text-sm flex items-center gap-3 transition-colors ${item.id === 'delete'
+                        ? 'text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'
+                        : 'text-slate-700 dark:text-slate-200 hover:bg-brand-50 dark:hover:bg-brand-900/30 hover:text-brand-600 dark:hover:text-brand-400'
+                        }`}
                 >
                     {item.icon}
                     {item.label}

@@ -71,6 +71,14 @@ app.get('/api/test', async (req, res) => {
     }
 });
 
+// Global Error Logger
+app.use((err, req, res, next) => {
+    const errorLog = `[${new Date().toISOString()}] ${err.stack}\n`;
+    fs.appendFileSync(path.join(__dirname, 'error.log'), errorLog);
+    console.error(err.stack);
+    res.status(500).json({ error: err.message });
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

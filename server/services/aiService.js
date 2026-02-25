@@ -1,5 +1,6 @@
 const fs = require('fs');
 const pdf = require('pdf-parse');
+const mammoth = require('mammoth');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 require('dotenv').config();
 
@@ -18,7 +19,18 @@ const extractTextFromPDF = async (filePath) => {
         const data = await pdf(dataBuffer);
         return data.text;
     } catch (error) {
-        console.error(`Error extracting text from PDF (${filePath}):`, error);
+    }
+};
+
+/**
+ * Extracts raw text from a DOCX file.
+ */
+const extractTextFromDOCX = async (filePath) => {
+    try {
+        const result = await mammoth.extractRawText({ path: filePath });
+        return result.value; // The generated raw text
+    } catch (error) {
+        console.error(`Error extracting text from DOCX (${filePath}):`, error);
         return '';
     }
 };
@@ -28,7 +40,7 @@ const extractTextFromPDF = async (filePath) => {
  */
 const analyzeDocument = async (text, fieldNames, customPrompt = null, fieldContexts = []) => {
     const contextStr = fieldContexts.length > 0
-        ? `\nCONTEXT FOR DATA FIELDS (Use these labels to find the data in the Dutch text):\n${fieldContexts.map(ctx => `- Key: "${ctx.naam}" | Dutch Labels/Description: "${ctx.label}" | Section: "${ctx.section}"`).join('\n')}`
+        ? `\nCONTEXT FOR DATA FIELDS (Use these labels to find the data in the Dutch text):\n${fieldContexts.map(ctx => `- Key: "${ctx.naam}" | Dutch Labels/Description: "${ctx.label}" | Sections: "${ctx.sections}"`).join('\n')}`
         : '';
 
     const userInstruction = customPrompt
@@ -160,6 +172,7 @@ const analyzeTemplate = async (text, libraryPlaceholders, customPrompt = null) =
 
 module.exports = {
     extractTextFromPDF,
+    extractTextFromDOCX,
 
     // Check connection to Gemini
     checkConnection: async () => {

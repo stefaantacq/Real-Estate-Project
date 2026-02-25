@@ -45,6 +45,7 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
    const [templates, setTemplates] = React.useState<any[]>([]);
    const [isTemplateModalOpen, setIsTemplateModalOpen] = React.useState(false);
    const [isCreatingAgreement, setIsCreatingAgreement] = React.useState(false);
+   const [agreementRemarks, setAgreementRemarks] = React.useState('');
 
    // Version states
    const [isAddVersionModalOpen, setIsAddVersionModalOpen] = React.useState(false);
@@ -83,10 +84,11 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
          try {
             const data: any = await api.getDossierById(id);
             const events = data.timeline || [];
-            const hasCreated = events.some((e: any) => e.title === 'Dossier aangemaakt');
+            const hasAIStart = events.some((e: any) => e.title.includes('AI Analyse:'));
             const hasAICompleted = events.some((e: any) => e.title === 'AI Analyse Voltooid');
+            const hasAIError = events.some((e: any) => e.title === 'AI Analyse Fout');
 
-            if (hasCreated && !hasAICompleted && data.documents?.length > 0) {
+            if (hasAIStart && !hasAICompleted && !hasAIError) {
                setIsScanning(true);
             } else {
                setIsScanning(false);
@@ -328,7 +330,7 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
       setIsCreatingAgreement(true);
       console.log("Creating agreement for dossier:", id, "with template:", templateId);
       try {
-         const result = await api.createAgreement(id, templateId);
+         const result = await api.createAgreement(id, templateId, agreementRemarks);
          console.log("Agreement created result:", result);
 
          setIsTemplateModalOpen(false);
@@ -349,6 +351,7 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
          alert("Kon overeenkomst niet aanmaken.");
       } finally {
          setIsCreatingAgreement(false);
+         setAgreementRemarks('');
       }
    };
 
@@ -797,7 +800,20 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                            <X className="w-6 h-6 text-slate-400" />
                         </button>
                      </div>
-                     <div className="flex-1 overflow-y-auto p-6">
+                     <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                        <div>
+                           <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                              {t.remarks} <span className="text-slate-400 font-normal">({t.optional})</span>
+                           </label>
+                           <textarea
+                              rows={3}
+                              className="w-full bg-gray-50 dark:bg-slate-950 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none text-sm resize-none"
+                              placeholder={t.remarksPlaceholder}
+                              value={agreementRemarks}
+                              onChange={(e) => setAgreementRemarks(e.target.value)}
+                           />
+                        </div>
+
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                            {templates.map(template => {
                               const isAiSuggested = template.name?.toLowerCase().includes('vlaanderen');
