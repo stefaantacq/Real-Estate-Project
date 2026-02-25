@@ -228,7 +228,7 @@ const dossierController = {
                 (SELECT COUNT(*) FROM Verkoopsovereenkomst v WHERE v.dossier_id = d.dossier_id) as agreementCount
                 FROM Dossier d 
                 WHERE d.account_id = ?
-                ORDER BY d.last_modified DESC
+                ORDER BY d.display_order ASC, d.last_modified DESC
             `, [req.user.id]);
 
             const dossiers = rows.map(row => ({
@@ -236,7 +236,8 @@ const dossierController = {
                 name: row.titel,
                 address: row.adres,
                 verkoper_naam: row.verkoper_naam,
-                date: row.last_modified || row.datum_aanmaak,
+                date: row.last_opened || row.last_modified || row.datum_aanmaak,
+                lastOpened: row.last_opened,
                 creationDate: row.datum_aanmaak,
                 documentCount: row.documentCount || 0,
                 agreementCount: row.agreementCount || 0,
@@ -340,6 +341,13 @@ const dossierController = {
     getDossierById: async (req, res) => {
         const { id } = req.params;
         try {
+            // Update last_opened timestamp (non-critical, don't fail if this fails)
+            try {
+                await pool.query('UPDATE Dossier SET last_opened = CURRENT_TIMESTAMP WHERE (ui_id = ? OR dossier_id = ?) AND account_id = ?', [id, id, req.user.id]);
+            } catch (err) {
+                console.error('Failed to update last_opened:', err);
+            }
+
             const [rows] = await pool.query('SELECT * FROM Dossier WHERE (ui_id = ? OR dossier_id = ?) AND account_id = ?', [id, id, req.user.id]);
             if (rows.length === 0) {
                 return res.status(404).json({ error: 'Dossier niet gevonden' });
@@ -799,6 +807,45 @@ const dossierController = {
         } catch (error) {
             console.error(error);
             res.status(500).json({ error: error.message });
+        }
+    },
+
+    // PATCH /api/dossiers/reorder
+    reorderDossiers: async (req, res) => {
+        const { orders } = req.body; // Array of { id: string (ui_id), order: number }
+        if (!orders || !Array.isArray(orders)) {
+            return res.status(400).json({ error: 'Invalid orders data' });
+        }
+
+        const connection = await pool.getConnection();
+        try {
+            await connection.beginTransaction();
+            for (const item of orders) {
+                const isUiId = typeof item.id === 'string' && item.id.startsWith('dos-');
+                const updateFields = ['display_order = ?'];
+                const queryParams = [item.order];
+
+                if (item.status) {
+                    updateFields.push('status = ?');
+                    queryParams.push(item.status);
+                }
+
+                queryParams.push(item.id, req.user.id);
+
+                const whereClause = isUiId ? 'WHERE ui_id = ? AND account_id = ?' : 'WHERE dossier_id = ? AND account_id = ?';
+                await connection.query(
+                    `UPDATE Dossier SET ${updateFields.join(', ')} ${whereClause}`,
+                    queryParams
+                );
+            }
+            await connection.commit();
+            res.json({ success: true });
+        } catch (error) {
+            await connection.rollback();
+            console.error(error);
+            res.status(500).json({ error: error.message });
+        } finally {
+            connection.release();
         }
     }
 };

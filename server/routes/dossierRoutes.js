@@ -3,6 +3,7 @@ const router = express.Router();
 const dossierController = require('../controllers/dossierController');
 
 router.get('/', dossierController.getAllDossiers);
+router.patch('/reorder', dossierController.reorderDossiers);
 router.post('/', (req, res, next) => req.app.get('upload').array('files')(req, res, next), dossierController.createDossier);
 router.get('/:id', dossierController.getDossierById);
 router.put('/:id', dossierController.updateDossier);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sun, Moon, Globe, LogOut, FileText, Settings, Plus, Home, Bot } from 'lucide-react';
+import { Sun, Moon, Globe, LogOut, FileText, Settings, Plus, Home, Bot, User } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../constants';
 import { api } from '../services/api';
@@ -56,6 +56,26 @@ export const Layout: React.FC<LayoutProps> = ({
     return () => clearInterval(interval);
   }, [showAiStatus]);
 
+  const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const langMenuRef = React.useRef<HTMLDivElement>(null);
+  const userMenuRef = React.useRef<HTMLDivElement>(null);
+
+  // Close menus when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (langMenuRef.current && !langMenuRef.current.contains(event.target as Node)) {
+        setIsLangMenuOpen(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   return (
     <div className={`flex h-screen bg-gray-50 dark:bg-slate-950 transition-colors duration-200 overflow-hidden ${darkMode ? 'dark' : ''}`}>
 
@@ -92,26 +112,32 @@ export const Layout: React.FC<LayoutProps> = ({
         <div className="flex-grow"></div>
 
         {/* Language Toggle */}
-        <div className="relative group mb-3">
+        <div className="relative mb-3" ref={langMenuRef}>
           <button
-            className="w-10 h-10 rounded-full border border-gray-200 dark:border-slate-700 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800"
+            onClick={() => setIsLangMenuOpen(!isLangMenuOpen)}
+            className={`w-10 h-10 rounded-full border flex items-center justify-center text-xs font-bold transition-all ${isLangMenuOpen ? 'bg-brand-50 border-brand-500 text-brand-600 dark:bg-brand-900/20' : 'border-gray-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'}`}
           >
             {lang}
           </button>
           {/* Popover */}
-          <div className="absolute left-full bottom-0 pl-2 pb-2 w-32 hidden group-hover:block z-50">
-            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
-              {Object.values(Language).map((l) => (
-                <button
-                  key={l}
-                  onClick={() => setLang(l)}
-                  className={`block w-full text-left px-4 py-2 text-xs ${lang === l ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600' : 'text-slate-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'}`}
-                >
-                  {l}
-                </button>
-              ))}
+          {isLangMenuOpen && (
+            <div className="absolute left-full bottom-0 pl-2 pb-2 w-32 z-50 animate-in slide-in-from-left-2 duration-200">
+              <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+                {Object.values(Language).map((l) => (
+                  <button
+                    key={l}
+                    onClick={() => {
+                      setLang(l);
+                      setIsLangMenuOpen(false);
+                    }}
+                    className={`block w-full text-left px-4 py-2 text-xs ${lang === l ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600' : 'text-slate-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'}`}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
 
@@ -152,20 +178,39 @@ export const Layout: React.FC<LayoutProps> = ({
         </button>
 
         {/* User / Logout */}
-        <div className="relative group">
-          <button className="w-10 h-10 rounded-full bg-brand-900 dark:bg-brand-700 flex items-center justify-center text-white text-sm font-medium hover:ring-2 ring-brand-500 transition-all">
+        <div className="relative" ref={userMenuRef}>
+          <button
+            onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+            className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium transition-all ${isUserMenuOpen ? 'ring-2 ring-brand-500 bg-brand-600' : 'bg-brand-900 dark:bg-brand-700 hover:bg-brand-800'}`}
+          >
             {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
           </button>
           {/* Logout Popover */}
-          <div className="absolute left-full bottom-0 ml-2 w-32 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-700 hidden group-hover:block p-1">
-            <button
-              onClick={onLogout}
-              className="w-full flex items-center px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md"
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              {t.logout}
-            </button>
-          </div>
+          {isUserMenuOpen && (
+            <div className="absolute left-full bottom-0 ml-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-700 p-1 z-50 animate-in slide-in-from-left-2 duration-200">
+              <button
+                onClick={() => {
+                  navigate('/profile');
+                  setIsUserMenuOpen(false);
+                }}
+                className="w-full flex items-center px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 rounded-md mb-1"
+              >
+                <User className="w-4 h-4 mr-2" />
+                {t.myAccount}
+              </button>
+              <div className="h-px bg-gray-100 dark:bg-slate-700 my-1"></div>
+              <button
+                onClick={() => {
+                  onLogout();
+                  setIsUserMenuOpen(false);
+                }}
+                className="w-full flex items-center px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                {t.logout}
+              </button>
+            </div>
+          )}
         </div>
 
       </aside>

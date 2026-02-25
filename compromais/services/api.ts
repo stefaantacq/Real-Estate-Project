@@ -98,6 +98,13 @@ export const api = {
         });
     },
 
+    async reorderDossiers(orders: { id: string; order: number; status?: string }[]) {
+        return this.request('/dossiers/reorder', {
+            method: 'PATCH',
+            body: JSON.stringify({ orders }),
+        });
+    },
+
     // Versions
     async getVersion(id: string) {
         return this.request(`/dossiers/versions/${id}`);

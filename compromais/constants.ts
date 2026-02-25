@@ -126,6 +126,10 @@ export const TRANSLATIONS = {
     deleteVersion: 'Versie verwijderen',
     deleteVersionConfirmation: 'Ben je zeker dat je deze versie wilt verwijderen?',
     cancel: 'Annuleren',
+    myAccount: 'Mijn Account',
+    accountDetails: 'Accountgegevens',
+    userName: 'Naam',
+    userEmail: 'E-mailadres',
   },
   [Language.FR]: {
     loginTitle: 'Bienvenue chez compromAIs',
@@ -224,6 +228,10 @@ export const TRANSLATIONS = {
     deleteVersion: 'Supprimer la version',
     deleteVersionConfirmation: 'Êtes-vous sûr de vouloir supprimer cette version ?',
     cancel: 'Annuler',
+    myAccount: 'Mon Compte',
+    accountDetails: 'Détails du Compte',
+    userName: 'Nom',
+    userEmail: 'Adresse e-mail',
   },
   [Language.EN]: {
     loginTitle: 'Welcome to CompromisAI',
@@ -320,6 +328,10 @@ export const TRANSLATIONS = {
     confirmDelete: 'Delete',
     settingsDeleteConfirmation: 'Show delete confirmation popup',
     cancel: 'Cancel',
+    myAccount: 'My Account',
+    accountDetails: 'Account Details',
+    userName: 'Name',
+    userEmail: 'Email',
   }
 };
 

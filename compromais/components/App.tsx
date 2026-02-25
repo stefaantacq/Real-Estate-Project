@@ -7,6 +7,7 @@ import { NewCompromise } from './NewCompromise';
 import { Editor } from './Editor';
 import { DossierOverview } from './DossierOverview';
 import { TemplatesPage } from './TemplatesPage';
+import { ProfilePage } from './ProfilePage';
 import { SettingsPage } from './SettingsPage';
 import { Language } from '../types';
 
@@ -56,7 +57,8 @@ const MainApp: React.FC = () => {
 
   // Page Routing Logic
   const activePage = location.pathname.includes('templates') ? 'templates' :
-    location.pathname.includes('settings') ? 'settings' : 'dashboard';
+    location.pathname.includes('settings') ? 'settings' :
+      location.pathname.includes('profile') ? 'profile' : 'dashboard';
 
   if (!isAuthenticated) {
     return (
@@ -148,6 +150,16 @@ const MainApp: React.FC = () => {
             <SettingsPage
               lang={language}
               onBack={() => navigate(-1)}
+            />
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProfilePage
+              lang={language}
+              user={user}
+              onBack={() => navigate('/dashboard')}
             />
           }
         />
