@@ -32,14 +32,16 @@ Clone de repository en installeer de dependencies voor beide projecten:
 # Backend installatie
 cd server
 npm install
+npm run dev
 # Kopieer de .env template (vraag Willem om de wachtwoorden)
-cp .env.example .env
 
 # Frontend installatie
 cd ../compromisai
 npm install
+npm run dev
 
-cd ../MySQL+Collabora
+
+cd ../docker
 docker-compose up -d
 ```
 
