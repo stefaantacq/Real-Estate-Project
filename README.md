@@ -43,6 +43,10 @@ npm run dev
 
 cd ../docker
 docker-compose up -d
+
+# Initialiseer de databank met test-accounts
+cd ../server
+node scripts/seedAuth.js
 ```
 
 ### 3. Applicatie Starten
