@@ -31,7 +31,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     const [sidebarMode, setSidebarMode] = useState<'none' | 'ai' | 'checklist'>('none');
     const [splitScreen, setSplitScreen] = useState<boolean>(false);
     const [activePlaceholderId, setActivePlaceholderId] = useState<string | null>(null);
-    const [selectedSourceDoc, setSelectedSourceDoc] = useState<{ name: string, path?: string, bronText?: string, placeholderLabel?: string } | null>(null);
+    const [selectedSourceDoc, setSelectedSourceDoc] = useState<{ name: string, path?: string, bronText?: string, placeholderLabel?: string, currentValue?: string, paginaNummer?: number | null } | null>(null);
     const [editingPlaceholder, setEditingPlaceholder] = useState<{ sectionId: string, placeholderId: string } | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -87,7 +87,17 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     const progress = Math.round((approvedPlaceholders / totalPlaceholders) * 100);
 
     const toggleApproveSection = (sectionId: string) => {
-        const updatedSections = sections.map(s => s.id === sectionId ? { ...s, isApproved: !s.isApproved } : s);
+        const updatedSections = sections.map(s => {
+            if (s.id === sectionId) {
+                const newApprovedState = !s.isApproved;
+                return {
+                    ...s,
+                    isApproved: newApprovedState,
+                    placeholders: s.placeholders.map(p => ({ ...p, isApproved: newApprovedState }))
+                };
+            }
+            return s;
+        });
         setSections(updatedSections);
         handleSave(updatedSections);
     };
@@ -175,23 +185,31 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                     relativeUrl += '.pdf';
                 }
 
-                // Add browser native PDF search highlight parameter if we have bronText
-                if (placeholder.bronText) {
-                    // Extract first ~5 words to avoid line-break search failures
-                    let cleanText = placeholder.bronText.replace(/['"]/g, '');
+                if (placeholder.bronText || placeholder.currentValue) {
+                    const textToSearch = placeholder.bronText || placeholder.currentValue;
+                    let cleanText = textToSearch.replace(/['"]/g, '');
+                    
                     const words = cleanText.split(/\s+/);
-                    if (words.length > 5) {
-                        cleanText = words.slice(0, 5).join(' ');
+                    if (words.length > 3) {
+                        cleanText = words.slice(0, 3).join(' ');
                     }
-                    const searchParam = encodeURIComponent(`"${cleanText}"`);
-                    relativeUrl += `#search=${searchParam}`;
+                    
+                    const searchParam = encodeURIComponent(cleanText);
+                    
+                    if (placeholder.paginaNummer) {
+                        relativeUrl += `#page=${placeholder.paginaNummer}&search=${searchParam}`;
+                    } else {
+                        relativeUrl += `#search=${searchParam}`;
+                    }
                 }
 
                 setSelectedSourceDoc({ 
                     name: placeholder.documentNaam || 'Brondocument', 
                     path: relativeUrl,
                     bronText: placeholder.bronText || '',
-                    placeholderLabel: placeholder.label
+                    placeholderLabel: placeholder.label,
+                    currentValue: placeholder.currentValue,
+                    paginaNummer: placeholder.paginaNummer
                 });
                 setSplitScreen(true);
                 return;
@@ -582,14 +600,15 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                                             }, 300);
                                                         }}
                                                         customTextRenderer={textItem => {
-                                                            if (!selectedSourceDoc.bronText) return textItem.str;
-                                                            let cleanText = selectedSourceDoc.bronText.replace(/['"]/g, '');
-                                                            const words = cleanText.split(/\s+/);
-                                                            if (words.length > 5) cleanText = words.slice(0, 5).join(' ');
+                                                            const { bronText, currentValue, paginaNummer } = selectedSourceDoc;
+                                                            // Only highlight if we are on the exact specified page (if known)
+                                                            if (paginaNummer && paginaNummer !== (index + 1)) return textItem.str;
                                                             
-                                                            if (!cleanText) return textItem.str;
+                                                            const textToSearch = currentValue?.trim() || bronText?.trim();
+                                                            if (!textToSearch || textToSearch.length < 2) return textItem.str;
                                                             
-                                                            const regex = new RegExp(`(${cleanText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+                                                            // Highlight the exact value (or exact full sentence fallback)
+                                                            const regex = new RegExp(`(${textToSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
                                                             return textItem.str.replace(regex, '<mark class="bg-yellow-300 font-bold px-1 rounded shadow-sm text-black">$1</mark>');
                                                         }}
                                                     />
