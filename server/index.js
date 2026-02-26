@@ -71,6 +71,32 @@ app.get('/api/test', async (req, res) => {
     }
 });
 
+// Document Preview Endpoint (Converts DOCX to PDF inline)
+app.get('/api/documents/preview/:filename', async (req, res, next) => {
+    try {
+        const filePath = path.join(uploadDir, req.params.filename);
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ error: 'File not found' });
+        }
+        
+        const ext = path.extname(filePath).toLowerCase();
+        if (ext === '.docx' || ext === '.doc') {
+            const exportService = require('./services/exportService');
+            const fileBuffer = fs.readFileSync(filePath);
+            const pdfBuffer = await exportService.convertToPdf(fileBuffer);
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', 'inline; filename="preview.pdf"');
+            return res.send(pdfBuffer);
+        }
+        
+        // Default fallback: send inline
+        res.setHeader('Content-Disposition', `inline; filename="${req.params.filename}"`);
+        res.sendFile(filePath);
+    } catch (error) {
+        next(error);
+    }
+});
+
 // Global Error Logger
 app.use((err, req, res, next) => {
     const errorLog = `[${new Date().toISOString()}] ${err.stack}\n`;

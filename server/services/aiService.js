@@ -62,9 +62,10 @@ const analyzeDocument = async (text, fieldNames, customPrompt = null, fieldConte
         3. For names, dates, and addresses: Be extremely precise. 
            - Distinguish clearly between Buyer (Koper) and Seller (Verkoper).
            - Identify the Property Address (Adres van de eigendom/het goed).
-        4. Return ONLY a JSON object where the keys are the English keys provided.
-        5. Use an empty string "" if a field is not found.
-        6. Return nothing but the JSON object.
+        4. Return ONLY a JSON object where the keys are the English keys provided. The value for each key MUST be an object with two properties:
+           - "waarde": The extracted value as a string (use an empty string "" if not found).
+           - "bron_text": The exact, literal short sentence or phrase from the source text that proves this value (use an empty string "" if not found).
+        5. Return nothing but the JSON object.
 
         ${contextStr}
         ${userInstruction}
@@ -90,8 +91,9 @@ const analyzeDocument = async (text, fieldNames, customPrompt = null, fieldConte
         return JSON.parse(jsonText);
     } catch (error) {
         console.error('Error analyzing document with Gemini:', error);
+        try { require('fs').appendFileSync('/tmp/dossier_debug.log', new Date().toISOString() + ' - Gemini Error: ' + error.message + '\n'); } catch(e){}
         if (error.status === 404) {
-            console.error('ERROR 404: The model was not found. Please check if the Generative Language API is enabled in your Google Cloud project and if the model is available for your API key.');
+            console.error('ERROR 404: The model was not found.');
         }
         return {};
     }

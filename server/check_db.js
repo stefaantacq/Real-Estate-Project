@@ -1,36 +1,24 @@
-const db = require('./config/db');
+const mysql = require('mysql2/promise');
+require('dotenv').config();
 
-async function checkConstraints() {
+const pool = mysql.createPool({
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || 'Kapers4v',
+    database: process.env.DB_NAME || 'AI_Real_Estate_App',
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
+});
+
+async function check() {
     try {
-        const [engines] = await db.pool.query(`
-            SELECT TABLE_NAME, ENGINE
-            FROM INFORMATION_SCHEMA.TABLES
-            WHERE TABLE_SCHEMA = 'compromAIs';
-        `);
-        console.log('Storage Engines:');
-        console.table(engines);
-
-        const [vRows] = await db.pool.query(`
-            SELECT COLUMN_NAME, CONSTRAINT_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
-            FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
-            WHERE TABLE_SCHEMA = 'compromAIs' AND TABLE_NAME = 'Versie' AND REFERENCED_TABLE_NAME IS NOT NULL;
-        `);
-        console.log('Foreign Keys for Versie:');
-        console.table(vRows);
-
-        const [aRows] = await db.pool.query(`
-            SELECT COLUMN_NAME, CONSTRAINT_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
-            FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
-            WHERE TABLE_SCHEMA = 'compromAIs' AND TABLE_NAME = 'Verkoopsovereenkomst' AND REFERENCED_TABLE_NAME IS NOT NULL;
-        `);
-        console.log('Foreign Keys for Verkoopsovereenkomst:');
-        console.table(aRows);
-
-        process.exit(0);
-    } catch (error) {
-        console.error('Failed to check constraints:', error);
-        process.exit(1);
+        const [rows] = await pool.query('SELECT dossier_id, placeholder_id, ingevulde_waarde, document_id, bron_text FROM Aangepaste_Placeholder ORDER BY last_updated DESC LIMIT 10;');
+        console.log("LAST 10 ROW RESULTS:\n", rows);
+    } catch(err){
+        console.error("ERROR:", err);
+    } finally {
+        pool.end();
     }
 }
-
-checkConstraints();
+check();

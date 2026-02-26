@@ -35,10 +35,16 @@ const fetchFullVersionContent = async (versie_id) => {
                 pl.type, 
                 p.pdf_label,
                 ap.ingevulde_waarde as value,
-                ap.validatiestatus as placeholder_validation_status
+                ap.validatiestatus as placeholder_validation_status,
+                ap.document_id,
+                ap.bron_text,
+                ap.pagina_nummer,
+                d.bestand_pad as document_pad,
+                d.bestandsnaam as document_naam
             FROM Placeholder p
             JOIN Placeholder_Library pl ON p.placeholder_id = pl.placeholder_id
             LEFT JOIN Aangepaste_Placeholder ap ON pl.placeholder_id = ap.placeholder_id AND ap.dossier_id = ?
+            LEFT JOIN Documenten d ON ap.document_id = d.document_id
             WHERE p.sectie_id = ?
         `, [dossierId, section.sectie_id]);
 
@@ -47,7 +53,12 @@ const fetchFullVersionContent = async (versie_id) => {
             label: p.pdf_label || p.name,
             currentValue: p.value || '',
             isApproved: p.placeholder_validation_status === 'approved',
-            type: p.type
+            type: p.type,
+            documentId: p.document_id || null,
+            bronText: p.bron_text || null,
+            paginaNummer: p.pagina_nummer || null,
+            documentPad: p.document_pad || null,
+            documentNaam: p.document_naam || null
         }));
 
         section.id = section.aangepaste_sectie_id.toString();
@@ -103,7 +114,7 @@ const copyVersionContent = async (sourceVersionId, targetVersionId) => {
     }
 };
 
-const syncDossierMasterData = async (dossierId, tag, value) => {
+const syncDossierMasterData = async (dossierId, tag, value, documentId = null, bronText = null) => {
     try {
         const [pDef] = await pool.query('SELECT placeholder_id FROM Placeholder_Library WHERE sleutel = ? LIMIT 1', [tag]);
         if (pDef.length > 0) {
@@ -111,13 +122,13 @@ const syncDossierMasterData = async (dossierId, tag, value) => {
             const [existing] = await pool.query('SELECT 1 FROM Aangepaste_Placeholder WHERE dossier_id = ? AND placeholder_id = ?', [dossierId, placeholderId]);
             if (existing.length > 0) {
                 await pool.query(
-                    'UPDATE Aangepaste_Placeholder SET ingevulde_waarde = ?, validatiestatus = ? WHERE dossier_id = ? AND placeholder_id = ?',
-                    [value, 'unverified', dossierId, placeholderId]
+                    'UPDATE Aangepaste_Placeholder SET ingevulde_waarde = ?, validatiestatus = ?, document_id = ?, bron_text = ? WHERE dossier_id = ? AND placeholder_id = ?',
+                    [value, 'unverified', documentId, bronText, dossierId, placeholderId]
                 );
             } else {
                 await pool.query(
-                    'INSERT INTO Aangepaste_Placeholder (dossier_id, placeholder_id, ingevulde_waarde, validatiestatus) VALUES (?, ?, ?, ?)',
-                    [dossierId, placeholderId, value, 'unverified']
+                    'INSERT INTO Aangepaste_Placeholder (dossier_id, placeholder_id, ingevulde_waarde, validatiestatus, document_id, bron_text) VALUES (?, ?, ?, ?, ?, ?)',
+                    [dossierId, placeholderId, value, 'unverified', documentId, bronText]
                 );
             }
         }
@@ -180,14 +191,28 @@ const processDossierDocuments = async (dossierId, files, customPrompt = null, te
                 dlog(`[AI] Calling analyzeDocument for ${tagsToExtract.length} tags`);
                 const extractedData = await analyzeDocument(text, tagsToExtract, customPrompt, fieldContexts);
                 dlog(`[AI] Extracted ${Object.keys(extractedData || {}).length} items from document`);
-                combinedExtractedData = { ...combinedExtractedData, ...extractedData };
+                for (const [key, val] of Object.entries(extractedData || {})) {
+                    if (val && typeof val === 'object' && val.waarde !== undefined && val.waarde !== '') {
+                        combinedExtractedData[key] = {
+                            waarde: val.waarde,
+                            bron_text: val.bron_text || null,
+                            document_id: file.id || null
+                        };
+                    } else if (typeof val === 'string' && val.trim() !== '') {
+                        combinedExtractedData[key] = {
+                            waarde: val,
+                            bron_text: null,
+                            document_id: file.id || null
+                        };
+                    }
+                }
             }
         }
         let matchCount = 0;
-        for (const [tag, value] of Object.entries(combinedExtractedData)) {
-            if (value && value.toString().trim()) { 
-                console.log(`AI extracted field [${tag}]: ${value}`);
-                await syncDossierMasterData(dossierId, tag, value.toString()); 
+        for (const [tag, data] of Object.entries(combinedExtractedData)) {
+            if (data && data.waarde && data.waarde.toString().trim()) { 
+                console.log(`AI extracted field [${tag}]: ${data.waarde}`);
+                await syncDossierMasterData(dossierId, tag, data.waarde.toString(), data.document_id, data.bron_text); 
                 matchCount++; 
             }
         }
@@ -392,6 +417,7 @@ const dossierController = {
             const [docRows] = await pool.query('SELECT * FROM Documenten WHERE dossier_id = ?', [dosRows[0].dossier_id]);
             if (docRows.length > 0) {
                 const files = docRows.map(doc => ({
+                    id: doc.document_id,
                     filename: doc.bestandsnaam,
                     originalname: doc.naam,
                     mimetype: doc.bestandstype
@@ -432,6 +458,7 @@ const dossierController = {
             const [docRows] = await pool.query('SELECT * FROM Documenten WHERE dossier_id = ?', [aggRows[0].dossier_id]);
             if (docRows.length > 0) {
                 const files = docRows.map(doc => ({
+                    id: doc.document_id,
                     filename: doc.bestandsnaam,
                     originalname: doc.naam,
                     mimetype: doc.bestandstype

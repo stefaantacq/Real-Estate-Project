@@ -92,9 +92,14 @@ export interface PlaceholderSuggestion {
   id: string;
   label: string; // The variable name e.g., "Naam verkoper"
   currentValue: string;
-  sourceDoc: string; // Filename
-  sourcePage: number;
-  confidence: 'High' | 'Medium' | 'Low';
+  sourceDoc?: string; // Filename (legacy)
+  sourcePage?: number;
+  documentId?: number;
+  bronText?: string;
+  paginaNummer?: number;
+  documentPad?: string;
+  documentNaam?: string;
+  confidence?: 'High' | 'Medium' | 'Low'; // Made optional
   isApproved: boolean;
   type?: string;
 }

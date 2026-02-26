@@ -25,7 +25,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     const [sidebarMode, setSidebarMode] = useState<'none' | 'ai' | 'checklist'>('none');
     const [splitScreen, setSplitScreen] = useState<boolean>(false);
     const [activePlaceholderId, setActivePlaceholderId] = useState<string | null>(null);
-    const [selectedSourceDoc, setSelectedSourceDoc] = useState<{ name: string, path?: string } | null>(null);
+    const [selectedSourceDoc, setSelectedSourceDoc] = useState<{ name: string, path?: string, bronText?: string, placeholderLabel?: string } | null>(null);
     const [editingPlaceholder, setEditingPlaceholder] = useState<{ sectionId: string, placeholderId: string } | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -151,12 +151,37 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     const handleSourceClick = (placeholderId: string) => {
         setActivePlaceholderId(placeholderId);
 
-        // Try to find the document path from the dossier if available
         const placeholder = sections.flatMap(s => s.placeholders).find(p => p.id === placeholderId);
-        if (placeholder && placeholder.sourceDoc && dossier?.documents) {
-            const doc = dossier.documents.find(d => d.name === placeholder.sourceDoc);
-            if (doc) {
-                setSelectedSourceDoc({ name: doc.name, path: doc.path });
+        if (placeholder) {
+            // First try the new document metadata logic
+            if (placeholder.documentPad || placeholder.documentNaam) {
+                // Determine path.
+                const pathStr = placeholder.documentPad || '';
+                const filename = pathStr.split('/').pop() || pathStr;
+                
+                // Use the new preview endpoint allowing inline viewing of DOCX files as PDF
+                const relativeUrl = pathStr.startsWith('http') ? pathStr : `/api/documents/preview/${filename}`;
+
+                setSelectedSourceDoc({ 
+                    name: placeholder.documentNaam || 'Brondocument', 
+                    path: relativeUrl,
+                    bronText: placeholder.bronText || '',
+                    placeholderLabel: placeholder.label
+                });
+                setSplitScreen(true);
+                return;
+            }
+
+            // Fallback to old behavior if no new data exists
+            if (placeholder.sourceDoc && dossier?.documents) {
+                const doc = dossier.documents.find(d => d.name === placeholder.sourceDoc);
+                if (doc) {
+                    setSelectedSourceDoc({ 
+                        name: doc.name, 
+                        path: doc.path,
+                        placeholderLabel: placeholder.label
+                    });
+                }
             }
         }
 

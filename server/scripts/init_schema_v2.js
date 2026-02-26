@@ -189,11 +189,15 @@ async function initSchema() {
             dossier_id INT,
             placeholder_id INT,
             aangepaste_sectie_id INT,
+            document_id INT NULL,
             ingevulde_waarde TEXT,
             validatiestatus VARCHAR(50),
+            bron_text TEXT NULL,
+            pagina_nummer INT NULL,
             FOREIGN KEY (dossier_id) REFERENCES Dossier(dossier_id) ON DELETE CASCADE,
             FOREIGN KEY (placeholder_id) REFERENCES Placeholder_Library(placeholder_id) ON DELETE CASCADE,
-            FOREIGN KEY (aangepaste_sectie_id) REFERENCES VersieSectie(aangepaste_sectie_id) ON DELETE CASCADE
+            FOREIGN KEY (aangepaste_sectie_id) REFERENCES VersieSectie(aangepaste_sectie_id) ON DELETE CASCADE,
+            FOREIGN KEY (document_id) REFERENCES Documenten(document_id) ON DELETE SET NULL
         )
     `);
 
