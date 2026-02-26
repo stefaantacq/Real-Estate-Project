@@ -6,6 +6,12 @@ import { Language, DocumentSection, PlaceholderSuggestion, Dossier } from '../ty
 import { TRANSLATIONS, MOCK_SECTIONS } from '../constants';
 import { api } from '../services/api';
 
+import { Document, Page, pdfjs } from 'react-pdf';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
+
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+
 interface EditorProps {
     lang: Language;
     onBack: (dossierId?: string) => void;
@@ -29,6 +35,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     const [editingPlaceholder, setEditingPlaceholder] = useState<{ sectionId: string, placeholderId: string } | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [numPages, setNumPages] = useState<number | null>(null);
 
     // Initial Load
     useEffect(() => {
@@ -160,7 +167,25 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                 const filename = pathStr.split('/').pop() || pathStr;
                 
                 // Use the new preview endpoint allowing inline viewing of DOCX files as PDF
-                const relativeUrl = pathStr.startsWith('http') ? pathStr : `/api/documents/preview/${filename}`;
+                let relativeUrl = pathStr.startsWith('http') ? pathStr : `/api/documents/preview/${filename}`;
+
+                // Chrome's PDF viewer requires the URL to end in .pdf to process the #search hash
+                // We append a pseudo .pdf extension so it forces the PDF-viewer behavior
+                if (!relativeUrl.toLowerCase().endsWith('.pdf') && !pathStr.startsWith('http')) {
+                    relativeUrl += '.pdf';
+                }
+
+                // Add browser native PDF search highlight parameter if we have bronText
+                if (placeholder.bronText) {
+                    // Extract first ~5 words to avoid line-break search failures
+                    let cleanText = placeholder.bronText.replace(/['"]/g, '');
+                    const words = cleanText.split(/\s+/);
+                    if (words.length > 5) {
+                        cleanText = words.slice(0, 5).join(' ');
+                    }
+                    const searchParam = encodeURIComponent(`"${cleanText}"`);
+                    relativeUrl += `#search=${searchParam}`;
+                }
 
                 setSelectedSourceDoc({ 
                     name: placeholder.documentNaam || 'Brondocument', 
@@ -531,14 +556,47 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                 <X className="w-4 h-4" />
                             </button>
                         </div>
-                        <div className="flex-1 p-6 overflow-hidden bg-slate-100 dark:bg-slate-950">
+                        <div className="flex-1 overflow-hidden bg-slate-100 dark:bg-slate-950">
                             <div className="w-full h-full bg-white shadow-lg flex flex-col items-center justify-center text-slate-300 border border-gray-200 overflow-hidden relative group">
                                 {selectedSourceDoc?.path ? (
-                                    <iframe
-                                        src={selectedSourceDoc.path}
-                                        className="w-full h-full border-none"
-                                        title={selectedSourceDoc.name}
-                                    />
+                                    <div className="w-full h-full overflow-y-auto bg-slate-200 flex flex-col items-center py-6">
+                                        <Document
+                                            file={selectedSourceDoc.path}
+                                            onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+                                            loading={<div className="p-4 text-slate-500 font-medium flex items-center"><RefreshCw className="animate-spin w-4 h-4 mr-2"/> Document laden...</div>}
+                                            error={<div className="p-4 text-red-500 font-medium">Fout bij laden van document.</div>}
+                                        >
+                                            {Array.from(new Array(numPages || 0), (el, index) => (
+                                                <div key={`page_${index + 1}`} className="mb-6 shadow-2xl bg-white">
+                                                    <Page 
+                                                        pageNumber={index + 1} 
+                                                        width={Math.min(window.innerWidth * 0.45, 800)}
+                                                        renderTextLayer={true}
+                                                        renderAnnotationLayer={true}
+                                                        onRenderSuccess={() => {
+                                                            setTimeout(() => {
+                                                                const marks = document.querySelectorAll('.react-pdf__Page mark');
+                                                                if (marks.length > 0) {
+                                                                    marks[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                                }
+                                                            }, 300);
+                                                        }}
+                                                        customTextRenderer={textItem => {
+                                                            if (!selectedSourceDoc.bronText) return textItem.str;
+                                                            let cleanText = selectedSourceDoc.bronText.replace(/['"]/g, '');
+                                                            const words = cleanText.split(/\s+/);
+                                                            if (words.length > 5) cleanText = words.slice(0, 5).join(' ');
+                                                            
+                                                            if (!cleanText) return textItem.str;
+                                                            
+                                                            const regex = new RegExp(`(${cleanText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+                                                            return textItem.str.replace(regex, '<mark class="bg-yellow-300 font-bold px-1 rounded shadow-sm text-black">$1</mark>');
+                                                        }}
+                                                    />
+                                                </div>
+                                            ))}
+                                        </Document>
+                                    </div>
                                 ) : activePlaceholderId && NAME_PLACEHOLDERS.includes(activePlaceholderId) ? (
                                     <div className="relative w-full h-full flex items-center justify-center bg-slate-200">
                                         <img

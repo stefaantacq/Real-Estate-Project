@@ -74,7 +74,13 @@ app.get('/api/test', async (req, res) => {
 // Document Preview Endpoint (Converts DOCX to PDF inline)
 app.get('/api/documents/preview/:filename', async (req, res, next) => {
     try {
-        const filePath = path.join(uploadDir, req.params.filename);
+        let filename = req.params.filename;
+        // If the frontend appended .pdf to a docx file (to trigger Chrome's PDF viewer #search hash):
+        if ((filename.endsWith('.docx.pdf') || filename.endsWith('.doc.pdf')) && !fs.existsSync(path.join(uploadDir, filename))) {
+            filename = filename.slice(0, -4);
+        }
+        
+        const filePath = path.join(uploadDir, filename);
         if (!fs.existsSync(filePath)) {
             return res.status(404).json({ error: 'File not found' });
         }
@@ -90,7 +96,8 @@ app.get('/api/documents/preview/:filename', async (req, res, next) => {
         }
         
         // Default fallback: send inline
-        res.setHeader('Content-Disposition', `inline; filename="${req.params.filename}"`);
+        res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+        res.setHeader('Content-Type', 'application/pdf');
         res.sendFile(filePath);
     } catch (error) {
         next(error);
