@@ -216,5 +216,48 @@ export const api = {
 
     async checkAiStatus() {
         return this.request('/ai/status', { method: 'GET' });
+    },
+
+    async chatWithAi(messages: { role: 'user' | 'model', content: string }[], contextText: string) {
+        return this.request('/ai/chat', {
+            method: 'POST',
+            body: JSON.stringify({ messages, contextText })
+        });
+    },
+
+    async streamChatWithAi(messages: { role: 'user' | 'model', content: string }[], contextText: string, onMessage: (chunk: string) => void) {
+        const token = localStorage.getItem('auth_token');
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json'
+        };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const response = await fetch(`${API_BASE_URL}/ai/chat-stream`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ messages, contextText })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.text();
+            throw new Error(errorData || `Request failed with status ${response.status}`);
+        }
+
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error('No reader available');
+
+        const decoder = new TextDecoder('utf-8');
+        let done = false;
+
+        while (!done) {
+            const { value, done: readerDone } = await reader.read();
+            done = readerDone;
+            if (value) {
+                const chunkText = decoder.decode(value, { stream: true });
+                if (chunkText) {
+                    onMessage(chunkText);
+                }
+            }
+        }
     }
 };

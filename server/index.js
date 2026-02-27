@@ -61,6 +61,52 @@ app.get('/api/ai/status', async (req, res) => {
     }
 });
 
+// AI Chat Endpoint
+app.post('/api/ai/chat', authMiddleware, async (req, res) => {
+    try {
+        const { messages, contextText } = req.body;
+        if (!messages || !Array.isArray(messages)) {
+            return res.status(400).json({ error: 'Messages are required and must be an array' });
+        }
+        
+        const responseText = await aiService.chatWithContext(messages, contextText || '');
+        res.json({ text: responseText });
+    } catch (error) {
+        console.error('AI Chat Error:', error);
+        require('fs').appendFileSync('chat_error.log', new Date().toISOString() + ' ' + error.stack + '\n');
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// AI Chat Stream Endpoint
+app.post('/api/ai/chat-stream', authMiddleware, async (req, res) => {
+    try {
+        const { messages, contextText } = req.body;
+        if (!messages || !Array.isArray(messages)) {
+            return res.status(400).json({ error: 'Messages are required and must be an array' });
+        }
+        
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.setHeader('Transfer-Encoding', 'chunked');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+
+        await aiService.streamChatWithContext(messages, contextText || '', (chunk) => {
+             res.write(chunk);
+        });
+        
+        res.end();
+    } catch (error) {
+        console.error('AI Chat Stream Error:', error);
+        require('fs').appendFileSync('chat_error.log', new Date().toISOString() + ' ' + error.stack + '\n');
+        if (!res.headersSent) {
+            res.status(500).json({ error: error.message });
+        } else {
+            res.end();
+        }
+    }
+});
+
 // Test Endpoint
 app.get('/api/test', async (req, res) => {
     try {

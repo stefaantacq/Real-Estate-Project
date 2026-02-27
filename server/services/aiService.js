@@ -6,7 +6,7 @@ require('dotenv').config();
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({
-    model: process.env.GEMINI_MODEL || 'gemini-2.0-flash-exp',
+    model: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
     generationConfig: { maxOutputTokens: 16000 }
 });
 
@@ -183,9 +183,9 @@ module.exports = {
                 console.error("Gemini AI instance not initialized");
                 return false;
             }
-            console.log("Checking connection using model: gemini-2.0-flash-exp");
-            const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
-            const result = await model.generateContent("Ping");
+            console.log("Checking connection using model:", process.env.GEMINI_MODEL || 'gemini-2.0-flash');
+            const connectionModel = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || 'gemini-2.0-flash' });
+            const result = await connectionModel.generateContent("Ping");
             const response = await result.response;
             const text = response.text();
             console.log("Connection check response:", text);
@@ -197,5 +197,110 @@ module.exports = {
     },
 
     analyzeDocument,
-    analyzeTemplate
+    analyzeTemplate,
+    
+    // Chat with context
+    chatWithContext: async (messages, contextText) => {
+        try {
+            const systemPrompt = `You are a helpful AI assistant for a Belgian Real Estate platform.
+You are helping the user with a specific real estate document (compromis/verkoopakte).
+
+CONTEXT FROM THE DOCUMENT AND ASSOCIATED FILES:
+---
+${contextText}
+---
+
+INSTRUCTIONS:
+1. Answer the user's questions based primarily on the CONTEXT provided above.
+2. If the user asks about differences, inconsistencies, or specific values in the document, look closely at the context.
+3. Keep your answers concise, professional, and in Dutch (unless the user asks in another language).
+4. If you cannot find the answer in the context, politely inform the user.
+`;
+            
+            // Format messages for Gemini API
+            let historyMessages = messages.map(msg => ({
+                role: msg.role === 'user' ? 'user' : 'model',
+                parts: [{ text: msg.content }]
+            }));
+            
+            // Remove any leading 'model' messages (like the welcome greeting) because Gemini requires history to start with 'user'
+            while(historyMessages.length > 0 && historyMessages[0].role === 'model') {
+                 historyMessages.shift();
+            }
+
+            // The last message is what we send as the new prompt.
+            // The rest is history.
+            if (historyMessages.length === 0) {
+                 historyMessages.push({ role: 'user', parts: [{ text: 'Hello' }]});
+            }
+
+            // Inject the system context into the first user message in history
+            historyMessages[0].parts[0].text = systemPrompt + "\n\nUSER QUESTION/CONTEXT:\n" + historyMessages[0].parts[0].text;
+
+            const chat = model.startChat({
+                history: historyMessages.slice(0, -1), // all but the last message
+            });
+
+            const lastMessage = historyMessages[historyMessages.length - 1].parts[0].text;
+            const result = await chat.sendMessage(lastMessage);
+            const response = await result.response;
+            return response.text();
+            
+        } catch (error) {
+            console.error('Error in chatWithContext:', error);
+            throw error; // Throw the actual error
+        }
+    },
+
+    // Chat with context (streaming)
+    streamChatWithContext: async (messages, contextText, onChunk) => {
+        try {
+            const systemPrompt = `You are a helpful AI assistant for a Belgian Real Estate platform.
+You are helping the user with a specific real estate document (compromis/verkoopakte).
+
+CONTEXT FROM THE DOCUMENT AND ASSOCIATED FILES:
+---
+${contextText}
+---
+
+INSTRUCTIONS:
+1. Answer the user's questions based primarily on the CONTEXT provided above.
+2. If the user asks about differences, inconsistencies, or specific values in the document, look closely at the context.
+3. Keep your answers concise, professional, and in Dutch (unless the user asks in another language).
+4. If you cannot find the answer in the context, politely inform the user.
+`;
+            
+            let historyMessages = messages.map(msg => ({
+                role: msg.role === 'user' ? 'user' : 'model',
+                parts: [{ text: msg.content }]
+            }));
+            
+            while(historyMessages.length > 0 && historyMessages[0].role === 'model') {
+                 historyMessages.shift();
+            }
+
+            if (historyMessages.length === 0) {
+                 historyMessages.push({ role: 'user', parts: [{ text: 'Hello' }]});
+            }
+
+            historyMessages[0].parts[0].text = systemPrompt + "\n\nUSER QUESTION/CONTEXT:\n" + historyMessages[0].parts[0].text;
+
+            const chat = model.startChat({
+                history: historyMessages.slice(0, -1),
+            });
+
+            const lastMessage = historyMessages[historyMessages.length - 1].parts[0].text;
+            
+            const result = await chat.sendMessageStream(lastMessage);
+            for await (const chunk of result.stream) {
+                const chunkText = chunk.text();
+                if (chunkText) {
+                    onChunk(chunkText);
+                }
+            }
+        } catch (error) {
+            console.error('Error in streamChatWithContext:', error);
+            throw error;
+        }
+    }
 };

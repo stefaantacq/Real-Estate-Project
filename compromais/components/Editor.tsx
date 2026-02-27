@@ -37,6 +37,14 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [numPages, setNumPages] = useState<number | null>(null);
 
+    // AI Chat state
+    const [chatMessages, setChatMessages] = useState<{role: 'user'|'model', content: string}[]>([
+        { role: 'model', content: "Hallo! Ik ben je AI Copilot. Stel me gerust vragen over deze compromis of de onderliggende documenten." }
+    ]);
+    const [chatInput, setChatInput] = useState('');
+    const [isChatLoading, setIsChatLoading] = useState(false);
+    const chatEndRef = useRef<HTMLDivElement>(null);
+
     // Initial Load
     useEffect(() => {
         const fetchVersion = async () => {
@@ -68,6 +76,13 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
 
         fetchVersion();
     }, [id]);
+
+    // Chat Auto-scroll
+    useEffect(() => {
+        if (chatEndRef.current) {
+            chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [chatMessages]);
 
     // Save on Change (Debounced or explicit)
     // For simplicity in this demo, we save when sections change but maybe we should add a save button
@@ -165,6 +180,85 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
         }
     };
 
+    const handleSendMessage = async () => {
+        if (!chatInput.trim() || isChatLoading) return;
+
+        const newUserMsg = { role: 'user' as const, content: chatInput.trim() };
+        const newMessages = [...chatMessages, newUserMsg];
+        setChatMessages(newMessages);
+        setChatInput('');
+        setIsChatLoading(true);
+
+        try {
+            // Build Context
+            let contextContext = "HUIDIGE INHOUD VAN HET DOCUMENT:\n\n";
+            sections.forEach(s => {
+                contextContext += `--- Sectie: ${s.title} ---\n`;
+                let contentCopy = s.content || '';
+                s.placeholders.forEach(p => {
+                     // create placeholder tags to match the ones in content
+                     const tag1 = `[[${p.id}]]`;
+                     const tag2 = `[placeholder:${p.id}]`;
+                     const val = p.currentValue ? `[${p.currentValue}]` : '[LEEG]';
+                     contentCopy = contentCopy.split(tag1).join(val).split(tag2).join(val);
+                });
+                contextContext += contentCopy + "\n\n";
+            });
+            
+            contextContext += "EXTRACTIES UIT BRONDOCUMENT(EN):\n";
+            sections.flatMap(s => s.placeholders).forEach(p => {
+                 if (p.bronText) {
+                      contextContext += `- ${p.label} (${p.id}): '${p.currentValue}' | Originele bron tekst: '${p.bronText}'\n`;
+                 } else if (p.currentValue) {
+                      contextContext += `- ${p.label} (${p.id}): '${p.currentValue}'\n`;
+                 }
+            });
+
+            let currentAssistantMessage = "";
+            let firstChunkReceived = false;
+            
+            await api.streamChatWithAi(newMessages, contextContext, (chunk) => {
+                if (!firstChunkReceived) {
+                    firstChunkReceived = true;
+                    // Hide the bouncing dots immediately when the first word streams in
+                    setIsChatLoading(false);
+                    currentAssistantMessage += chunk;
+                    // Append the message bubble
+                    setChatMessages(prev => [...prev, { role: 'model', content: currentAssistantMessage }]);
+                } else {
+                    currentAssistantMessage += chunk;
+                    setChatMessages(prev => {
+                        const newArr = [...prev];
+                        // Update the last bubble
+                        newArr[newArr.length - 1] = { role: 'model', content: currentAssistantMessage };
+                        return newArr;
+                    });
+                }
+            });
+            
+            // Fallback in case the stream ended successfully without any chunks
+            if (!firstChunkReceived) {
+                setIsChatLoading(false);
+                setChatMessages(prev => [...prev, { role: 'model', content: 'Geen antwoord ontvangen.' }]);
+            }
+
+        } catch (error) {
+            console.error("AI Chat error:", error);
+            setChatMessages(prev => {
+                const newArr = [...prev];
+                const last = newArr[newArr.length - 1];
+                if (last.role === 'model' && !last.content) {
+                    last.content = "Oeps, er ging iets mis bij het ophalen van een antwoord. Controleer de netwerkverbinding of de API instellingen.";
+                } else {
+                    newArr.push({ role: 'model', content: "Oeps, er ging iets mis bij het ophalen van een antwoord. Controleer de netwerkverbinding of de API instellingen." });
+                }
+                return newArr;
+            });
+        } finally {
+            setIsChatLoading(false);
+        }
+    };
+
     const handleSourceClick = (placeholderId: string) => {
         setActivePlaceholderId(placeholderId);
 
@@ -194,7 +288,8 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                         cleanText = words.slice(0, 3).join(' ');
                     }
                     
-                    const searchParam = encodeURIComponent(cleanText);
+                    // Chrome PDF native viewer matches exact phrases better with wrapped quotes
+                    const searchParam = encodeURIComponent(`"${cleanText}"`);
                     
                     if (placeholder.paginaNummer) {
                         relativeUrl += `#page=${placeholder.paginaNummer}&search=${searchParam}`;
@@ -212,6 +307,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                     paginaNummer: placeholder.paginaNummer
                 });
                 setSplitScreen(true);
+                setSidebarMode('none');
                 return;
             }
 
@@ -229,6 +325,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
         }
 
         setSplitScreen(true);
+        setSidebarMode('none');
     };
 
     const handleExport = async (format: 'pdf' | 'docx' = 'pdf') => {
@@ -442,7 +539,11 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                     </div>
 
                     <button
-                        onClick={() => setSidebarMode(sidebarMode === 'checklist' ? 'none' : 'checklist')}
+                        onClick={() => {
+                            const newMode = sidebarMode === 'checklist' ? 'none' : 'checklist';
+                            setSidebarMode(newMode);
+                            if (newMode !== 'none') setSplitScreen(false);
+                        }}
                         className={`p-2 rounded-lg transition-colors border ${sidebarMode === 'checklist' ? 'bg-brand-50 border-brand-200 text-brand-700' : 'border-transparent hover:bg-gray-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300'}`}
                         title={t.validationChecklist}
                     >
@@ -450,7 +551,11 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                     </button>
 
                     <button
-                        onClick={() => setSidebarMode(sidebarMode === 'ai' ? 'none' : 'ai')}
+                        onClick={() => {
+                            const newMode = sidebarMode === 'ai' ? 'none' : 'ai';
+                            setSidebarMode(newMode);
+                            if (newMode !== 'none') setSplitScreen(false);
+                        }}
                         className={`p-2 rounded-lg transition-colors border ${sidebarMode === 'ai' ? 'bg-brand-50 border-brand-200 text-brand-700' : 'border-transparent hover:bg-gray-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300'}`}
                         title={t.aiAssistant}
                     >
@@ -465,7 +570,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
             <div className="flex-1 flex min-h-0 bg-gray-100 dark:bg-slate-950 relative overflow-hidden">
 
                 {/* Document Area */}
-                <div className={`flex-1 overflow-y-auto p-12 transition-all duration-300 bg-slate-200 dark:bg-slate-950/50 ${splitScreen ? 'w-1/2' : 'w-full'}`}>
+                <div className="flex-1 overflow-y-auto p-12 transition-all duration-300 bg-slate-200 dark:bg-slate-950/50">
                     <div className="flex flex-col items-center gap-12 pb-24">
                         {Array.from({ length: Math.ceil(sections.length / 3) || 1 }).map((_, pageIndex) => (
                             <div key={pageIndex} className="max-w-[850px] w-full h-fit min-h-[1100px] bg-white dark:bg-slate-900 shadow-2xl border border-gray-200 dark:border-slate-800 p-16 text-slate-900 dark:text-slate-100 font-serif leading-relaxed relative ring-1 ring-slate-100 dark:ring-slate-800 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -490,9 +595,11 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                                         <ArrowDown className="w-4 h-4" />
                                                     </button>
                                                     <div className="w-px bg-gray-200 mx-1"></div>
-                                                    <button onClick={() => toggleApproveSection(section.id)} className={`p-1.5 rounded hover:bg-gray-50 ${section.isApproved ? 'text-green-500' : 'text-slate-400 hover:text-green-500'}`}>
-                                                        <Check className="w-4 h-4" />
-                                                    </button>
+                                                    {section.placeholders.length > 0 && (
+                                                        <button onClick={() => toggleApproveSection(section.id)} className={`p-1.5 rounded hover:bg-gray-50 ${section.isApproved ? 'text-green-500' : 'text-slate-400 hover:text-green-500'}`}>
+                                                            <Check className="w-4 h-4" />
+                                                        </button>
+                                                    )}
                                                     <button onClick={() => removeSection(section.id)} className="p-1.5 text-slate-400 hover:text-red-500 rounded hover:bg-gray-50">
                                                         <Trash2 className="w-4 h-4" />
                                                     </button>
@@ -506,7 +613,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                                     onBlur={(e) => handleTitleEdit(section.id, e.currentTarget.innerText)}
                                                 >
                                                     {section.title}
-                                                    {section.isApproved && <Check className="w-4 h-4 text-green-500 ml-2" contentEditable={false} />}
+                                                    {section.placeholders.length > 0 && section.isApproved && <Check className="w-4 h-4 text-green-500 ml-2" contentEditable={false} />}
                                                 </div>
 
                                                 {/* Editable Content Area */}
@@ -553,7 +660,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
 
                 {/* Split Screen Source Viewer */}
                 {splitScreen && (
-                    <div className="w-1/2 border-l border-gray-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 flex flex-col animate-in slide-in-from-right duration-300 shadow-xl z-20">
+                    <div className="flex-1 border-l border-gray-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 flex flex-col animate-in slide-in-from-right duration-300 shadow-xl z-20">
                         <div className="h-10 flex items-center justify-between px-4 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 shrink-0">
                             <div className="flex items-center">
                                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center mr-3">
@@ -652,9 +759,9 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                     </div>
                 )}
 
-                {/* Sidebars (Absolute positioned) */}
+                {/* Sidebars */}
                 {sidebarMode !== 'none' && (
-                    <div className="absolute top-0 right-0 bottom-0 w-80 bg-white dark:bg-slate-900 border-l border-gray-200 dark:border-slate-800 shadow-2xl z-30 flex flex-col animate-in slide-in-from-right duration-300">
+                    <div className="shrink-0 w-80 bg-white dark:bg-slate-900 border-l border-gray-200 dark:border-slate-800 shadow-2xl z-30 flex flex-col animate-in slide-in-from-right duration-300 relative">
                         <div className="h-14 flex items-center justify-between px-4 border-b border-gray-200 dark:border-slate-800 shrink-0">
                             <h3 className="font-bold text-slate-900 dark:text-white flex items-center">
                                 {sidebarMode === 'ai' ? <Wand2 className="w-4 h-4 mr-2 text-brand-600" /> : <ListChecks className="w-4 h-4 mr-2 text-brand-600" />}
@@ -675,19 +782,27 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                         </div>
                                     </div>
 
-                                    {sections.map(s => (
+                                    {sections.filter(s => s.placeholders.length > 0).map(s => (
                                         <div key={s.id} className="space-y-2">
                                             <div className="flex items-center justify-between font-medium text-sm text-slate-700 dark:text-slate-200">
                                                 {s.title}
                                                 {s.isApproved ? <Check className="w-4 h-4 text-green-600" /> : <div className="w-4 h-4 rounded-full border-2 border-slate-300"></div>}
                                             </div>
                                             <div className="pl-3 space-y-1 border-l-2 border-gray-100 dark:border-slate-800 ml-1">
-                                                {s.placeholders.map(p => (
-                                                    <div key={p.id} className="flex items-center justify-between text-xs py-1 hover:bg-gray-50 dark:hover:bg-slate-800 px-2 rounded cursor-pointer" onClick={() => setActivePlaceholderId(p.id)}>
-                                                        <span className={p.isApproved ? "text-slate-500 line-through decoration-green-500" : "text-slate-600 font-medium"}>{p.label}</span>
-                                                        {p.isApproved ? <Check className="w-3 h-3 text-green-500" /> : <div className="w-3 h-3 rounded-full border border-slate-300"></div>}
-                                                    </div>
-                                                ))}
+                                                {s.placeholders
+                                                    .filter((v, i, a) => a.findIndex(t => t.label === v.label) === i)
+                                                    .map(p => {
+                                                        const group = s.placeholders.filter(t => t.label === p.label);
+                                                        const isAllApproved = group.every(t => t.isApproved);
+                                                        
+                                                        return (
+                                                            <div key={p.label} className="flex items-center justify-between text-xs py-1 hover:bg-gray-50 dark:hover:bg-slate-800 px-2 rounded cursor-pointer" onClick={() => setActivePlaceholderId(p.id)}>
+                                                                <span className={isAllApproved ? "text-slate-500 line-through decoration-green-500" : "text-slate-600 font-medium"}>{p.label}</span>
+                                                                {isAllApproved ? <Check className="w-3 h-3 text-green-500" /> : <div className="w-3 h-3 rounded-full border border-slate-300"></div>}
+                                                            </div>
+                                                        );
+                                                    })
+                                                }
                                             </div>
                                         </div>
                                     ))}
@@ -695,42 +810,62 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                             ) : (
                                 // AI Chat Interface
                                 <div className="flex flex-col h-full">
-                                    <div className="flex-1 space-y-4 mb-4 overflow-y-auto">
-                                        <div className="flex gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center shrink-0">
-                                                <Wand2 className="w-4 h-4 text-brand-600" />
+                                    <div className="flex-1 space-y-4 mb-4 overflow-y-auto pr-2 pb-2">
+                                        {chatMessages.map((msg, i) => (
+                                            msg.role === 'model' ? (
+                                                <div key={i} className="flex gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center shrink-0">
+                                                        <Wand2 className="w-4 h-4 text-brand-600" />
+                                                    </div>
+                                                    <div className="bg-gray-100 dark:bg-slate-800 p-3 rounded-2xl rounded-tl-none text-sm text-slate-700 dark:text-slate-300 shadow-sm whitespace-pre-wrap">
+                                                        {msg.content}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div key={i} className="flex gap-3 flex-row-reverse">
+                                                    <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center shrink-0">
+                                                        <span className="text-xs font-bold text-slate-600">ME</span>
+                                                    </div>
+                                                    <div className="bg-brand-600 text-white p-3 rounded-2xl rounded-tr-none text-sm shadow-sm whitespace-pre-wrap">
+                                                        {msg.content}
+                                                    </div>
+                                                </div>
+                                            )
+                                        ))}
+                                        
+                                        {isChatLoading && (
+                                            <div className="flex gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center shrink-0">
+                                                    <Wand2 className="w-4 h-4 text-brand-600" />
+                                                </div>
+                                                <div className="bg-gray-100 dark:bg-slate-800 p-3 rounded-2xl rounded-tl-none text-sm text-slate-700 dark:text-slate-300 shadow-sm">
+                                                    <div className="flex space-x-1 items-center h-4 py-2">
+                                                        <div className="w-1.5 h-1.5 bg-brand-400 rounded-full animate-bounce"></div>
+                                                        <div className="w-1.5 h-1.5 bg-brand-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                                                        <div className="w-1.5 h-1.5 bg-brand-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div className="bg-gray-100 dark:bg-slate-800 p-3 rounded-2xl rounded-tl-none text-sm text-slate-700 dark:text-slate-300 shadow-sm">
-                                                Hallo! Ik heb de documenten geanalyseerd. Er lijkt een inconsistentie in de oppervlakte van het perceel tussen het kadaster en het EPC. Wil je dat ik dit controleer?
-                                            </div>
-                                        </div>
-
-                                        <div className="flex gap-3 flex-row-reverse">
-                                            <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center shrink-0">
-                                                <span className="text-xs font-bold text-slate-600">ME</span>
-                                            </div>
-                                            <div className="bg-brand-600 text-white p-3 rounded-2xl rounded-tr-none text-sm shadow-sm">
-                                                Ja, graag. Wat is het verschil?
-                                            </div>
-                                        </div>
-
-                                        <div className="flex gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center shrink-0">
-                                                <Wand2 className="w-4 h-4 text-brand-600" />
-                                            </div>
-                                            <div className="bg-gray-100 dark:bg-slate-800 p-3 rounded-2xl rounded-tl-none text-sm text-slate-700 dark:text-slate-300 shadow-sm">
-                                                Het EPC vermeldt <span className="font-mono bg-white px-1 rounded border">145m²</span> bewoonbare oppervlakte, terwijl het kadaster <span className="font-mono bg-white px-1 rounded border">139m²</span> aangeeft. Ik heb de <span className="text-brand-600 font-medium cursor-pointer hover:underline">[sectie: Oppervlakte]</span> gemarkeerd voor controle.
-                                            </div>
-                                        </div>
+                                        )}
+                                        <div ref={chatEndRef} />
                                     </div>
-                                    <div className="mt-auto pt-4 border-t border-gray-100 dark:border-slate-800">
+                                    <div className="mt-auto pt-4 border-t border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 pb-2">
                                         <div className="relative">
                                             <input
                                                 type="text"
+                                                value={chatInput}
+                                                onChange={(e) => setChatInput(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') handleSendMessage();
+                                                }}
                                                 placeholder="Stel een vraag of geef een opdracht..."
                                                 className="w-full border border-gray-300 dark:border-slate-700 rounded-xl px-4 py-3 pr-10 text-sm bg-white dark:bg-slate-950 outline-none focus:ring-2 focus:ring-brand-500 shadow-sm"
                                             />
-                                            <button className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors">
+                                            <button 
+                                                onClick={handleSendMessage}
+                                                disabled={isChatLoading || !chatInput.trim()}
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:hover:bg-brand-600 transition-colors"
+                                            >
                                                 <ArrowRight className="w-4 h-4" />
                                             </button>
                                         </div>
