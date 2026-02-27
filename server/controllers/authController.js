@@ -78,7 +78,7 @@ const authController = {
             });
         } catch (error) {
             console.error('Login error:', error);
-            res.status(500).json({ error: error.message });
+            res.status(500).json({ error: error.message || error.toString(), stack: error.stack });
         }
     },
 

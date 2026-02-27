@@ -286,6 +286,20 @@ const dossierController = {
                 const [verResult] = await pool.query('INSERT INTO Versie (ui_id, verkoopsovereenkomst_id, versie_nummer, source, is_current) VALUES (?, ?, ?, ?, ?)', [`ver-${Date.now()}`, voResult.insertId, '1.0', 'AI', true]);
                 await initializeVersionFromTemplate(verResult.insertId, template_id, dossier_id);
             }
+
+            // Trigger AI analysis if documents exist
+            console.log("Checking for uploaded documents to trigger AI analysis...");
+            const [docRows] = await pool.query('SELECT * FROM Documenten WHERE dossier_id = ?', [dossier_id]);
+            if (docRows.length > 0) {
+                const files = docRows.map(doc => ({
+                    id: doc.document_id,
+                    filename: doc.bestandsnaam,
+                    originalname: doc.naam,
+                    mimetype: doc.bestandstype
+                }));
+                console.log(`Triggering AI analysis for createDossier with ${files.length} files`);
+                await processDossierDocuments(dossier_id, files, ai_extraction_prompt || remarks || null, template_id || null);
+            }
             console.log("Adding timeline event...");
             await pool.query('INSERT INTO TimelineEvent (dossier_id, titel, beschrijving, user_name) VALUES (?, ?, ?, ?)', [dossier_id, 'Dossier aangemaakt', `Dossier "${titel}" is succesvol aangemaakt.`, 'Systeem']);
             console.log("Sending response back to client.");
