@@ -211,13 +211,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Ben je zeker dat je dit dossier wilt verwijderen?')) return;
+    if (!window.confirm(t.deleteConfirmation)) return;
     try {
       await api.deleteDossier(id);
       setDossiers(prev => prev.filter(d => d.id !== id));
     } catch (err) {
       console.error("Failed to delete dossier", err);
-      alert("Kon dossier niet verwijderen.");
+      alert(t.deleteDossierError);
     }
   };
 
@@ -261,7 +261,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
               }`}
           >
             <LayoutGrid className="w-4 h-4" />
-            Mijn opdeling
+            {t.myDivision}
           </button>
           <button
             onClick={() => setSortMode('recent')}
@@ -271,7 +271,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
               }`}
           >
             <Clock className="w-4 h-4" />
-            Recent
+            {t.recent}
           </button>
           <button
             onClick={() => setSortMode('archived')}
@@ -281,7 +281,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
               }`}
           >
             <Archive className="w-4 h-4" />
-            Archief
+            {t.archive}
           </button>
         </div>
 
@@ -309,7 +309,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
             {/* Section 1: Concept */}
             <div>
               <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6 pl-1 flex items-center justify-between">
-                <span>Concept</span>
+                <span>{t.draft}</span>
                 <span className="text-xs font-normal text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">{conceptDossiers.length}</span>
               </h2>
 
@@ -330,7 +330,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
                       />
                     )) : (
                       <div className="col-span-full py-8 text-center text-slate-400 border-2 border-dashed border-gray-200 dark:border-slate-800 rounded-xl">
-                        Sleep hier dossiers naartoe om ze naar Concept te verplaatsen
+                        {t.dragToConcept}
                       </div>
                     )}
                   </SortableContext>
@@ -352,7 +352,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
             {/* Section 2: In Behandeling */}
             <div>
               <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6 pl-1 flex items-center justify-between">
-                <span>In Behandeling</span>
+                <span>{t.incomplete}</span>
                 <span className="text-xs font-normal text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">{inBehandelingDossiers.length}</span>
               </h2>
               <SectionContainer id="inBehandeling">
@@ -372,7 +372,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
                       />
                     )) : (
                       <div className="col-span-full py-8 text-center text-slate-400 border-2 border-dashed border-gray-200 dark:border-slate-800 rounded-xl">
-                        Sleep hier dossiers naartoe om ze naar In Behandeling te verplaatsen
+                        {t.dragToActive}
                       </div>
                     )}
                   </SortableContext>
@@ -403,7 +403,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
                       />
                     )) : (
                       <div className="col-span-full py-8 text-center text-slate-400 border-2 border-dashed border-gray-200 dark:border-slate-800 rounded-xl">
-                        Sleep hier dossiers naartoe om te archiveren
+                        {t.dragToArchive}
                       </div>
                     )}
                   </SortableContext>
@@ -415,7 +415,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
           /* Recent view: All dossiers sorted by last opened */
           <div>
             <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6 pl-1 flex items-center justify-between">
-              <span>Recent gebruikt</span>
+              <span>{t.recentlyOpened}</span>
               <span className="text-xs font-normal text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
                 {dossiers.length}
               </span>
@@ -442,7 +442,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
           /* Archived view: Only archived dossiers */
           <div>
             <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6 pl-1 flex items-center justify-between">
-              <span>Gearchiveerd</span>
+              <span>{t.archived}</span>
               <span className="text-xs font-normal text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
                 {dossiers.filter(d => d.status === DossierStatus.ARCHIVED).length}
               </span>
@@ -462,7 +462,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
                 ))}
               {dossiers.filter(d => d.status === DossierStatus.ARCHIVED).length === 0 && (
                 <div className="col-span-full py-12 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-gray-200 dark:border-slate-800">
-                  Geen gearchiveerde dossiers gevonden.
+                  {t.noArchivedFound}
                 </div>
               )}
             </div>
@@ -478,6 +478,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
           onClose={() => setContextMenu(null)}
           onMove={(newStatus) => handleMoveTo(contextMenu.id, newStatus)}
           onDelete={() => handleDelete(contextMenu.id)}
+          lang={lang}
         />
       )}
     </div>

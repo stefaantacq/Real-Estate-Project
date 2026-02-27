@@ -101,8 +101,8 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, darkMode, to
           </div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">compromAIs</h1>
           <p className="text-slate-500 dark:text-slate-400">
-            {view === 'login' && 'Welkom terug! Log in op uw account.'}
-            {view === 'register' && 'Maak een nieuw account aan als makelaar.'}
+            {view === 'login' && t.welcomeBack}
+            {view === 'register' && t.registerBroker}
           </p>
         </div>
 
@@ -121,7 +121,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, darkMode, to
               {view === 'login' && (
                 <>
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Email</label>
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">{t.email}</label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                       <input
@@ -135,7 +135,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, darkMode, to
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Wachtwoord</label>
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">{t.password}</label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                       <input
@@ -152,21 +152,21 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, darkMode, to
                     type="button"
                     className="w-full py-2 border border-gray-200 dark:border-slate-700 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors dark:text-white"
                   >
-                    <span className="font-bold text-[#E1306C]">CIB</span> Log in met CIB
+                    <span className="font-bold text-[#E1306C]">CIB</span> {t.loginCib}
                   </button>
                   <button
                     type="button"
                     onClick={handleDevLogin}
                     className="w-full py-2 text-slate-400 hover:text-slate-600 text-xs font-medium"
                   >
-                    Dev Login (admin@test.be)
+                    {t.devLogin} (admin@test.be)
                   </button>
                   <button
                     type="button"
                     onClick={() => setView('register')}
                     className="w-full py-2 text-brand-600 hover:text-brand-700 text-sm font-medium"
                   >
-                    Nog geen account? Registreer hier
+                    {t.noAccount}
                   </button>
                 </>
               )}
@@ -174,7 +174,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, darkMode, to
               {view === 'register' && (
                 <>
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Volledige Naam</label>
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">{t.fullName}</label>
                     <div className="relative">
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                       <input
@@ -188,7 +188,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, darkMode, to
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Email</label>
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">{t.email}</label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                       <input
@@ -202,7 +202,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, darkMode, to
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Wachtwoord</label>
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">{t.password}</label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                       <input
@@ -220,7 +220,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, darkMode, to
                     onClick={() => setView('login')}
                     className="w-full py-1 text-slate-400 hover:text-slate-600 text-sm"
                   >
-                    Terug naar Login
+                    {t.backToLogin}
                   </button>
                 </>
               )}
@@ -235,8 +235,8 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, darkMode, to
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
                   <>
-                    {view === 'login' && 'Log in'}
-                    {view === 'register' && 'Registreer account'}
+                    {view === 'login' && t.loginBtn}
+                    {view === 'register' && t.registerAccount}
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </>
                 )}

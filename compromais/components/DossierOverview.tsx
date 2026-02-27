@@ -429,8 +429,8 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
             isOpen={deleteModalOpen}
             onClose={() => setDeleteModalOpen(false)}
             onConfirm={handleConfirmDelete}
-            title={deleteModalType === 'version' ? t.deleteVersion : deleteModalType === 'agreement' ? 'Overeenkomst verwijderen' : t.deleteDossier}
-            message={deleteModalType === 'version' ? t.deleteVersionConfirmation : deleteModalType === 'agreement' ? 'Ben je zeker dat je deze overeenkomst wilt verwijderen?' : t.deleteConfirmation}
+            title={deleteModalType === 'version' ? t.deleteVersion : deleteModalType === 'agreement' ? t.deleteAgreement : t.deleteDossier}
+            message={deleteModalType === 'version' ? t.deleteVersionConfirmation : deleteModalType === 'agreement' ? t.deleteAgreementConfirmation : t.deleteConfirmation}
          />
 
          {/* Context Menu */}
@@ -445,14 +445,14 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                   className="w-full px-4 py-2 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2"
                >
                   <Edit2 className="w-4 h-4" />
-                  Hernoem versie
+                  {t.renameVersion}
                </button>
                <button
                   onClick={handleContextMenuDelete}
                   className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
                >
                   <Trash2 className="w-4 h-4" />
-                  Verwijder versie
+                  {t.deleteVersion}
                </button>
             </div>
          )}
@@ -465,7 +465,7 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                   onClick={e => e.stopPropagation()}
                >
                   <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
-                     <h3 className="text-xl font-bold text-slate-900 dark:text-white">Versie hernoemen</h3>
+                     <h3 className="text-xl font-bold text-slate-900 dark:text-white">{t.versionRenamePopupTitle}</h3>
                      <button onClick={() => setIsRenameModalOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
                         <X className="w-5 h-5" />
                      </button>
@@ -473,7 +473,7 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                   <div className="p-6 space-y-4">
                      <div>
                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                           Nieuwe naam voor versie
+                           {t.versionRenameNewName}
                         </label>
                         <input
                            type="text"
@@ -482,7 +482,7 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                            onKeyDown={(e) => e.key === 'Enter' && performRename()}
                            autoFocus
                            className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none transition-all"
-                           placeholder="Bijv. Concept v2, Finale Versie..."
+                           placeholder={t.versionRenamePlaceholder}
                         />
                      </div>
                   </div>
@@ -491,14 +491,14 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                         onClick={() => setIsRenameModalOpen(false)}
                         className="px-4 py-2 text-slate-600 dark:text-slate-400 font-medium hover:text-slate-900 dark:hover:text-white transition-colors"
                      >
-                        Annuleren
+                        {t.cancel}
                      </button>
                      <button
                         onClick={performRename}
                         disabled={!newName.trim()}
                         className="px-6 py-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg shadow-brand-500/20 transition-all flex items-center gap-2"
                      >
-                        Opslaan
+                        {t.save}
                      </button>
                   </div>
                </div>
@@ -585,14 +585,14 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                                  <FileText className="w-4 h-4 text-brand-600 dark:text-brand-400" />
                               </div>
                               <div>
-                                 <h3 className="font-bold text-slate-900 dark:text-white leading-tight">{agg.templateName || 'Zelfgeschreven Overeenkomst'}</h3>
+                                 <h3 className="font-bold text-slate-900 dark:text-white leading-tight">{agg.templateName || t.customAgreement}</h3>
                               </div>
                            </div>
                            {/* Delete Agreement Button */}
                            <button
                               onClick={(e) => handleDeleteAgreementClick(e, agg.id)}
                               className="opacity-0 group-hover:opacity-100 p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
-                              title="Overeenkomst verwijderen"
+                              title={t.deleteAgreement}
                            >
                               <Trash2 className="w-4 h-4" />
                            </button>
@@ -631,7 +631,7 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                            <button
                               onClick={() => handleAddVersionClick(agg.id)}
                               className="w-12 h-12 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-300 hover:border-brand-500 hover:text-brand-500 transition-all shrink-0 mb-[18px]"
-                              title="Versie toevoegen"
+                              title={t.addVersionTooltip}
                            >
                               <RefreshCw className="w-5 h-5" />
                            </button>
@@ -639,7 +639,7 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                      </div>
                   )) : (
                      <div className="bg-white dark:bg-slate-900 p-12 rounded-2xl border-2 border-dashed border-gray-100 dark:border-slate-800 text-center">
-                        <p className="text-slate-400 italic">Geen verkoopovereenkomsten gevonden.</p>
+                        <p className="text-slate-400 italic">{t.noAgreementsFound}</p>
                      </div>
                   )}
 
@@ -651,7 +651,7 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                      <div className="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center mb-2 group-hover:bg-brand-100 dark:group-hover:bg-brand-900/30 transition-all">
                         <FileText className="w-5 h-5" />
                      </div>
-                     <span className="text-sm font-bold">Nieuwe verkoopovereenkomst starten</span>
+                     <span className="text-sm font-bold">{t.startNewAgreement}</span>
                   </button>
                </div>
 
@@ -673,7 +673,7 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                            </div>
                         </div>
                      )) : (
-                        <div className="pl-8 text-slate-500 text-sm">Nog geen activiteiten.</div>
+                        <div className="pl-8 text-slate-500 text-sm">{t.noActivitiesYet}</div>
                      )}
                   </div>
                </div>
@@ -682,10 +682,10 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
             {/* Sidebar: Metadata & Source Docs */}
             <div className="space-y-6">
                <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-gray-200 dark:border-slate-800">
-                  <h3 className="font-bold text-sm uppercase tracking-wider text-slate-500 mb-4">Details</h3>
+                  <h3 className="font-bold text-sm uppercase tracking-wider text-slate-500 mb-4">{t.details}</h3>
                   <div className="space-y-4">
                      <div>
-                        <label className="text-xs text-slate-400 block mb-1">Creatie datum</label>
+                        <label className="text-xs text-slate-400 block mb-1">{t.creationDate}</label>
                         <div className="flex items-center text-sm font-medium text-slate-900 dark:text-white">
                            <Calendar className="w-4 h-4 mr-2 text-slate-400" />
                            {dossier.creationDate}
@@ -723,7 +723,7 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                         </div>
                      )) : (
                         <div className="text-xs text-slate-400 italic py-4 text-center">
-                           Nog geen documenten geüpload.
+                           {t.noDocumentsUploaded}
                         </div>
                      )}
                   </div>
@@ -738,8 +738,8 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                   <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-800 overflow-hidden flex flex-col relative">
                      <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
                         <div>
-                           <h2 className="text-xl font-bold text-slate-900 dark:text-white">Nieuwe Versie Toevoegen</h2>
-                           <p className="text-sm text-slate-500">Hoe wilt u de nieuwe versie aanmaken?</p>
+                           <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t.addVersionModalTitle}</h2>
+                           <p className="text-sm text-slate-500">{t.addVersionModalSub}</p>
                         </div>
                         <button onClick={() => setIsAddVersionModalOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors">
                            <X className="w-6 h-6 text-slate-400" />
@@ -755,8 +755,8 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                               <File className="w-6 h-6" />
                            </div>
                            <div className="flex-1">
-                              <h3 className="font-bold text-slate-900 dark:text-white group-hover:text-brand-700 transition-colors">Bestand uploaden</h3>
-                              <p className="text-sm text-slate-500 leading-tight">Upload een extern PDF of Word document</p>
+                              <h3 className="font-bold text-slate-900 dark:text-white group-hover:text-brand-700 transition-colors">{t.uploadFile}</h3>
+                              <p className="text-sm text-slate-500 leading-tight">{t.uploadFileDesc}</p>
                            </div>
                            <ArrowLeft className="w-5 h-5 text-slate-300 group-hover:text-brand-500 rotate-180 transition-all" />
                         </div>
@@ -769,8 +769,8 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                               <RefreshCw className="w-6 h-6" />
                            </div>
                            <div className="flex-1">
-                              <h3 className="font-bold text-slate-900 dark:text-white group-hover:text-brand-700 transition-colors">Huidige versie kopiëren</h3>
-                              <p className="text-sm text-slate-500 leading-tight">Start een nieuwe draft op basis van de laatste versie</p>
+                              <h3 className="font-bold text-slate-900 dark:text-white group-hover:text-brand-700 transition-colors">{t.copyCurrentVersion}</h3>
+                              <p className="text-sm text-slate-500 leading-tight">{t.copyVersionDesc}</p>
                            </div>
                            <ArrowLeft className="w-5 h-5 text-slate-300 group-hover:text-brand-500 rotate-180 transition-all" />
                         </div>
@@ -793,8 +793,8 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                   <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh] relative">
                      <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
                         <div>
-                           <h2 className="text-xl font-bold text-slate-900 dark:text-white">Start Nieuwe Overeenkomst</h2>
-                           <p className="text-sm text-slate-500">Kies een template om mee te beginnen</p>
+                           <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t.startNewAgreementTitle}</h2>
+                           <p className="text-sm text-slate-500">{t.chooseTemplateStart}</p>
                         </div>
                         <button onClick={() => setIsTemplateModalOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors">
                            <X className="w-6 h-6 text-slate-400" />
@@ -877,7 +877,7 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                      <FileText className="w-4 h-4 text-brand-600 dark:text-brand-400" />
                   </div>
                   <div>
-                     <span className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 block leading-none mb-1">Document Preview</span>
+                     <span className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 block leading-none mb-1">{t.documentPreview}</span>
                      <span className="text-sm font-bold text-slate-900 dark:text-white">{selectedDocument?.name}</span>
                   </div>
                </div>
@@ -885,7 +885,7 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                   <button
                      onClick={() => selectedDocument?.path && window.open(selectedDocument.path, '_blank')}
                      className="p-2 text-slate-500 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-slate-800 rounded-lg transition-all"
-                     title="Open in browser"
+                     title={t.openInBrowser}
                   >
                      <ExternalLink className="w-5 h-5" />
                   </button>
@@ -908,7 +908,7 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                      />
                   ) : (
                      <div className="flex items-center justify-center h-full text-slate-400">
-                        Selecteer een document om te bekijken
+                        {t.selectDocumentToView}
                      </div>
                   )}
                </div>

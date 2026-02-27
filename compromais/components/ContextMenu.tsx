@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Layout, CheckCircle, Archive, ArrowRightLeft, Trash2 } from 'lucide-react';
-import { DossierStatus } from '../types';
+import { DossierStatus, Language } from '../types';
+import { TRANSLATIONS } from '../constants';
 
 interface ContextMenuProps {
     x: number;
@@ -9,10 +10,12 @@ interface ContextMenuProps {
     onMove: (status: DossierStatus) => void;
     onDelete: () => void;
     currentStatus: DossierStatus;
+    lang: Language;
 }
 
-export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose, onMove, onDelete, currentStatus }) => {
+export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose, onMove, onDelete, currentStatus, lang }) => {
     const menuRef = useRef<HTMLDivElement>(null);
+    const t = TRANSLATIONS[lang];
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -31,25 +34,25 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose, onMove,
     const menuItems = [
         {
             id: DossierStatus.DRAFT,
-            label: 'Verplaats naar Concept',
+            label: t.moveToConcept,
             icon: <Layout className="w-4 h-4" />,
             show: currentStatus !== DossierStatus.DRAFT
         },
         {
             id: DossierStatus.ACTIVE,
-            label: 'Verplaats naar In Behandeling',
+            label: t.moveToActive,
             icon: <CheckCircle className="w-4 h-4" />,
             show: currentStatus !== DossierStatus.ACTIVE && currentStatus !== DossierStatus.COMPLETED
         },
         {
             id: DossierStatus.ARCHIVED,
-            label: 'Archiveer',
+            label: t.archive,
             icon: <Archive className="w-4 h-4" />,
             show: currentStatus !== DossierStatus.ARCHIVED
         },
         {
             id: 'delete',
-            label: 'Verwijder dossier',
+            label: t.deleteDossier,
             icon: <Trash2 className="w-4 h-4 text-red-500" />,
             show: true,
             isDelete: true
@@ -64,7 +67,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose, onMove,
         >
             <div className="px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
                 <ArrowRightLeft className="w-3 h-3" />
-                Verplaats naar
+                {t.moveTo}
             </div>
             <div className="h-px bg-slate-100 dark:bg-slate-700 my-1" />
             {menuItems.filter(item => item.show).map((item) => (

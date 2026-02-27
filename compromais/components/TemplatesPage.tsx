@@ -396,7 +396,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                 <div>
                     <h1 className="text-3xl font-bold text-slate-900 dark:text-white">{t.templates}</h1>
                     <p className="text-slate-500 dark:text-slate-400 mt-1">
-                        Beheer uw document sjablonen en extractie regels
+                        {t.manageTemplatesDesc}
                     </p>
                 </div>
                 <button
@@ -404,7 +404,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                     className="flex items-center px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm self-start md:self-auto"
                 >
                     <Plus className="w-4 h-4 mr-2" />
-                    Nieuwe Template
+                    {t.newTemplateBtn}
                 </button>
             </div>
 
@@ -415,25 +415,25 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                         onClick={() => setActiveTab('all')}
                         className={`flex-1 md:flex-none px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'all' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                     >
-                        Alle
+                        {t.tabAll}
                     </button>
                     <button
                         onClick={() => setActiveTab('cib')}
                         className={`flex-1 md:flex-none px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'cib' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                     >
-                        CIB
+                        {t.tabCib}
                     </button>
                     <button
                         onClick={() => setActiveTab('custom')}
                         className={`flex-1 md:flex-none px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'custom' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                     >
-                        Eigen
+                        {t.tabCustom}
                     </button>
                     <button
                         onClick={() => setActiveTab('archived')}
                         className={`flex-1 md:flex-none px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'archived' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                     >
-                        Gearchiveerd
+                        {t.tabArchived}
                     </button>
                 </div>
 
@@ -441,7 +441,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
                         type="text"
-                        placeholder="Zoek templates..."
+                        placeholder={t.searchTemplatesPlaceholder}
                         className="w-full bg-gray-50 dark:bg-slate-950 border-none rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-brand-500 transition-all"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
@@ -460,16 +460,16 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                         <div className="absolute top-3 right-3 flex gap-2">
                             {template.source === 'CIB' ? (
                                 <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[10px] font-bold rounded-full uppercase tracking-wider border border-blue-100 dark:border-blue-800">
-                                    CIB Official
+                                    {t.cibOfficialBadge}
                                 </span>
                             ) : (
                                 <span className="px-2 py-0.5 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-[10px] font-bold rounded-full uppercase tracking-wider border border-purple-100 dark:border-purple-800">
-                                    Eigen Template
+                                    {t.customTemplateBadge}
                                 </span>
                             )}
                             {template.isArchived && (
                                 <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-[10px] font-bold rounded-full uppercase tracking-wider border border-gray-200 dark:border-gray-700">
-                                    Gearchiveerd
+                                    {t.tabArchived}
                                 </span>
                             )}
                         </div>
@@ -497,7 +497,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                     <button
                                         onClick={() => setTemplateToDelete(template)}
                                         className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-colors"
-                                        title="Verwijderen"
+                                        title={t.deleteAction}
                                     >
                                         <Trash2 className="w-4 h-4" />
                                     </button>
@@ -509,7 +509,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                         className={`p-2 rounded-lg transition-colors ${template.isArchived
                                             ? 'text-orange-400 hover:text-orange-600 hover:bg-orange-50'
                                             : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50'}`}
-                                        title={template.isArchived ? "Dearchiveren" : "Archiveren"}
+                                        title={template.isArchived ? t.unarchiveAction : t.archiveAction}
                                     >
                                         <Archive className="w-4 h-4" />
                                     </button>
@@ -531,7 +531,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                         <Plus className="w-6 h-6" />
                     </div>
                     <span className="text-sm font-bold text-slate-500 group-hover:text-brand-600 transition-colors uppercase tracking-widest">
-                        Template Toevoegen
+                        {t.addTemplateCard}
                     </span>
                 </button>
             </div>
@@ -553,7 +553,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                                     value={previewTemplate.name}
                                                     onChange={(e) => setPreviewTemplate({ ...previewTemplate, name: e.target.value })}
                                                     className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded px-2 py-1 text-sm font-bold w-full focus:ring-1 focus:ring-brand-500 outline-none"
-                                                    placeholder="Template Naam"
+                                                    placeholder={t.templateNamePlaceholder}
                                                 />
                                             </div>
                                         </div>
@@ -561,7 +561,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                             value={previewTemplate.description}
                                             onChange={(e) => setPreviewTemplate({ ...previewTemplate, description: e.target.value })}
                                             className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded px-2 py-1 text-xs w-full focus:ring-2 focus:ring-brand-500 outline-none resize-none transition-all duration-200 max-h-48 overflow-y-auto shadow-inner"
-                                            placeholder="Beschrijving"
+                                            placeholder={t.descriptionPlaceholder}
                                             rows={2}
                                             onFocus={(e) => {
                                                 const target = e.target as HTMLTextAreaElement;
@@ -602,7 +602,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                         className="flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-bold shadow-sm transition-all"
                                     >
                                         {isSaving ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Copy className="w-4 h-4 mr-2" />}
-                                        {isSaving ? 'Opslaan...' : 'Opslaan'}
+                                        {isSaving ? `${t.save}...` : t.save}
                                     </button>
                                 ) : (
                                     <button
@@ -610,7 +610,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                         className="flex items-center px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm font-bold shadow-sm transition-all"
                                     >
                                         <Edit2 className="w-4 h-4 mr-2" />
-                                        Bewerken
+                                        {t.editBtn}
                                     </button>
                                 )}
                                 <div className="w-px h-6 bg-gray-200 dark:bg-slate-700 mx-1"></div>
@@ -619,14 +619,14 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                     className={`p-2 rounded-lg transition-colors ${previewTemplate.isArchived
                                         ? 'text-orange-400 hover:text-orange-600 hover:bg-orange-50'
                                         : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50'}`}
-                                    title={previewTemplate.isArchived ? "Dearchiveren" : "Archiveren"}
+                                    title={previewTemplate.isArchived ? t.unarchiveAction : t.archiveAction}
                                 >
                                     <Archive className="w-4 h-4" />
                                 </button>
                                 <button
                                     onClick={() => setPreviewTemplate(null)}
                                     className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
-                                    title="Sluiten"
+                                    title={t.closeBtn}
                                 >
                                     <X className="w-6 h-6" />
                                 </button>
@@ -637,7 +637,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                             {isPreviewLoading ? (
                                 <div className="flex flex-col items-center justify-center py-20 pointer-events-none">
                                     <RefreshCw className="w-10 h-10 text-brand-500 animate-spin mb-4" />
-                                    <p className="text-slate-500 dark:text-slate-400 font-medium font-sans">Template details laden...</p>
+                                    <p className="text-slate-500 dark:text-slate-400 font-medium font-sans">{t.documentLoading}</p>
                                 </div>
                             ) : (
                                 <div className="max-w-[800px] mx-auto bg-white dark:bg-slate-900 shadow-lg border border-gray-200 dark:border-slate-800 p-12 text-slate-800 dark:text-slate-200 font-serif leading-relaxed min-h-screen">
@@ -648,7 +648,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                                     value={previewTemplate.title || ''}
                                                     onChange={(e) => setPreviewTemplate({ ...previewTemplate, title: e.target.value })}
                                                     className="text-2xl font-bold uppercase tracking-tight text-center w-full bg-slate-50 dark:bg-slate-800/50 border-none focus:ring-2 focus:ring-brand-500 rounded py-2 outline-none transition-all"
-                                                    placeholder="Voer de titel van het document in..."
+                                                    placeholder={t.templateTitlePlaceholder}
                                                 />
                                             </div>
                                         ) : (
@@ -686,13 +686,13 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                                                 value={section.content}
                                                                 onChange={(val, target) => handleSectionContentChange(section.id, val, target)}
                                                                 className="w-full p-0 font-serif text-sm bg-transparent border-none focus:ring-0 outline-none transition-all text-justify leading-relaxed text-slate-800 dark:text-slate-200 antialiased"
-                                                                placeholder="Voer hier de sectie-inhoud in..."
+                                                                placeholder={t.sectionContentPlaceholder}
                                                             />
 
                                                             {suggestionState.active && suggestionState.sectionId === section.id && (
                                                                 <div className="absolute z-50 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg shadow-xl mt-1 w-64 max-h-48 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200">
                                                                     <div className="p-2 border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50">
-                                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Kies een placeholder</span>
+                                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.choosePlaceholder}</span>
                                                                     </div>
                                                                     {SUPPORTED_PLACEHOLDERS
                                                                         .filter(p => p.id.includes(suggestionState.query) || p.label.toLowerCase().includes(suggestionState.query))
@@ -707,7 +707,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                                                             </button>
                                                                         ))}
                                                                     {SUPPORTED_PLACEHOLDERS.filter(p => p.id.includes(suggestionState.query) || p.label.toLowerCase().includes(suggestionState.query)).length === 0 && (
-                                                                        <div className="px-4 py-3 text-xs text-slate-400 italic">Geen overeenkomende placeholders...</div>
+                                                                        <div className="px-4 py-3 text-xs text-slate-400 italic">{t.noMatchingPlaceholders}</div>
                                                                     )}
                                                                 </div>
                                                             )}
@@ -730,7 +730,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                         ) : (
                                             !isEditingInPreview && (
                                                 <div className="py-20 text-center text-slate-400 italic font-sans">
-                                                    Geen inhoud beschikbaar om te bekijken of te bewerken.
+                                                    {t.noContentAvailable}
                                                 </div>
                                             )
                                         )}
@@ -741,7 +741,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                                 className="w-full py-4 border-2 border-dashed border-gray-300 dark:border-slate-700 rounded-xl text-slate-400 hover:border-brand-500 hover:text-brand-500 transition-all flex items-center justify-center font-bold"
                                             >
                                                 <Plus className="w-5 h-5 mr-2" />
-                                                Sectie Toevoegen
+                                                {t.addSectionBtnTemplate}
                                             </button>
                                         )}
                                     </div>
@@ -755,7 +755,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                 onClick={() => setPreviewTemplate(null)}
                                 className="px-6 py-2 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors text-sm font-medium"
                             >
-                                Sluiten
+                                {t.closeBtn}
                             </button>
                         </div>
                     </div>
@@ -767,31 +767,31 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
                     <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
                         <div className="px-6 py-4 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
-                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Nieuwe Template</h2>
+                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t.newTemplateBtn}</h2>
                             <button onClick={() => setIsCreating(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full text-slate-400"><X className="w-6 h-6" /></button>
                         </div>
                         <div className="p-6 space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Naam</label>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t.newNameLabel}</label>
                                 <input
                                     type="text"
                                     value={newName}
                                     onChange={(e) => setNewName(e.target.value)}
                                     className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-950 focus:ring-2 focus:ring-brand-500 outline-none transition-all"
-                                    placeholder="bijv. Mijn Eigen Huis Template"
+                                    placeholder={t.newNamePlaceholder}
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Beschrijving</label>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t.newDescLabel}</label>
                                 <textarea
                                     value={newDesc}
                                     onChange={(e) => setNewDesc(e.target.value)}
                                     className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-950 focus:ring-2 focus:ring-brand-500 outline-none transition-all h-24"
-                                    placeholder="Geef een korte beschrijving..."
+                                    placeholder={t.newDescPlaceholder}
                                 ></textarea>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Type</label>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t.newTypeLabel}</label>
                                 <select
                                     value={newType}
                                     onChange={(e) => setNewType(e.target.value as any)}
@@ -803,7 +803,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                 </select>
                             </div>
                             <div className="pt-4 border-t border-gray-100 dark:border-slate-800">
-                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Of start vanaf een PDF of Word bestand (AI Analyse)</label>
+                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">{t.startFromFileLabel}</label>
                                 <div className="flex flex-col gap-3">
                                     <input
                                         type="file"
@@ -819,13 +819,13 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                         className="text-xs file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 dark:file:bg-slate-800 dark:file:text-slate-300"
                                     />
                                     <p className="text-[10px] text-slate-500 italic">
-                                        Gemini zal het bestand analyseren tijdens het opslaan om secties en placeholders te identificeren.
+                                        {t.geminiAnalysisDesc}
                                     </p>
                                 </div>
                             </div>
                         </div>
                         <div className="px-6 py-4 border-t border-gray-100 dark:border-slate-800 flex justify-end gap-3 bg-gray-50/50 dark:bg-slate-900/50">
-                            <button onClick={() => setIsCreating(false)} className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900">Annuleren</button>
+                            <button onClick={() => setIsCreating(false)} className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900">{t.cancel}</button>
                             <button
                                 onClick={handleSaveNew}
                                 disabled={isAnalyzing}
@@ -834,12 +834,12 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                 {isAnalyzing ? (
                                     <>
                                         <RefreshCw className="w-4 h-4 animate-spin" />
-                                        Bezig met analyseren & opslaan...
+                                        {t.analyzingSavingBtn}
                                     </>
                                 ) : (
                                     <>
                                         <Check className="w-4 h-4" />
-                                        Template Opslaan
+                                        {t.saveTemplateBtn}
                                     </>
                                 )}
                             </button>
@@ -856,9 +856,9 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                             <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center text-red-600 dark:text-red-400 mx-auto mb-4">
                                 <Trash2 className="w-8 h-8" />
                             </div>
-                            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Template verwijderen?</h3>
+                            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{t.deleteTemplateTitle}</h3>
                             <p className="text-slate-500 dark:text-slate-400">
-                                Weet u zeker dat u de template <span className="font-semibold text-slate-900 dark:text-white">"{templateToDelete.name}"</span> wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
+                                {t.deleteTemplateDescPart1}<span className="font-semibold text-slate-900 dark:text-white">{templateToDelete.name}</span>{t.deleteTemplateDescPart2}
                             </p>
                         </div>
                         <div className="px-6 py-4 bg-gray-50/50 dark:bg-slate-900/50 flex flex-col sm:flex-row gap-3">
@@ -866,13 +866,13 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                 onClick={() => setTemplateToDelete(null)}
                                 className="flex-1 px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
                             >
-                                Annuleren
+                                {t.cancel}
                             </button>
                             <button
                                 onClick={confirmDelete}
                                 className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-sm shadow-red-200 dark:shadow-none transition-all"
                             >
-                                Ja, Verwijder
+                                {t.yesDeleteBtn}
                             </button>
                         </div>
                     </div>
@@ -886,7 +886,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                         <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
                             <Check className="w-4 h-4 text-white" />
                         </div>
-                        <span className="text-sm font-bold">Wijzigingen succesvol opgeslagen</span>
+                        <span className="text-sm font-bold">{t.changesSavedToast}</span>
                         <div className="w-px h-4 bg-slate-700 dark:bg-slate-200 mx-1"></div>
                         <button
                             onClick={() => setShowSaveToast(false)}

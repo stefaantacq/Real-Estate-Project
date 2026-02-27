@@ -151,9 +151,9 @@ export const Layout: React.FC<LayoutProps> = ({
 
             {/* Tooltip */}
             <div className="absolute left-full bottom-0 ml-4 w-max bg-slate-900 text-white text-xs py-1 px-3 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 whitespace-nowrap">
-              {aiStatus === 'online' ? 'AI Verbonden' :
-                aiStatus === 'offline' ? 'AI Niet Verbonden' :
-                  'AI Status Controleren...'}
+              {aiStatus === 'online' ? t.aiConnected :
+                aiStatus === 'offline' ? t.aiDisconnected :
+                  t.aiChecking}
               {/* Tiny arrow */}
               <div className="absolute top-1/2 -left-1 -mt-1 w-2 h-2 bg-slate-900 rotate-45"></div>
             </div>
@@ -164,7 +164,7 @@ export const Layout: React.FC<LayoutProps> = ({
         <button
           onClick={toggleDarkMode}
           className="p-3 rounded-xl text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
-          title="Toggle Theme"
+          title={t.themeToggle}
         >
           {darkMode ? <Sun className="w-6 h-6" /> : <Moon className="w-6 h-6" />}
         </button>

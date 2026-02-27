@@ -125,10 +125,15 @@ export const api = {
     },
 
     async exportVersion(versionId: string, format: 'pdf' | 'docx') {
-        // Since we want to trigger a download, we can't easily use the request wrapper 
-        // because it parses JSON. We'll do a direct fetch or window.open.
-        // Direct fetch allows token auth if we need it later.
-        const response = await fetch(`${API_BASE_URL}/dossiers/versions/${versionId}/export?format=${format}`);
+        const token = localStorage.getItem('auth_token');
+        const headers: Record<string, string> = {};
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        const response = await fetch(`${API_BASE_URL}/dossiers/versions/${versionId}/export?format=${format}`, {
+            headers
+        });
         if (!response.ok) throw new Error('Export failed');
 
         // Handle Blob download

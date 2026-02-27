@@ -94,7 +94,7 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
       onComplete(result.id);
     } catch (error) {
       console.error("Failed to create dossier", error);
-      alert("Er ging iets mis bij het aanmaken van het dossier. Probeer het opnieuw.");
+      alert(t.dossierCreateError);
     } finally {
       setIsSubmitting(false);
     }
@@ -118,7 +118,7 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 p-8 shadow-sm">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-slate-500">1</div>
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white">Dossier Details & Bestanden</h2>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t.dossierDetails}</h2>
             </div>
 
             <div className="space-y-6">
@@ -257,17 +257,17 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
                 {isSubmitting ? (
                   <>
                     <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
-                    Dossier aanmaken...
+                    {t.creatingDossier}
                   </>
                 ) : (
                   <>
-                    Start Dossier
+                    {t.startDossier}
                     <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                   </>
                 )}
               </button>
               <p className="text-xs text-center text-slate-400 mt-3 px-4">
-                Dossier wordt aangemaakt.
+                {t.dossierBeingCreated}
               </p>
             </div>
           </div>

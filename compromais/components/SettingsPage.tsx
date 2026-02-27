@@ -45,7 +45,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ lang, onBack }) => {
                     <div className="p-6 border-b border-gray-100 dark:border-slate-800">
                         <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center">
                             <Shield className="w-5 h-5 mr-2 text-brand-500" />
-                            Privacy & Veiligheid
+                            {t.privacySecurity}
                         </h2>
                     </div>
                     <div className="p-6 space-y-6">
@@ -96,36 +96,36 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ lang, onBack }) => {
                     <div className="p-6 border-b border-gray-100 dark:border-slate-800">
                         <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center">
                             <BrainCircuit className="w-5 h-5 mr-2 text-brand-500" />
-                            AI Verrijking (Advanced)
+                            {t.aiSettings}
                         </h2>
                     </div>
                     <div className="p-6 space-y-6">
                         <div>
                             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                Document Analyse Verrijking
+                                {t.docPromptLabel}
                             </label>
                             <p className="text-xs text-slate-500 dark:text-slate-500 mb-3">
-                                Wordt gebruikt bij het scannen van dossiers (ID's, aktes, etc.). Bijvoorbeeld: "Focus vooral op de namen van de kopers" of "Formatteer data altijd als DD-MM-YYYY".
+                                {t.docPromptDesc}
                             </p>
                             <textarea
                                 value={settings.customDocumentPrompt || ''}
                                 onChange={handleDocumentPromptChange}
-                                placeholder="Typ hier je extra instructies voor data extractie..."
+                                placeholder="{t.docPromptPlaceholder}"
                                 className="w-full h-24 p-4 bg-slate-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all resize-none text-sm"
                             />
                         </div>
 
                         <div className="pt-4 border-t border-gray-100 dark:border-slate-800/50">
                             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                Template Analyse Verrijking
+                                {t.tplPromptLabel}
                             </label>
                             <p className="text-xs text-slate-500 dark:text-slate-500 mb-3">
-                                Wordt gebruikt bij het analyseren van nieuwe PDF sjablonen (layouts en secties). Bijvoorbeeld: "Maak voor elk lidwoord een aparte placeholder" of "Groepeer alle adressen in één sectie".
+                                {t.tplPromptDesc}
                             </p>
                             <textarea
                                 value={settings.customTemplatePrompt || ''}
                                 onChange={handleTemplatePromptChange}
-                                placeholder="Typ hier je extra instructies voor sjabloon analyse..."
+                                placeholder="{t.tplPromptPlaceholder}"
                                 className="w-full h-24 p-4 bg-slate-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all resize-none text-sm"
                             />
                         </div>
@@ -137,11 +137,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ lang, onBack }) => {
                     <div className="p-6 border-b border-gray-100 dark:border-slate-800">
                         <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center">
                             <Bell className="w-5 h-5 mr-2 text-slate-400" />
-                            Notificaties
+                            {t.notifications}
                         </h2>
                     </div>
                     <div className="p-12 text-center text-slate-400">
-                        <p>Binnenkort beschikbaar</p>
+                        <p>{t.comingSoon}</p>
                     </div>
                 </div>
 
@@ -149,14 +149,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ lang, onBack }) => {
                     <div className="p-6 border-b border-gray-100 dark:border-slate-800">
                         <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center">
                             <Eye className="w-5 h-5 mr-2 text-brand-500" />
-                            Weergave
+                            {t.displayOptions}
                         </h2>
                     </div>
                     <div className="p-6 space-y-6">
                         <div className="flex items-center justify-between">
                             <div>
-                                <h3 className="font-medium text-slate-900 dark:text-white">Toon AI Status Indicator</h3>
-                                <p className="text-sm text-slate-500">Toon een visuele indicator in de zijbalk die de status van de AI-verbinding weergeeft.</p>
+                                <h3 className="font-medium text-slate-900 dark:text-white">{t.showAiStatusSetting}</h3>
+                                <p className="text-sm text-slate-500">{t.showAiStatusDesc}</p>
                             </div>
                             <button
                                 onClick={() => handleToggle('showAiStatus')}

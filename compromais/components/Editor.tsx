@@ -103,7 +103,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     };
 
     const removeSection = (sectionId: string) => {
-        if (window.confirm('Verwijder deze sectie?')) {
+        if (window.confirm(t.deleteSectionConfirm)) {
             setSections(prev => prev.filter(s => s.id !== sectionId));
         }
     };
@@ -346,7 +346,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                         <div className="flex items-center justify-between px-1">
                             <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">{p.label}</span>
                             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${p.isApproved ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'}`}>
-                                {p.isApproved ? 'Goedgekeurd' : 'Ter controle'}
+                                {p.isApproved ? t.statusApproved : t.statusForReview}
                             </span>
                         </div>
                         
@@ -355,7 +355,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleSourceClick(p.id); }}
                                 className="flex-1 flex items-center justify-center px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-xs font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-slate-600 dark:text-slate-300"
                             >
-                                <Eye className="w-3.5 h-3.5 mr-1.5" /> Bron
+                                <Eye className="w-3.5 h-3.5 mr-1.5" /> {t.source}
                             </button>
                             <button
                                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleApprovePlaceholder(section.id, p.id); }}
@@ -364,7 +364,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                 `}
                             >
                                 {p.isApproved ? <X className="w-3.5 h-3.5 mr-1.5" /> : <Check className="w-3.5 h-3.5 mr-1.5" />}
-                                {p.isApproved ? 'Afkeuren' : 'Goedkeuren'}
+                                {p.isApproved ? t.reject : t.approve}
                             </button>
                         </div>
                         <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-white dark:border-t-slate-900"></div>
@@ -410,7 +410,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                     </button>
                     <button onClick={handleSave} className="flex items-center px-3 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded-lg text-sm font-bold transition-all border border-brand-200">
                         <Save className="w-4 h-4 mr-2" />
-                        Opslaan
+                        {t.save}
                     </button>
                     <div className="flex items-center gap-2">
                         <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-1 mr-2">
@@ -435,7 +435,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
 
                 <div className="flex items-center gap-3">
                     <div className="flex items-center mr-4 bg-gray-50 dark:bg-slate-800 px-3 py-1.5 rounded-full border border-gray-200 dark:border-slate-700">
-                        <div className="text-xs font-medium mr-3 text-slate-500">{progress}% Validated</div>
+                        <div className="text-xs font-medium mr-3 text-slate-500">{progress}{t.percentComplete}</div>
                         <div className="w-24 h-2 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
                             <div className="h-full bg-green-500 transition-all duration-500" style={{ width: `${progress}%` }}></div>
                         </div>
@@ -471,7 +471,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                             <div key={pageIndex} className="max-w-[850px] w-full h-fit min-h-[1100px] bg-white dark:bg-slate-900 shadow-2xl border border-gray-200 dark:border-slate-800 p-16 text-slate-900 dark:text-slate-100 font-serif leading-relaxed relative ring-1 ring-slate-100 dark:ring-slate-800 animate-in fade-in slide-in-from-bottom-4 duration-700">
                                 {pageIndex === 0 && (
                                     <div className="text-center font-bold text-2xl uppercase border-b-2 border-slate-900 dark:border-slate-100 pb-4 mb-10">
-                                        Verkoopcompromis
+                                        {dossier?.name || t.newCompromis}
                                     </div>
                                 )}
 
@@ -545,7 +545,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                 className="flex items-center px-6 py-3 bg-white dark:bg-slate-800 rounded-full text-slate-500 hover:text-brand-500 text-sm border-2 border-dashed border-slate-300 hover:border-brand-400 hover:shadow-md transition-all"
                             >
                                 <Plus className="w-4 h-4 mr-2" />
-                                {t.addSection || 'Voeg nieuwe sectie toe'}
+                                {t.addSectionBtn || 'Voeg nieuwe sectie toe'}
                             </button>
                         </div>
                     </div>
@@ -558,14 +558,14 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                             <div className="flex items-center">
                                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center mr-3">
                                     <FileText className="w-3 h-3 mr-2" />
-                                    {selectedSourceDoc ? `Bron: ${selectedSourceDoc.name}` : (activePlaceholderId && NAME_PLACEHOLDERS.includes(activePlaceholderId)
-                                        ? 'Bron: Identiteitskaart.jpg'
-                                        : 'Bron Document: Kadaster.pdf')}
+                                    {selectedSourceDoc ? `${t.source}: ${selectedSourceDoc.name}` : (activePlaceholderId && NAME_PLACEHOLDERS.includes(activePlaceholderId)
+                                            ? t.sourceIdCard
+                                            : t.sourceDocument)}
                                 </span>
                                 <button
                                     onClick={() => selectedSourceDoc?.path && window.open(selectedSourceDoc.path, '_blank')}
                                     className="p-1 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded transition-colors"
-                                    title="Open in drowser"
+                                    title={t.openInBrowser}
                                 >
                                     <ExternalLink className="w-3 h-3" />
                                 </button>
@@ -581,8 +581,8 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                         <Document
                                             file={selectedSourceDoc.path}
                                             onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-                                            loading={<div className="p-4 text-slate-500 font-medium flex items-center"><RefreshCw className="animate-spin w-4 h-4 mr-2"/> Document laden...</div>}
-                                            error={<div className="p-4 text-red-500 font-medium">Fout bij laden van document.</div>}
+                                            loading={<div className="p-4 text-slate-500 font-medium flex items-center"><RefreshCw className="animate-spin w-4 h-4 mr-2"/> {t.documentLoading}</div>}
+                                            error={<div className="p-4 text-red-500 font-medium">{t.documentLoadError}</div>}
                                         >
                                             {Array.from(new Array(numPages || 0), (el, index) => (
                                                 <div key={`page_${index + 1}`} className="mb-6 shadow-2xl bg-white">
@@ -624,9 +624,9 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                             className="max-w-[90%] max-h-[90%] object-contain shadow-2xl rounded-lg border-4 border-white"
                                         />
                                         <div className="absolute bottom-4 left-4 right-4 bg-white/90 dark:bg-slate-900/90 p-4 rounded-xl border border-gray-200 dark:border-slate-800 shadow-lg backdrop-blur-sm">
-                                            <div className="text-xs font-bold text-slate-500 uppercase mb-1">AI Context Mapping</div>
+                                            <div className="text-xs font-bold text-slate-500 uppercase mb-1">{t.aiContextMapping}</div>
                                             <div className="text-sm text-slate-700 dark:text-slate-200">
-                                                Inhoud van veld <strong>{sections.flatMap(s => s.placeholders).find(p => p.id === activePlaceholderId)?.label}</strong> overeenkomstig met ID scan.
+                                                {t.aiContextFieldContent} <strong>{sections.flatMap(s => s.placeholders).find(p => p.id === activePlaceholderId)?.label}</strong> {t.aiContextMatchingId}
                                             </div>
                                         </div>
                                     </div>
@@ -641,10 +641,10 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
 
                                         {/* Highlighted Area */}
                                         <div className="absolute top-1/4 left-10 right-10 h-24 bg-yellow-200/50 border-2 border-yellow-400 rounded flex items-center justify-center">
-                                            <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-bold shadow-sm">Gevonden Data</span>
+                                            <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-bold shadow-sm">{t.foundData}</span>
                                         </div>
 
-                                        <span className="relative z-10 font-medium text-slate-400 bg-white/80 px-4 py-2 rounded-lg backdrop-blur-sm">[ Geen bron gevonden ]</span>
+                                        <span className="relative z-10 font-medium text-slate-400 bg-white/80 px-4 py-2 rounded-lg backdrop-blur-sm">{t.noSourceFound}</span>
                                     </>
                                 )}
                             </div>
@@ -669,7 +669,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                             {sidebarMode === 'checklist' ? (
                                 <div className="space-y-6">
                                     <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-100 dark:border-green-900 mb-4">
-                                        <div className="text-sm font-bold text-green-800 dark:text-green-300 mb-1">Status: {progress}% Compleet</div>
+                                        <div className="text-sm font-bold text-green-800 dark:text-green-300 mb-1">Status: {progress}{t.percentComplete}</div>
                                         <div className="w-full h-1.5 bg-green-200 dark:bg-green-900 rounded-full overflow-hidden">
                                             <div className="h-full bg-green-500" style={{ width: `${progress}%` }}></div>
                                         </div>
