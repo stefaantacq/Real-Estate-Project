@@ -63,7 +63,10 @@ const fetchFullVersionContent = async (versie_id) => {
 
         section.id = section.aangepaste_sectie_id.toString();
         section.content = section.tekst_inhoud;
-        section.isApproved = section.validatiestatus === 'approved';
+        
+        // Bugfix: ensure that a section is only considered approved if all of its evaluated placeholders are also approved.
+        const allPlaceholdersApproved = section.placeholders.length === 0 || section.placeholders.every(p => p.isApproved);
+        section.isApproved = (section.validatiestatus === 'approved') && allPlaceholdersApproved;
     }
 
     return sections;
@@ -225,6 +228,20 @@ const processDossierDocuments = async (dossierId, files, customPrompt = null, te
     }
 };
 
+const formatDateBE = (dateString) => {
+    if (!dateString) return '';
+    try {
+        const d = new Date(dateString);
+        if (isNaN(d.getTime())) return dateString;
+        return d.toLocaleString('nl-BE', { 
+            day: '2-digit', month: '2-digit', year: 'numeric', 
+            hour: '2-digit', minute: '2-digit'
+        }).replace(',', ' -');
+    } catch (e) {
+        return dateString;
+    }
+};
+
 const dossierController = {
     getAllDossiers: async (req, res) => {
         try {
@@ -241,7 +258,7 @@ const dossierController = {
                 name: row.titel,
                 address: row.adres,
                 verkoper_naam: row.verkoper_naam,
-                date: row.last_opened || row.last_modified || row.created_at,
+                date: formatDateBE(row.last_opened || row.last_modified || row.created_at),
                 status: row.status || 'draft',
                 type: row.type || 'House',
                 documentCount: row.documentCount || 0,
@@ -278,6 +295,12 @@ const dossierController = {
                         [`doc-${Date.now()}-${Math.random()}`, dossier_id, file.originalname, file.filename, `/uploads/${file.filename}`, file.mimetype, 'Uploaded']
                     );
                 }
+                
+                // Add timeline event for uploaded documents
+                await pool.query(
+                    'INSERT INTO TimelineEvent (dossier_id, titel, beschrijving, user_name) VALUES (?, ?, ?, ?)',
+                    [dossier_id, 'Documenten geüpload', `Er zijn ${req.files.length} document(en) succesvol aan het dossier toegevoegd.`, 'Systeem']
+                );
             }
             if (template_id) {
                 console.log("Initializing version from template:", template_id);
@@ -287,18 +310,20 @@ const dossierController = {
                 await initializeVersionFromTemplate(verResult.insertId, template_id, dossier_id);
             }
 
-            // Trigger AI analysis if documents exist
-            console.log("Checking for uploaded documents to trigger AI analysis...");
-            const [docRows] = await pool.query('SELECT * FROM Documenten WHERE dossier_id = ?', [dossier_id]);
-            if (docRows.length > 0) {
-                const files = docRows.map(doc => ({
-                    id: doc.document_id,
-                    filename: doc.bestandsnaam,
-                    originalname: doc.naam,
-                    mimetype: doc.bestandstype
-                }));
-                console.log(`Triggering AI analysis for createDossier with ${files.length} files`);
-                await processDossierDocuments(dossier_id, files, ai_extraction_prompt || remarks || null, template_id || null);
+            // Trigger AI analysis if documents exist and we are also creating an agreement (template_id is provided)
+            if (template_id) {
+                console.log("Checking for uploaded documents to trigger AI analysis...");
+                const [docRows] = await pool.query('SELECT * FROM Documenten WHERE dossier_id = ?', [dossier_id]);
+                if (docRows.length > 0) {
+                    const files = docRows.map(doc => ({
+                        id: doc.document_id,
+                        filename: doc.bestandsnaam,
+                        originalname: doc.naam,
+                        mimetype: doc.bestandstype
+                    }));
+                    console.log(`Triggering AI analysis for createDossier with ${files.length} files`);
+                    await processDossierDocuments(dossier_id, files, ai_extraction_prompt || remarks || null, template_id);
+                }
             }
             console.log("Adding timeline event...");
             await pool.query('INSERT INTO TimelineEvent (dossier_id, titel, beschrijving, user_name) VALUES (?, ?, ?, ?)', [dossier_id, 'Dossier aangemaakt', `Dossier "${titel}" is succesvol aangemaakt.`, 'Systeem']);
@@ -333,15 +358,15 @@ const dossierController = {
             const agreements = await Promise.all(agreementRows.map(async (agg) => {
                 const [versionRows] = await pool.query('SELECT * FROM Versie WHERE verkoopsovereenkomst_id = ? ORDER BY created_at ASC', [agg.verkoopsovereenkomst_id]);
                 const versions = await Promise.all(versionRows.map(async (v) => {
-                    const vo = { id: v.ui_id, number: v.versie_nummer, source: v.source, isCurrent: Boolean(v.is_current), date: v.created_at };
+                    const vo = { id: v.ui_id, number: v.versie_nummer, source: v.source, isCurrent: Boolean(v.is_current), date: formatDateBE(v.created_at) };
                     if (v.is_current) vo.sections = await fetchFullVersionContent(v.versie_id);
                     return vo;
                 }));
                 return { id: agg.ui_id, templateId: agg.template_id, templateName: agg.template_name, versions };
             }));
             res.json({
-                id: row.ui_id, name: row.titel, address: row.adres, verkoper_naam: row.verkoper_naam, date: row.last_modified, creationDate: row.created_at, status: row.status, type: row.type, remarks: row.remarks,
-                agreements, timeline: timelineRows.map(t => ({ id: t.ui_id, date: t.event_date, title: t.titel, description: t.beschrijving, user: t.user_name })),
+                id: row.ui_id, name: row.titel, address: row.adres, verkoper_naam: row.verkoper_naam, date: formatDateBE(row.last_modified), creationDate: formatDateBE(row.created_at), status: row.status, type: row.type, remarks: row.remarks,
+                agreements, timeline: timelineRows.map(t => ({ id: t.ui_id, date: formatDateBE(t.event_date), title: t.titel, description: t.beschrijving, user: t.user_name })),
                 documents: docRows.map(d => ({ id: d.ui_id, name: d.naam, type: d.bestandstype, category: d.document_type, path: d.bestand_pad }))
             });
         } catch (error) { console.error(error); res.status(500).json({ error: error.message }); }
@@ -374,8 +399,11 @@ const dossierController = {
             if (aggRows.length > 0) {
                 const [docRows] = await pool.query('SELECT naam as name, bestand_pad as path FROM Documenten WHERE dossier_id = ?', [aggRows[0].dossier_id]);
                 v.dossier_documents = docRows;
-                const [dosRows] = await pool.query('SELECT ui_id FROM Dossier WHERE dossier_id = ?', [aggRows[0].dossier_id]);
-                if (dosRows.length > 0) v.dossier_ui_id = dosRows[0].ui_id;
+                const [dosRows] = await pool.query('SELECT ui_id, status FROM Dossier WHERE dossier_id = ?', [aggRows[0].dossier_id]);
+                if (dosRows.length > 0) {
+                    v.dossier_ui_id = dosRows[0].ui_id;
+                    v.dossier_status = dosRows[0].status;
+                }
             }
             res.json(v);
         } catch (error) { console.error(error); res.status(500).json({ error: error.message }); }
@@ -558,7 +586,15 @@ const dossierController = {
     },
 
     reorderDossiers: async (req, res) => {
-        try { for (const item of (req.body.orders || [])) await pool.query('UPDATE Dossier SET display_order = ? WHERE ui_id = ?', [item.order, item.id]); res.json({ message: 'Reordered' }); }
+        try { 
+            for (const item of (req.body.orders || [])) {
+                await pool.query(
+                    'UPDATE Dossier SET display_order = ?, status = COALESCE(?, status) WHERE ui_id = ?', 
+                    [item.order, item.status, item.id]
+                );
+            } 
+            res.json({ message: 'Reordered and status updated' }); 
+        }
         catch (error) { console.error(error); res.status(500).json({ error: error.message }); }
     }
 };

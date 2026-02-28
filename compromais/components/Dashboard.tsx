@@ -97,36 +97,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
     (d.name.toLowerCase().includes(searchTerm.toLowerCase()) || d.address.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const handleDragOver = (event: DragOverEvent) => {
-    const { active, over } = event;
-    if (!over) return;
-
-    const activeId = active.id;
-    const overId = over.id;
-
-    // Find the containers
-    const activeDossier = dossiers.find(d => d.id === activeId);
-    if (!activeDossier) return;
-
-    // Is 'over' a dossier or a container?
-    // In our simplified setup, we'll check if overId matches any container name or item id
-    const containers = ['concept', 'inBehandeling', 'archief'];
-    const overContainer = containers.find(c => c === overId) ||
-      (dossiers.find(d => d.id === overId)?.status === DossierStatus.DRAFT ? 'concept' :
-        dossiers.find(d => d.id === overId)?.status === DossierStatus.ARCHIVED ? 'archief' : 'inBehandeling');
-
-    if (activeDossier.status !== getStatusFromContainer(overContainer)) {
-      setDossiers(prev => {
-        const newDossiers = [...prev];
-        const index = newDossiers.findIndex(d => d.id === activeId);
-        if (index !== -1) {
-          newDossiers[index] = { ...newDossiers[index], status: getStatusFromContainer(overContainer) };
-        }
-        return newDossiers;
-      });
-    }
-  };
-
   const getStatusFromContainer = (container: string): DossierStatus => {
     switch (container) {
       case 'concept': return DossierStatus.DRAFT;
@@ -135,51 +105,68 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
     }
   };
 
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeId = active.id;
+    const overId = over.id;
+
+    if (activeId === overId) return;
+
+    setDossiers((items) => {
+      const activeIndex = items.findIndex((i) => i.id === activeId);
+      if (activeIndex === -1) return items;
+
+      const overIndex = items.findIndex((i) => i.id === overId);
+      const isOverContainer = ['concept', 'inBehandeling', 'archief'].includes(overId as string);
+
+      let targetStatus = items[activeIndex].status;
+      if (isOverContainer) {
+        targetStatus = getStatusFromContainer(overId as string);
+      } else if (overIndex !== -1) {
+        targetStatus = items[overIndex].status;
+      }
+
+      if (items[activeIndex].status !== targetStatus) {
+        const newItems = [...items];
+        newItems[activeIndex] = { ...newItems[activeIndex], status: targetStatus };
+        if (overIndex !== -1) {
+          return arrayMove(newItems, activeIndex, overIndex);
+        }
+        return newItems;
+      }
+      
+      if (overIndex !== -1 && activeIndex !== overIndex) {
+         return arrayMove(items, activeIndex, overIndex);
+      }
+      return items;
+    });
+  };
+
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
-
-    if (over && active.id !== over.id) {
-      const activeId = active.id;
-      const overId = over.id;
-
-      setDossiers((items) => {
-        const oldIndex = items.findIndex((i) => i.id === activeId);
-        const overIndex = items.findIndex((i) => i.id === overId);
-
-        // If dropping onto a container header or empty space (if we added Droppable spots)
-        // for now we assume overId is an item id.
-
-        let newDossiers = [...items];
-        if (overIndex !== -1) {
-          newDossiers = arrayMove(items, oldIndex, overIndex);
+    
+    setDossiers((items) => {
+        let finalItems = [...items];
+        if (over && active.id !== over.id) {
+           const activeIndex = items.findIndex(i => i.id === active.id);
+           const overIndex = items.findIndex(i => i.id === over.id);
+           if (activeIndex !== -1 && overIndex !== -1) {
+              finalItems = arrayMove(finalItems, activeIndex, overIndex);
+           }
         }
-
-        // Final sync with API
-        // Map all dossiers to their sequence and status
-        const orders = newDossiers.map((d, index) => ({
+        
+        const orders = finalItems.map((d, index) => ({
           id: d.id,
           order: index,
           status: d.status
         }));
+        
+        api.reorderDossiers(orders).catch(console.error);
 
-        api.reorderDossiers(orders).catch(err => {
-          console.error("Failed to sync reorder", err);
-        });
-
-        return newDossiers;
-      });
-    } else if (over && active.id === over.id) {
-      // Just sync if status changed (even if order didn't change much in global list)
-      // (handleDragOver already updated the status in state)
-      const orders = dossiers.map((d, index) => ({
-        id: d.id,
-        order: index,
-        status: d.status
-      }));
-      api.reorderDossiers(orders).catch(err => {
-        console.error("Failed to sync reorder", err);
-      });
-    }
+        return finalItems;
+    });
   };
 
   const handleContextMenu = (e: React.MouseEvent, id: string, status: DossierStatus) => {

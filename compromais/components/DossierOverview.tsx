@@ -8,6 +8,12 @@ import { SettingsService } from '../services/settingsService';
 import { ExpandableText } from './ExpandableText';
 import { api } from '../services/api';
 
+import { Document, Page, pdfjs } from 'react-pdf';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
+
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+
 interface DossierOverviewProps {
    lang: Language;
    onBack: () => void;
@@ -32,6 +38,7 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
    const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number; versionId: string; agreementId: string } | null>(null);
    const [splitScreen, setSplitScreen] = React.useState(false);
    const [selectedDocument, setSelectedDocument] = React.useState<{ name: string, path?: string } | null>(null);
+   const [numPages, setNumPages] = React.useState<number | null>(null);
 
    // Editing states
    const [isEditingName, setIsEditingName] = React.useState(false);
@@ -287,7 +294,7 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
    };
 
    const toggleEditName = async () => {
-      if (!dossier) return;
+      if (!dossier || dossier.status === DossierStatus.ARCHIVED) return;
       if (isEditingName) {
          try {
             await api.updateDossier(dossier.id, { name: tempName });
@@ -302,7 +309,7 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
    };
 
    const toggleEditAddress = async () => {
-      if (!dossier) return;
+      if (!dossier || dossier.status === DossierStatus.ARCHIVED) return;
       if (isEditingAddress) {
          try {
             await api.updateDossier(dossier.id, { address: tempAddress });
@@ -317,11 +324,21 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
    };
 
    const openDocument = (doc: any) => {
-      setSelectedDocument({ name: doc.name, path: doc.path });
+      let relativeUrl = doc.path || '';
+      if (relativeUrl) {
+         const filename = relativeUrl.split('/').pop() || relativeUrl;
+         relativeUrl = relativeUrl.startsWith('http') ? relativeUrl : `/api/documents/preview/${filename}`;
+         if (!relativeUrl.toLowerCase().endsWith('.pdf') && !relativeUrl.startsWith('http')) {
+             relativeUrl += '.pdf';
+         }
+      }
+
+      setSelectedDocument({ name: doc.name, path: relativeUrl });
       setSplitScreen(true);
    };
 
    const handleAddAgreement = () => {
+      if (dossier?.status === DossierStatus.ARCHIVED) return;
       setIsTemplateModalOpen(true);
    };
 
@@ -356,6 +373,7 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
    };
 
    const handleAddVersionClick = (agreementId: string) => {
+      if (dossier?.status === DossierStatus.ARCHIVED) return;
       setActiveAgreementId(agreementId);
       setIsAddVersionModalOpen(true);
    };
@@ -512,7 +530,7 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                   <ArrowLeft className="w-6 h-6" />
                </button>
                <div className="flex-1">
-                  {isEditingName ? (
+                  {isEditingName && dossier.status !== DossierStatus.ARCHIVED ? (
                      <div className="flex items-center gap-2">
                         <input
                            autoFocus
@@ -526,7 +544,7 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                      </div>
                   ) : (
                      <h1
-                        className="text-3xl font-bold text-slate-900 dark:text-white cursor-pointer hover:text-brand-600 transition-colors"
+                        className={`text-3xl font-bold text-slate-900 dark:text-white ${dossier.status === DossierStatus.ARCHIVED ? '' : 'cursor-pointer hover:text-brand-600 transition-colors'}`}
                         onClick={toggleEditName}
                      >
                         {dossier.name}
@@ -535,7 +553,7 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
 
                   <div className="flex items-center mt-1 text-slate-500 text-sm">
                      <MapPin className="w-4 h-4 mr-1" />
-                     {isEditingAddress ? (
+                     {isEditingAddress && dossier.status !== DossierStatus.ARCHIVED ? (
                         <input
                            autoFocus
                            type="text"
@@ -547,7 +565,7 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                         />
                      ) : (
                         <span
-                           className="cursor-pointer hover:text-brand-600 transition-colors"
+                           className={dossier.status === DossierStatus.ARCHIVED ? '' : 'cursor-pointer hover:text-brand-600 transition-colors'}
                            onClick={toggleEditAddress}
                         >
                            {dossier.address}
@@ -589,13 +607,15 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                               </div>
                            </div>
                            {/* Delete Agreement Button */}
-                           <button
-                              onClick={(e) => handleDeleteAgreementClick(e, agg.id)}
-                              className="opacity-0 group-hover:opacity-100 p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
-                              title={t.deleteAgreement}
-                           >
-                              <Trash2 className="w-4 h-4" />
-                           </button>
+                           {dossier.status !== DossierStatus.ARCHIVED && (
+                              <button
+                                 onClick={(e) => handleDeleteAgreementClick(e, agg.id)}
+                                 className="opacity-0 group-hover:opacity-100 p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                                 title={t.deleteAgreement}
+                              >
+                                 <Trash2 className="w-4 h-4" />
+                              </button>
+                           )}
                         </div>
 
                         {/* Version Track UI */}
@@ -604,7 +624,13 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                               <React.Fragment key={ver.id}>
                                  <div
                                     onClick={() => onOpenEditor(ver.id)}
-                                    onContextMenu={(e) => handleVersionContextMenu(e, ver.id, agg.id)}
+                                    onContextMenu={(e) => {
+                                       if (dossier.status !== DossierStatus.ARCHIVED) {
+                                          handleVersionContextMenu(e, ver.id, agg.id);
+                                       } else {
+                                          e.preventDefault();
+                                       }
+                                    }}
                                     className={`group/ver cursor-pointer flex flex-col items-center transition-all duration-300
                                        ${ver.isCurrent ? 'scale-110' : 'opacity-60 hover:opacity-100'}
                                     `}
@@ -627,14 +653,18 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                            ))}
 
                            {/* Add Version Button (+ in the track) */}
-                           <div className="w-8 h-[2px] bg-slate-100 dark:bg-slate-800 shrink-0 mt-[-15px]"></div>
-                           <button
-                              onClick={() => handleAddVersionClick(agg.id)}
-                              className="w-12 h-12 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-300 hover:border-brand-500 hover:text-brand-500 transition-all shrink-0 mb-[18px]"
-                              title={t.addVersionTooltip}
-                           >
-                              <RefreshCw className="w-5 h-5" />
-                           </button>
+                           {dossier.status !== DossierStatus.ARCHIVED && (
+                              <>
+                                 <div className="w-8 h-[2px] bg-slate-100 dark:bg-slate-800 shrink-0 mt-[-15px]"></div>
+                                 <button
+                                    onClick={() => handleAddVersionClick(agg.id)}
+                                    className="w-12 h-12 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-300 hover:border-brand-500 hover:text-brand-500 transition-all shrink-0 mb-[18px]"
+                                    title={t.addVersionTooltip}
+                                 >
+                                    <RefreshCw className="w-5 h-5" />
+                                 </button>
+                              </>
+                           )}
                         </div>
                      </div>
                   )) : (
@@ -644,15 +674,17 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                   )}
 
                   {/* Add Agreement Button (Bottom +) */}
-                  <button
-                     onClick={handleAddAgreement}
-                     className="w-full py-4 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-slate-400 hover:border-brand-500 hover:text-brand-500 hover:bg-brand-50/50 dark:hover:bg-brand-900/10 transition-all group"
-                  >
-                     <div className="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center mb-2 group-hover:bg-brand-100 dark:group-hover:bg-brand-900/30 transition-all">
-                        <FileText className="w-5 h-5" />
-                     </div>
-                     <span className="text-sm font-bold">{t.startNewAgreement}</span>
-                  </button>
+                  {dossier.status !== DossierStatus.ARCHIVED && (
+                     <button
+                        onClick={handleAddAgreement}
+                        className="w-full py-4 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-slate-400 hover:border-brand-500 hover:text-brand-500 hover:bg-brand-50/50 dark:hover:bg-brand-900/10 transition-all group"
+                     >
+                        <div className="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center mb-2 group-hover:bg-brand-100 dark:group-hover:bg-brand-900/30 transition-all">
+                           <FileText className="w-5 h-5" />
+                        </div>
+                        <span className="text-sm font-bold">{t.startNewAgreement}</span>
+                     </button>
+                  )}
                </div>
 
                {/* Timeline */}
@@ -719,7 +751,25 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                                  {doc.category && <span className="text-[10px] text-slate-400 uppercase tracking-tighter">{doc.category}</span>}
                               </div>
                            </div>
-                           <ExternalLink className={`w-4 h-4 transition-opacity ${selectedDocument?.name === doc.name && splitScreen ? 'opacity-100 text-brand-500' : 'opacity-0 group-hover:opacity-100 text-slate-400'}`} />
+                           <button
+                              type="button"
+                              onClick={(e) => {
+                                 e.stopPropagation();
+                                 let relativeUrl = doc.path || '';
+                                 if (relativeUrl) {
+                                    const filename = relativeUrl.split('/').pop() || relativeUrl;
+                                    relativeUrl = relativeUrl.startsWith('http') ? relativeUrl : `/api/documents/preview/${filename}`;
+                                    if (!relativeUrl.toLowerCase().endsWith('.pdf') && !relativeUrl.startsWith('http')) {
+                                       relativeUrl += '.pdf';
+                                    }
+                                 }
+                                 if (relativeUrl) window.open(relativeUrl, '_blank');
+                              }}
+                              className="p-1 bg-transparent hover:bg-gray-200 dark:hover:bg-slate-700 rounded transition-colors z-10"
+                              title={t.openInBrowser || "Open in nieuw tabblad"}
+                           >
+                              <ExternalLink className={`w-4 h-4 transition-opacity ${selectedDocument?.name === doc.name && splitScreen ? 'opacity-100 text-brand-500' : 'opacity-0 group-hover:opacity-100 text-slate-400 hover:text-brand-600'}`} />
+                           </button>
                         </div>
                      )) : (
                         <div className="text-xs text-slate-400 italic py-4 text-center">
@@ -901,11 +951,25 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
             <div className="flex-1 p-8 overflow-y-auto bg-slate-50/50 dark:bg-slate-950/50">
                <div className="max-w-4xl mx-auto w-full h-full bg-white dark:bg-slate-900 shadow-2xl border border-gray-200 dark:border-slate-800 rounded-sm overflow-hidden relative group">
                   {selectedDocument?.path ? (
-                     <iframe
-                        src={selectedDocument.path}
-                        className="w-full h-full border-none"
-                        title={selectedDocument.name}
-                     />
+                     <div className="w-full h-full overflow-y-auto bg-slate-200 flex flex-col items-center py-6">
+                        <Document
+                           file={selectedDocument.path}
+                           onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+                           loading={<div className="p-4 text-slate-500 font-medium flex items-center"><RefreshCw className="animate-spin w-4 h-4 mr-2"/> {t.documentLoading || 'Laden...'}</div>}
+                           error={<div className="p-4 text-red-500 font-medium">{t.documentLoadError || 'Fout bij het laden'}</div>}
+                        >
+                           {Array.from(new Array(numPages || 0), (el, index) => (
+                               <div key={`page_${index + 1}`} className="mb-6 shadow-2xl bg-white">
+                                   <Page 
+                                       pageNumber={index + 1} 
+                                       width={Math.min(window.innerWidth * 0.45, 800)}
+                                       renderTextLayer={true}
+                                       renderAnnotationLayer={true}
+                                   />
+                               </div>
+                           ))}
+                        </Document>
+                     </div>
                   ) : (
                      <div className="flex items-center justify-center h-full text-slate-400">
                         {t.selectDocumentToView}

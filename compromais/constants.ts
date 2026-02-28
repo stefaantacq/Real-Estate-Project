@@ -247,6 +247,7 @@ export const TRANSLATIONS = {
     yesDeleteBtn: 'Ja, Verwijder',
     changesSavedToast: 'Wijzigingen succesvol opgeslagen',
     editBtn: 'Bewerken',
+    templateNameExists: 'De naam van deze template bestaat al. Kies een andere naam.',
   },
   [Language.FR]: {
     loginTitle: 'Bienvenue chez compromAIs',
@@ -466,6 +467,7 @@ export const TRANSLATIONS = {
     yesDeleteBtn: 'Oui, Supprimer',
     changesSavedToast: 'Modifications enregistrées avec succès',
     editBtn: 'Éditer',
+    templateNameExists: 'Le nom de ce modèle existe déjà. Veuillez choisir un autre nom.',
   },
   [Language.EN]: {
     loginTitle: 'Welcome to CompromisAI',
@@ -683,6 +685,7 @@ export const TRANSLATIONS = {
     yesDeleteBtn: 'Yes, Delete',
     changesSavedToast: 'Changes saved successfully',
     editBtn: 'Edit',
+    templateNameExists: 'This template name already exists. Please choose a different name.',
   }
 };
 

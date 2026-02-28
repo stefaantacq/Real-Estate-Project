@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Plus, FileText, ChevronRight, Layout as LayoutIcon, Globe, Lock, MoreVertical, Edit2, Trash2, Copy, Eye, X, Check, RefreshCw, Archive } from 'lucide-react';
+import { Search, Plus, FileText, ChevronRight, Layout as LayoutIcon, Globe, Lock, MoreVertical, Edit2, Trash2, Copy, Eye, X, Check, RefreshCw, Archive, Upload } from 'lucide-react';
 import { Language, Template, DocumentSection, PlaceholderSuggestion } from '../types';
 import { TRANSLATIONS, SUPPORTED_PLACEHOLDERS } from '../constants';
 import { api } from '../services/api'; // Integrated API
@@ -283,6 +283,11 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
     const handleSaveNew = async () => {
         if (!newName) return alert('Geef een naam op');
 
+        const isDuplicate = templates.some(t => t.name.toLowerCase() === newName.toLowerCase());
+        if (isDuplicate) {
+            return alert(t.templateNameExists);
+        }
+
         // Keep the modal open to show analysis progress
         setIsAnalyzing(true);
 
@@ -494,25 +499,29 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                 </div>
 
                                 <div className="flex gap-1" onClick={e => e.stopPropagation()}>
-                                    <button
-                                        onClick={() => setTemplateToDelete(template)}
-                                        className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-colors"
-                                        title={t.deleteAction}
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleArchive(template, !template.isArchived);
-                                        }}
-                                        className={`p-2 rounded-lg transition-colors ${template.isArchived
-                                            ? 'text-orange-400 hover:text-orange-600 hover:bg-orange-50'
-                                            : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50'}`}
-                                        title={template.isArchived ? t.unarchiveAction : t.archiveAction}
-                                    >
-                                        <Archive className="w-4 h-4" />
-                                    </button>
+                                    {template.source !== 'CIB' && (
+                                        <>
+                                            <button
+                                                onClick={() => setTemplateToDelete(template)}
+                                                className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-colors"
+                                                title={t.deleteAction}
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleArchive(template, !template.isArchived);
+                                                }}
+                                                className={`p-2 rounded-lg transition-colors ${template.isArchived
+                                                    ? 'text-orange-400 hover:text-orange-600 hover:bg-orange-50'
+                                                    : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50'}`}
+                                                title={template.isArchived ? t.unarchiveAction : t.archiveAction}
+                                            >
+                                                <Archive className="w-4 h-4" />
+                                            </button>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -595,34 +604,38 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                 )}
                             </div>
                             <div className="flex items-center gap-3 shrink-0">
-                                {isEditingInPreview ? (
-                                    <button
-                                        onClick={handleSaveEdits}
-                                        disabled={isSaving}
-                                        className="flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-bold shadow-sm transition-all"
-                                    >
-                                        {isSaving ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Copy className="w-4 h-4 mr-2" />}
-                                        {isSaving ? `${t.save}...` : t.save}
-                                    </button>
-                                ) : (
-                                    <button
-                                        onClick={handleEditToggle}
-                                        className="flex items-center px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm font-bold shadow-sm transition-all"
-                                    >
-                                        <Edit2 className="w-4 h-4 mr-2" />
-                                        {t.editBtn}
-                                    </button>
+                                {previewTemplate.source !== 'CIB' && (
+                                    <>
+                                        {isEditingInPreview ? (
+                                            <button
+                                                onClick={handleSaveEdits}
+                                                disabled={isSaving}
+                                                className="flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-bold shadow-sm transition-all"
+                                            >
+                                                {isSaving ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Copy className="w-4 h-4 mr-2" />}
+                                                {isSaving ? `${t.save}...` : t.save}
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={handleEditToggle}
+                                                className="flex items-center px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm font-bold shadow-sm transition-all"
+                                            >
+                                                <Edit2 className="w-4 h-4 mr-2" />
+                                                {t.editBtn}
+                                            </button>
+                                        )}
+                                        <div className="w-px h-6 bg-gray-200 dark:bg-slate-700 mx-1"></div>
+                                        <button
+                                            onClick={() => handleArchive(previewTemplate, !previewTemplate.isArchived)}
+                                            className={`p-2 rounded-lg transition-colors ${previewTemplate.isArchived
+                                                ? 'text-orange-400 hover:text-orange-600 hover:bg-orange-50'
+                                                : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50'}`}
+                                            title={previewTemplate.isArchived ? t.unarchiveAction : t.archiveAction}
+                                        >
+                                            <Archive className="w-4 h-4" />
+                                        </button>
+                                    </>
                                 )}
-                                <div className="w-px h-6 bg-gray-200 dark:bg-slate-700 mx-1"></div>
-                                <button
-                                    onClick={() => handleArchive(previewTemplate, !previewTemplate.isArchived)}
-                                    className={`p-2 rounded-lg transition-colors ${previewTemplate.isArchived
-                                        ? 'text-orange-400 hover:text-orange-600 hover:bg-orange-50'
-                                        : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50'}`}
-                                    title={previewTemplate.isArchived ? t.unarchiveAction : t.archiveAction}
-                                >
-                                    <Archive className="w-4 h-4" />
-                                </button>
                                 <button
                                     onClick={() => setPreviewTemplate(null)}
                                     className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
@@ -714,14 +727,28 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                                         </div>
                                                     ) : (
                                                         <div className="font-serif text-sm leading-relaxed text-justify whitespace-pre-wrap text-slate-800 dark:text-slate-200 antialiased" style={{ textAlign: 'justify' }}>
-                                                            {(section.content || '').split(/(\[placeholder:[a-z0-9_]+\])/g).map((part, i) => {
-                                                                const match = part.match(/\[placeholder:([a-z0-9_]+)\]/);
+                                                            {(section.content || '').split(/(\[placeholder:[a-zA-Z0-9_]+\])/g).map((part, i) => {
+                                                                const match = part.match(/\[placeholder:([a-zA-Z0-9_]+)\]/);
                                                                 if (match) {
                                                                     const placeholderId = match[1];
                                                                     const p = section.placeholders?.find(ph => ph.id === placeholderId);
+                                                                    
+                                                                    // Use the placeholder definition if found, otherwise render a fallback badge
                                                                     if (p) return renderPlaceholder(p);
+                                                                    
+                                                                    // Fallback: render as badge even if metadata is missing
+                                                                    const fallbackLabel = placeholderId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                                                                    return (
+                                                                        <span
+                                                                            key={`${section.id}-fallback-${i}`}
+                                                                            className="inline-flex items-center px-2 py-1 rounded-md bg-brand-50/50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 border border-brand-100 dark:border-brand-800 text-[10px] font-bold mx-1 align-middle opacity-80"
+                                                                            title={`Placeholder: ${placeholderId}`}
+                                                                        >
+                                                                            {fallbackLabel}
+                                                                        </span>
+                                                                    );
                                                                 }
-                                                                return <span key={`${section.id}-part-${i}`}>{part}</span>;
+                                                                return <span key={`${section.id}-part-${part.length}-${i}`}>{part}</span>;
                                                             })}
                                                         </div>
                                                     )}
@@ -777,9 +804,12 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                     type="text"
                                     value={newName}
                                     onChange={(e) => setNewName(e.target.value)}
-                                    className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-950 focus:ring-2 focus:ring-brand-500 outline-none transition-all"
+                                    className={`w-full px-4 py-2 rounded-lg border ${templates.some(t => t.name.toLowerCase() === newName.toLowerCase() && newName.length > 0) ? 'border-red-500 bg-red-50 dark:bg-red-900/10' : 'border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-950'} focus:ring-2 focus:ring-brand-500 outline-none transition-all`}
                                     placeholder={t.newNamePlaceholder}
                                 />
+                                {templates.some(t => t.name.toLowerCase() === newName.toLowerCase() && newName.length > 0) && (
+                                    <p className="text-xs text-red-500 mt-1 font-medium">{t.templateNameExists}</p>
+                                )}
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t.newDescLabel}</label>
@@ -804,7 +834,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                             </div>
                             <div className="pt-4 border-t border-gray-100 dark:border-slate-800">
                                 <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">{t.startFromFileLabel}</label>
-                                <div className="flex flex-col gap-3">
+                                <div className="border-2 border-dashed border-gray-300 dark:border-slate-700 rounded-xl p-6 text-center hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors relative cursor-pointer group">
                                     <input
                                         type="file"
                                         accept=".pdf,.docx"
@@ -816,11 +846,24 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                                 setNewName(cleanName);
                                             }
                                         }}
-                                        className="text-xs file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 dark:file:bg-slate-800 dark:file:text-slate-300"
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                                     />
-                                    <p className="text-[10px] text-slate-500 italic">
-                                        {t.geminiAnalysisDesc}
-                                    </p>
+                                    <div className="flex flex-col items-center pointer-events-none group-hover:scale-105 transition-transform">
+                                        <div className="w-10 h-10 bg-brand-50 dark:bg-brand-900/20 rounded-full flex items-center justify-center mb-3 text-brand-600 dark:text-brand-400">
+                                            <Upload className="w-5 h-5" />
+                                        </div>
+                                        {selectedFile ? (
+                                            <>
+                                                <p className="text-brand-600 dark:text-brand-400 font-bold text-sm truncate max-w-full px-4">{selectedFile.name}</p>
+                                                <p className="text-slate-500 text-xs mt-1 max-w-xs mx-auto">{t.geminiAnalysisDesc}</p>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <p className="text-slate-900 dark:text-white font-medium text-sm">{t.uploadFile}</p>
+                                                <p className="text-slate-500 text-xs mt-1 max-w-xs mx-auto">{t.geminiAnalysisDesc}</p>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>

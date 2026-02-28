@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Save, Download, FileText, Check, ChevronRight, Wand2, ArrowLeft, Eye, Undo, Redo, MoreHorizontal, Trash2, Plus, X, ListChecks, Maximize2, Split, ArrowUp, ArrowDown, ArrowRight, ExternalLink, Edit2, RefreshCw, AlertCircle } from 'lucide-react';
-import { Language, DocumentSection, PlaceholderSuggestion, Dossier } from '../types';
+import { Language, DocumentSection, PlaceholderSuggestion, Dossier, DossierStatus } from '../types';
 import { TRANSLATIONS, MOCK_SECTIONS } from '../constants';
 import { api } from '../services/api';
 
@@ -56,6 +56,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                 setDossier({
                     id: ver.dossier_ui_id || ver.ui_id,
                     name: "Verkoopovereenkomst",
+                    status: ver.dossier_status,
                     documents: ver.dossier_documents || []
                 } as any);
 
@@ -86,8 +87,10 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
 
     // Save on Change (Debounced or explicit)
     // For simplicity in this demo, we save when sections change but maybe we should add a save button
+    const isArchived = dossier?.status === DossierStatus.ARCHIVED;
+
     const handleSave = async (updatedSections?: DocumentSection[]) => {
-        if (!id || !isInitialized) return;
+        if (!id || !isInitialized || isArchived) return;
         try {
             await api.updateVersion(id, updatedSections || sections);
             // Show some success toast maybe
@@ -102,6 +105,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     const progress = Math.round((approvedPlaceholders / totalPlaceholders) * 100);
 
     const toggleApproveSection = (sectionId: string) => {
+        if (isArchived) return;
         const updatedSections = sections.map(s => {
             if (s.id === sectionId) {
                 const newApprovedState = !s.isApproved;
@@ -118,12 +122,14 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     };
 
     const removeSection = (sectionId: string) => {
+        if (isArchived) return;
         if (window.confirm(t.deleteSectionConfirm)) {
             setSections(prev => prev.filter(s => s.id !== sectionId));
         }
     };
 
     const addSection = () => {
+        if (isArchived) return;
         const newId = `section-${Date.now()}`;
         setSections(prev => [
             ...prev,
@@ -138,6 +144,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     };
 
     const moveSection = (index: number, direction: 'up' | 'down') => {
+        if (isArchived) return;
         if (direction === 'up' && index === 0) return;
         if (direction === 'down' && index === sections.length - 1) return;
 
@@ -148,6 +155,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     };
 
     const toggleApprovePlaceholder = (sectionId: string, placeholderId: string) => {
+        if (isArchived) return;
         const updatedSections = sections.map(s => {
             if (s.id !== sectionId) return s;
             return {
@@ -160,6 +168,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     };
 
     const updatePlaceholderValue = async (sectionId: string, placeholderId: string, newValue: string) => {
+        if (isArchived) return;
         const updatedSections = sections.map(s => {
             if (s.id !== sectionId) return s;
             return {
@@ -349,6 +358,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     };
 
     const handleContentEdit = async (sectionId: string, newContent: string) => {
+        if (isArchived) return;
         const updatedSections = sections.map(s => s.id === sectionId ? { ...s, content: newContent } : s);
         setSections(updatedSections);
 
@@ -362,6 +372,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     };
 
     const handleTitleEdit = (sectionId: string, newTitle: string) => {
+        if (isArchived) return;
         setSections(prev => prev.map(s => s.id === sectionId ? { ...s, title: newTitle } : s));
     };
 
@@ -429,7 +440,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                     }
                 `}
                 contentEditable={false}
-                onDoubleClick={() => setEditingPlaceholder({ sectionId: section.id, placeholderId: p.id })}
+                onDoubleClick={() => !isArchived && setEditingPlaceholder({ sectionId: section.id, placeholderId: p.id })}
             >
                 {/* The Value */}
                 <span className="text-sm font-bold flex items-center gap-1">
@@ -454,15 +465,17 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                             >
                                 <Eye className="w-3.5 h-3.5 mr-1.5" /> {t.source}
                             </button>
-                            <button
-                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleApprovePlaceholder(section.id, p.id); }}
-                                className={`flex-1 flex items-center justify-center px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-all shadow-md active:scale-95
-                                    ${p.isApproved ? 'bg-red-500 hover:bg-red-600 shadow-red-500/10' : 'bg-green-600 hover:bg-green-700 shadow-green-500/10'}
-                                `}
-                            >
-                                {p.isApproved ? <X className="w-3.5 h-3.5 mr-1.5" /> : <Check className="w-3.5 h-3.5 mr-1.5" />}
-                                {p.isApproved ? t.reject : t.approve}
-                            </button>
+                            {!isArchived && (
+                                <button
+                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleApprovePlaceholder(section.id, p.id); }}
+                                    className={`flex-1 flex items-center justify-center px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-all shadow-md active:scale-95
+                                        ${p.isApproved ? 'bg-red-500 hover:bg-red-600 shadow-red-500/10' : 'bg-green-600 hover:bg-green-700 shadow-green-500/10'}
+                                    `}
+                                >
+                                    {p.isApproved ? <X className="w-3.5 h-3.5 mr-1.5" /> : <Check className="w-3.5 h-3.5 mr-1.5" />}
+                                    {p.isApproved ? t.reject : t.approve}
+                                </button>
+                            )}
                         </div>
                         <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-white dark:border-t-slate-900"></div>
                     </div>
@@ -505,10 +518,12 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                     <button onClick={() => onBack(dossier?.id)} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-500">
                         <ArrowLeft className="w-5 h-5" />
                     </button>
-                    <button onClick={handleSave} className="flex items-center px-3 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded-lg text-sm font-bold transition-all border border-brand-200">
-                        <Save className="w-4 h-4 mr-2" />
-                        {t.save}
-                    </button>
+                    {!isArchived && (
+                        <button onClick={handleSave} className="flex items-center px-3 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded-lg text-sm font-bold transition-all border border-brand-200">
+                            <Save className="w-4 h-4 mr-2" />
+                            {t.save}
+                        </button>
+                    )}
                     <div className="flex items-center gap-2">
                         <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-1 mr-2">
                             <button
@@ -587,7 +602,8 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                             <div key={section.id} className="group/section relative border border-transparent hover:border-dashed hover:border-blue-400 rounded-xl p-6 -m-6 transition-all hover:bg-blue-50/50 dark:hover:bg-blue-900/10">
 
                                                 {/* Floating Actions */}
-                                                <div className="absolute -top-3 -right-2 flex gap-1 opacity-0 group-hover/section:opacity-100 transition-all bg-white dark:bg-slate-900 shadow-lg border border-gray-100 dark:border-slate-700 rounded-lg p-1 scale-90 hover:scale-100 z-10">
+                                                {!isArchived && (
+                                                    <div className="absolute -top-3 -right-2 flex gap-1 opacity-0 group-hover/section:opacity-100 transition-all bg-white dark:bg-slate-900 shadow-lg border border-gray-100 dark:border-slate-700 rounded-lg p-1 scale-90 hover:scale-100 z-10">
                                                     <button onClick={() => moveSection(globalIndex, 'up')} disabled={globalIndex === 0} className="p-1.5 text-slate-400 hover:text-brand-500 disabled:opacity-30 rounded hover:bg-gray-50">
                                                         <ArrowUp className="w-4 h-4" />
                                                     </button>
@@ -604,11 +620,12 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                                         <Trash2 className="w-4 h-4" />
                                                     </button>
                                                 </div>
+                                                )}
 
                                                 {/* Editable Title */}
                                                 <div
-                                                    className="font-bold text-lg mb-3 uppercase flex items-center border-b border-gray-100 dark:border-slate-800 pb-2 outline-none focus:border-brand-300"
-                                                    contentEditable
+                                                    className={`font-bold text-lg mb-3 uppercase flex items-center border-b border-gray-100 dark:border-slate-800 pb-2 outline-none ${!isArchived ? 'focus:border-brand-300' : ''}`}
+                                                    contentEditable={!isArchived}
                                                     suppressContentEditableWarning
                                                     onBlur={(e) => handleTitleEdit(section.id, e.currentTarget.innerText)}
                                                 >
@@ -618,8 +635,8 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
 
                                                 {/* Editable Content Area */}
                                                 <div
-                                                    className="text-base text-justify text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-brand-100 rounded p-1 -ml-1 min-h-[1.5em] whitespace-pre-wrap"
-                                                    contentEditable={!editingPlaceholder}
+                                                    className={`text-base text-justify text-slate-700 dark:text-slate-300 outline-none rounded p-1 -ml-1 min-h-[1.5em] whitespace-pre-wrap ${!isArchived ? 'focus:ring-2 focus:ring-brand-100' : ''}`}
+                                                    contentEditable={!editingPlaceholder && !isArchived}
                                                     suppressContentEditableWarning
                                                     onBlur={(e) => handleContentBlur(section.id, e)}
                                                 >
@@ -646,15 +663,17 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                         ))}
 
                         {/* Add Section Button */}
-                        <div className="flex justify-center py-8 opacity-40 hover:opacity-100 transition-opacity">
-                            <button
-                                onClick={addSection}
-                                className="flex items-center px-6 py-3 bg-white dark:bg-slate-800 rounded-full text-slate-500 hover:text-brand-500 text-sm border-2 border-dashed border-slate-300 hover:border-brand-400 hover:shadow-md transition-all"
-                            >
-                                <Plus className="w-4 h-4 mr-2" />
-                                {t.addSectionBtn || 'Voeg nieuwe sectie toe'}
-                            </button>
-                        </div>
+                        {!isArchived && (
+                            <div className="flex justify-center py-8 opacity-40 hover:opacity-100 transition-opacity">
+                                <button
+                                    onClick={addSection}
+                                    className="flex items-center px-6 py-3 bg-white dark:bg-slate-800 rounded-full text-slate-500 hover:text-brand-500 text-sm border-2 border-dashed border-slate-300 hover:border-brand-400 hover:shadow-md transition-all"
+                                >
+                                    <Plus className="w-4 h-4 mr-2" />
+                                    {t.addSectionBtn || 'Voeg nieuwe sectie toe'}
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
 

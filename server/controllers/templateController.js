@@ -33,7 +33,13 @@ const fetchFullTemplateContent = async (template_id) => {
 const templateController = {
     getAllTemplates: async (req, res) => {
         try {
-            const [rows] = await pool.query('SELECT * FROM Template ORDER BY created_at DESC');
+            // Filter: Own custom templates OR official CIB templates (system-wide)
+            const [rows] = await pool.query(`
+                SELECT * FROM Template 
+                WHERE (source = 'CIB') 
+                OR (account_id = ? AND source = 'Custom')
+                ORDER BY created_at DESC
+            `, [req.user.id]);
 
             const templates = rows.map((row) => {
                 return {
@@ -59,8 +65,8 @@ const templateController = {
     getTemplateById: async (req, res) => {
         const { id } = req.params;
         try {
-            const [rows] = await pool.query('SELECT * FROM Template WHERE template_id = ?', [id]);
-            if (rows.length === 0) return res.status(404).json({ error: 'Template niet gevonden' });
+            const [rows] = await pool.query('SELECT * FROM Template WHERE template_id = ? AND (source = "CIB" OR account_id = ?)', [id, req.user.id]);
+            if (rows.length === 0) return res.status(404).json({ error: 'Template niet gevonden of geen toegang' });
             const row = rows[0];
             const sections = await fetchFullTemplateContent(row.template_id);
             res.json({
@@ -82,6 +88,12 @@ const templateController = {
         const { id } = req.params;
         const { name, description, sections, title } = req.body;
         try {
+            // Check ownership
+            const [check] = await pool.query('SELECT account_id, source FROM Template WHERE template_id = ?', [id]);
+            if (check.length === 0) return res.status(404).json({ error: 'Template niet gevonden' });
+            if (check[0].source === 'CIB') return res.status(403).json({ error: 'System templates kunnen niet worden bewerkt' });
+            if (check[0].account_id !== req.user.id) return res.status(403).json({ error: 'Geen toegang tot deze template' });
+
             await pool.query(
                 'UPDATE Template SET naam = COALESCE(?, naam), titel = COALESCE(?, titel), beschrijving = COALESCE(?, beschrijving) WHERE template_id = ?',
                 [name, title, description, id]
@@ -141,7 +153,23 @@ const templateController = {
     },
 
     createTemplate: async (req, res) => {
+        // Set a long timeout so large templates (e.g. 50 pages) won't crash the request midway
+        if (req.setTimeout) req.setTimeout(0);
+        if (res.setTimeout) res.setTimeout(0);
+
         const { name, title, description, source } = req.body;
+
+        // Check for duplicate name (within user's own templates OR CIB)
+        if (name) {
+            const [existing] = await pool.query(
+                'SELECT template_id FROM Template WHERE naam = ? AND (source = "CIB" OR account_id = ?)', 
+                [name, req.user.id]
+            );
+            if (existing.length > 0) {
+                return res.status(400).json({ error: 'Een template met deze naam bestaat al.' });
+            }
+        }
+
         let sections = req.body.sections;
         if (typeof sections === 'string') {
             try { sections = JSON.parse(sections); } catch (e) { sections = null; }
@@ -149,19 +177,40 @@ const templateController = {
         try {
             console.log('--- Template Creation Started ---');
             if (req.file) {
-                const { extractTextFromPDF, analyzeTemplate } = require('../services/aiService');
+                const { extractTextFromPDF, extractTextFromDOCX, analyzeTemplate } = require('../services/aiService');
                 const filePath = path.join(__dirname, '..', 'uploads', req.file.filename);
-                const text = await extractTextFromPDF(filePath);
+                const ext = path.extname(req.file.originalname).toLowerCase();
+                
+                let text = '';
+                try {
+                    if (ext === '.pdf') {
+                        text = await extractTextFromPDF(filePath);
+                    } else if (ext === '.docx') {
+                        text = await extractTextFromDOCX(filePath);
+                    } else {
+                        console.warn(`Unsupported file extension: ${ext}`);
+                    }
+                } catch (err) {
+                    console.error(`Extraction failed: ${err.message}`);
+                }
+
                 if (text && text.trim().length > 0) {
+                    console.log(`Extracted ${text.length} characters. Analyzing template...`);
                     const [libraryPlaceholders] = await pool.query('SELECT sleutel, beschrijving, type FROM Placeholder_Library');
                     const aiSections = await analyzeTemplate(text, libraryPlaceholders, req.body.custom_template_prompt || null);
-                    if (aiSections && aiSections.length > 0) sections = aiSections;
+                    if (aiSections && aiSections.length > 0) {
+                        sections = aiSections;
+                    } else {
+                        console.warn('AI returned no sections for the template.');
+                    }
+                } else {
+                    console.warn('No text could be extracted from the uploaded file.');
                 }
             }
             const defaultName = req.file ? req.file.originalname.replace('.pdf', '') : 'Unnamed Template';
             const [result] = await pool.query(
-                'INSERT INTO Template (naam, titel, beschrijving, source) VALUES (?, ?, ?, ?)',
-                [name || defaultName, title || name || defaultName, description || '', source || 'Custom']
+                'INSERT INTO Template (naam, titel, beschrijving, source, account_id) VALUES (?, ?, ?, ?, ?)',
+                [name || defaultName, title || name || defaultName, description || '', source || 'Custom', req.user.id]
             );
             const templateId = result.insertId;
             if (sections && Array.isArray(sections)) {
@@ -193,7 +242,20 @@ const templateController = {
                     }
                 }
             }
-            res.status(201).json({ message: 'Template aangemaakt', template: { id: templateId.toString() } });
+            res.status(201).json({ 
+                message: 'Template aangemaakt', 
+                template: { 
+                    id: templateId.toString(),
+                    name: name || defaultName,
+                    title: title || name || defaultName,
+                    description: description || '',
+                    source: source || 'Custom',
+                    type: req.body.type || 'House',
+                    sections: sections || [],
+                    isArchived: false,
+                    isAiSuggested: false
+                } 
+            });
         } catch (error) {
             console.error('Template Creation Error:', error);
             res.status(500).json({ error: error.message });
@@ -203,6 +265,12 @@ const templateController = {
     deleteTemplate: async (req, res) => {
         const { id } = req.params;
         try {
+            // Check ownership
+            const [check] = await pool.query('SELECT account_id, source FROM Template WHERE template_id = ?', [id]);
+            if (check.length === 0) return res.status(404).json({ error: 'Template niet gevonden' });
+            if (check[0].source === 'CIB') return res.status(403).json({ error: 'System templates kunnen niet worden verwijderd' });
+            if (check[0].account_id !== req.user.id) return res.status(403).json({ error: 'Geen toegang' });
+
             await pool.query('DELETE FROM Template WHERE template_id = ?', [id]);
             res.json({ message: 'Template verwijderd' });
         } catch (error) {
@@ -215,6 +283,12 @@ const templateController = {
         const { id } = req.params;
         const { is_archived } = req.body;
         try {
+            // Check ownership
+            const [check] = await pool.query('SELECT account_id, source FROM Template WHERE template_id = ?', [id]);
+            if (check.length === 0) return res.status(404).json({ error: 'Template niet gevonden' });
+            if (check[0].source === 'CIB') return res.status(403).json({ error: 'System templates kunnen niet worden gearchiveerd' });
+            if (check[0].account_id !== req.user.id) return res.status(403).json({ error: 'Geen toegang' });
+
             await pool.query('UPDATE Template SET is_archived = ? WHERE template_id = ?', [is_archived, id]);
             res.json({ message: 'Template status bijgewerkt' });
         } catch (error) {

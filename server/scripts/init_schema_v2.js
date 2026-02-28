@@ -52,6 +52,7 @@ async function initSchema() {
     await pool.query(`
         CREATE TABLE Template (
             template_id INT AUTO_INCREMENT PRIMARY KEY,
+            account_id INT NULL,
             naam VARCHAR(255),
             titel VARCHAR(255),
             auteur VARCHAR(255),
@@ -63,7 +64,8 @@ async function initSchema() {
             source VARCHAR(50) DEFAULT 'Custom',
             type VARCHAR(50) DEFAULT 'House',
             ui_id VARCHAR(50) UNIQUE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (account_id) REFERENCES Account(account_id) ON DELETE CASCADE
         )
     `);
 
@@ -194,6 +196,7 @@ async function initSchema() {
             validatiestatus VARCHAR(50),
             bron_text TEXT NULL,
             pagina_nummer INT NULL,
+            UNIQUE (dossier_id, placeholder_id),
             FOREIGN KEY (dossier_id) REFERENCES Dossier(dossier_id) ON DELETE CASCADE,
             FOREIGN KEY (placeholder_id) REFERENCES Placeholder_Library(placeholder_id) ON DELETE CASCADE,
             FOREIGN KEY (aangepaste_sectie_id) REFERENCES VersieSectie(aangepaste_sectie_id) ON DELETE CASCADE,

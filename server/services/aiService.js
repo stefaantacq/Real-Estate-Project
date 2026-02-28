@@ -19,6 +19,8 @@ const extractTextFromPDF = async (filePath) => {
         const data = await pdf(dataBuffer);
         return data.text;
     } catch (error) {
+        console.error(`Error extracting text from PDF (${filePath}):`, error);
+        throw error;
     }
 };
 
@@ -109,63 +111,154 @@ const analyzeTemplate = async (text, libraryPlaceholders, customPrompt = null) =
         ? `\nADDITIONAL USER INSTRUCTION: ${customPrompt}\n`
         : '';
 
-    const prompt = `
+    const getPrompt = (chunkText) => `
         You are an AI assistant for a Belgian real estate platform.
-        Your task is to analyze the provided template text and structure it into sections.
+        Your task is to analyze the provided template text chunk and structure it into sections.
         
-        TEMPLATE TEXT:
+        TEMPLATE TEXT CHUNK:
         ---
-        ${text}
+        ${chunkText}
         ---
 
         AVAILABLE PLACEHOLDERS FROM LIBRARY:
         ${placeholderList}
 
         INSTRUCTIONS:
-        1. IDENTIFY SECTIONS: Look for natural divisions in the text. Usually, these start with an UPPERCASE title (e.g., "BESCHRIJVING VAN HET GOED:") or a numbered title (e.g., "1° Toestand"). 
-        2. CAPTURE TITLES: For each section, extract the exact title found in the text. DO NOT return an empty title.
-        3. REFLOW TEXT: The input text may have hard line breaks from PDF extraction. Remove these and REFLOW the text into clean, justified paragraphs. Preserving the flow is critical for "Word-like" justification.
-        4. TABS & SPACES: Preserve indentation and tab-like spacing where it appears significant (e.g., in lists or specific aligned data). Use spaces or \t as necessary.
-        5. LISTS: Inspect the text for numbered lists (e.g. 1. or 1° or a)) or bullet points. Format these as PLAIN TEXT with line breaks (\n) before each item. Do NOT use HTML <ul> or <ol> tags. Ensure there is NO empty line between list items (single spacing).
-        6. MAP PLACEHOLDERS: Look for spots where data should be filled in. This includes:
-           - Explicit marks: Dotted lines (.......), bracketed text ([naam]), or blanks.
-           - Filled Personal Data (GENERALIZATION): If the document appears to be a filled-in contract, identify specific personal information that should be variable. For example: names of parties, birth dates, birth places, addresses of parties, and the property address.
-        6. USE LIBRARY KEYS: Replace those spots with the exact placeholder tag from the library in the format [placeholder:sleutel].
-        7. SUGGEST NEW KEYS: If you find a data spot that is NOT in the library (e.g., a specific birth date like "17 juni 1931"), but it definitely should be a placeholder, INVENT a descriptive English key for it (e.g., "seller_birth_date") and use it as [placeholder:seller_birth_date].
-        8. STRUCTURE: Return a JSON array of sections. Each section must have a "title", "content" (the full text of that section with tags inserted), and a "placeholders" array containing information about the tags used in that section.
-        9. OUTPUT FORMAT:
+        1. IDENTIFY SECTIONS: Look for natural divisions in the text. Usually, these start with an UPPERCASE title (e.g., "BESCHRIJVING VAN HET GOED:") or a numbered title (e.g., "1° Toestand"). If no clear title exists, group the text logically.
+        2. CAPTURE TITLES: For each section, extract the exact title found in the text. If there is no clear title, invent a short, descriptive one.
+        3. TABLES & FORMATTING: If you encounter tables, lists, or complex formatting, convert them into a structured, readable text format (bullet points, clear indentation). DO NOT OMIT CONTENT. Ensure every part of the template text is included in one of the sections.
+        4. REFLOW TEXT: The input text may have hard line breaks from PDF extraction. Remove these and REFLOW the text into clean paragraphs.
+        5. TABS & SPACES: Preserve indentation and tab-like spacing where it appears significant.
+        6. LISTS: Format numbered lists or bullet points as PLAIN TEXT with line breaks. Do NOT use HTML tags.
+        7. MAP PLACEHOLDERS (CRITICAL): Identify all locations where data must be filled in. These are often marked by:
+           - Dotted lines (e.g., "............", ".............")
+           - Underscores (e.g., "__________")
+           - Empty brackets or parentheses (e.g., "[ ]", "( )")
+           - Colons followed by a blank space (e.g., "Naam: ")
+           - Specific personal data in a filled document that should be generic (names, dates, etc.)
+        8. REPLACE WITH TAGS: ALWAYS remove the dotted lines (".......") or underscores and replace them with the exact matching tag from the library in the format [placeholder:sleutel]. 
+        9. SUGGEST NEW KEYS: If you find a dotted line (".......") for a data spot NOT in the library (e.g., "BIV-Nr: ........"), INVENT a descriptive English key for it (e.g., "agent_biv_number"). ALWAYS use lowercase snake_case and use [placeholder:agent_biv_number].
+        10. POPULATE METADATA: For every [placeholder:sleutel] tag you insert into the content, you MUST include a corresponding object in the "placeholders" array for that section.
+        10. STRUCTURE: Return a JSON array of sections. Each section must have "title", "content" (full text of section with tags), and "placeholders" array.
+        11. OUTPUT FORMAT:
            [
              {
                "title": "Exact Title from PDF",
                "content": "Full section text with [placeholder:sleutel] tags",
                "placeholders": [
-                 { "id": "sleutel", "label": "Descriptive Label", "type": "text/date/etc" }
+                 { "id": "sleutel", "label": "Descriptive Label", "type": "text" }
                ]
              }
            ]
-        10. Only return the JSON object, nothing else.
+        12. Only return the JSON object, nothing else.
 
         ${userInstruction}
     `;
 
     try {
-        console.log(`Analyzing template with Gemini... Text length: ${text?.length || 0}`);
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const textResponse = response.text();
-        console.log('Gemini raw response length:', textResponse?.length || 0);
-        fs.writeFileSync('debug_raw_response.txt', textResponse);
+        console.log(`Analyzing template... Total text length: ${text?.length || 0}`);
+        
+        // Robust chunking logic to allow massive templates up to 50 pages
+        // We split by double newlines, but if a block is still too big, we split further.
+        const CHUNK_SIZE = 12000;
+        let blocks = (text || '').split(/\n\s*\n/);
+        
+        // Final chunks array
+        const chunks = [];
+        let currentChunk = '';
 
-        let jsonText = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
-        const firstBracket = jsonText.indexOf('[');
-        const lastBracket = jsonText.lastIndexOf(']');
-        if (firstBracket !== -1 && lastBracket !== -1) {
-            jsonText = jsonText.substring(firstBracket, lastBracket + 1);
+        for (let block of blocks) {
+            // Trim block to avoid whitespace issues
+            block = block.trim();
+            if (!block) continue;
+
+            // If the block itself is larger than CHUNK_SIZE, we must split it further (e.g. by single newlines)
+            if (block.length > CHUNK_SIZE) {
+                const subBlocks = block.split('\n');
+                for (const sb of subBlocks) {
+                    if (currentChunk.length + sb.length > CHUNK_SIZE && currentChunk.length > 0) {
+                        chunks.push(currentChunk.trim());
+                        currentChunk = sb + '\n';
+                    } else {
+                        currentChunk += sb + '\n';
+                    }
+                    
+                    // Safety valve: if a single line is STILL > CHUNK_SIZE, split by chars
+                    if (currentChunk.length > CHUNK_SIZE) {
+                        chunks.push(currentChunk.slice(0, CHUNK_SIZE).trim());
+                        currentChunk = currentChunk.slice(CHUNK_SIZE) + '\n';
+                    }
+                }
+            } else {
+                if (currentChunk.length + block.length > CHUNK_SIZE && currentChunk.length > 0) {
+                    chunks.push(currentChunk.trim());
+                    currentChunk = block + '\n\n';
+                } else {
+                    currentChunk += block + '\n\n';
+                }
+            }
+        }
+        if (currentChunk.trim().length > 0) chunks.push(currentChunk.trim());
+
+        console.log(`Split template into ${chunks.length} chunks. Total length: ${text?.length || 0}`);
+
+        let allSections = [];
+        
+        for (let i = 0; i < chunks.length; i++) {
+            console.log(`Analyzing chunk ${i + 1}/${chunks.length}... Size: ${chunks[i].length} chars`);
+            try {
+                const prompt = getPrompt(chunks[i]);
+                const result = await model.generateContent(prompt);
+                const response = await result.response;
+                const textResponse = response.text();
+                
+                if (!textResponse) {
+                    console.warn(`Empty response from Gemini for chunk ${i+1}`);
+                    continue;
+                }
+
+                let jsonText = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
+                const firstBracket = jsonText.indexOf('[');
+                const lastBracket = jsonText.lastIndexOf(']');
+                
+                if (firstBracket !== -1 && lastBracket !== -1) {
+                    jsonText = jsonText.substring(firstBracket, lastBracket + 1);
+                } else {
+                    console.warn(`No JSON array found in Gemini response for chunk ${i+1}. Raw response started with: ${textResponse.substring(0, 50)}`);
+                    continue;
+                }
+                
+                const parsed = JSON.parse(jsonText);
+                if (Array.isArray(parsed)) {
+                    console.log(`Chunk ${i+1} returned ${parsed.length} sections.`);
+                    allSections = allSections.concat(parsed);
+                } else {
+                    console.warn(`Chunk ${i+1} did not return an array.`);
+                }
+            } catch (e) {
+                console.error(`Error processing chunk ${i + 1}:`, e.message);
+                // Log partial error but keep going
+            }
+            
+            // Delay to respect rate limits
+            if (i < chunks.length - 1) {
+                await new Promise(r => setTimeout(r, 2000));
+            }
         }
 
-        const parsed = JSON.parse(jsonText);
-        console.log(`Successfully parsed ${parsed?.length || 0} sections.`);
-        return parsed;
+        console.log(`Total sections extracted: ${allSections.length}`);
+
+        // Fallback: If no sections were extracted but text exists, create a default section
+        if (allSections.length === 0 && text && text.trim().length > 0) {
+            console.log('Using fallback: Creating a single section with extracted text.');
+            allSections.push({
+                title: 'Geïmporteerde Inhoud',
+                content: text.trim(),
+                placeholders: []
+            });
+        }
+
+        return allSections;
     } catch (error) {
         console.error('Error analyzing template with Gemini:', error);
         return [];
