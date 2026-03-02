@@ -38,6 +38,34 @@ const extractTextFromDOCX = async (filePath) => {
 };
 
 /**
+ * Helper to call Gemini with exponential backoff retry logic.
+ */
+const callGeminiWithRetry = async (prompt, maxRetries = 3) => {
+    let lastError;
+    for (let i = 0; i <= maxRetries; i++) {
+        try {
+            if (i > 0) {
+                const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                console.log(`Retry ${i}/${maxRetries} for Gemini call. Waiting ${Math.round(delay)}ms...`);
+                await new Promise(r => setTimeout(r, delay));
+            }
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            return response.text();
+        } catch (error) {
+            lastError = error;
+            const isRateLimit = error.message?.includes('429') || error.status === 429 || error.message?.includes('Resource exhausted');
+            
+            if (!isRateLimit || i === maxRetries) {
+                throw error;
+            }
+            console.warn(`Gemini Rate Limit hit (429). Retrying... (${i + 1}/${maxRetries})`);
+        }
+    }
+    throw lastError;
+};
+
+/**
  * Analyzes document text to extract real estate data.
  */
 const analyzeDocument = async (text, fieldNames, customPrompt = null, fieldContexts = []) => {
@@ -76,24 +104,31 @@ const analyzeDocument = async (text, fieldNames, customPrompt = null, fieldConte
     `;
 
     try {
-        console.log(`Sending prompt to Gemini (Model: gemini-1.5-flash)...`);
-        console.log('--- GEMINI PROMPT ---');
-        console.log(prompt);
-        console.log('--- END PROMPT ---');
+        console.log(`Sending prompt to Gemini...`);
+        
+        const textResponse = await callGeminiWithRetry(prompt);
 
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const textResponse = response.text();
+        console.log('--- GEMINI RESPONSE RECEIVED ---');
 
-        console.log('--- GEMINI RESPONSE ---');
-        console.log(textResponse);
-        console.log('--- END RESPONSE ---');
+        let jsonText = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
+        
+        // Final fallback: try to find the JSON structure if there's conversational noise
+        const firstBrace = jsonText.indexOf('{');
+        const lastBrace = jsonText.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace !== -1) {
+            jsonText = jsonText.substring(firstBrace, lastBrace + 1);
+        }
 
-        const jsonText = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
         return JSON.parse(jsonText);
     } catch (error) {
         console.error('Error analyzing document with Gemini:', error);
-        try { require('fs').appendFileSync('/tmp/dossier_debug.log', new Date().toISOString() + ' - Gemini Error: ' + error.message + '\n'); } catch(e){}
+        
+        // Log details to debug file
+        try { 
+            const logMsg = `[${new Date().toISOString()}] Gemini Error: ${error.message}${error.status ? ' (Status: '+error.status+')' : ''}\n`;
+            require('fs').appendFileSync('/tmp/dossier_debug.log', logMsg); 
+        } catch(e){}
+
         if (error.status === 404) {
             console.error('ERROR 404: The model was not found.');
         }
@@ -208,9 +243,7 @@ const analyzeTemplate = async (text, libraryPlaceholders, customPrompt = null) =
             console.log(`Analyzing chunk ${i + 1}/${chunks.length}... Size: ${chunks[i].length} chars`);
             try {
                 const prompt = getPrompt(chunks[i]);
-                const result = await model.generateContent(prompt);
-                const response = await result.response;
-                const textResponse = response.text();
+                const textResponse = await callGeminiWithRetry(prompt);
                 
                 if (!textResponse) {
                     console.warn(`Empty response from Gemini for chunk ${i+1}`);
@@ -240,9 +273,9 @@ const analyzeTemplate = async (text, libraryPlaceholders, customPrompt = null) =
                 // Log partial error but keep going
             }
             
-            // Delay to respect rate limits
+            // Short delay between chunks to be safe, though retry handles 429
             if (i < chunks.length - 1) {
-                await new Promise(r => setTimeout(r, 2000));
+                await new Promise(r => setTimeout(r, 1000));
             }
         }
 
@@ -294,8 +327,7 @@ module.exports = {
     
     // Chat with context
     chatWithContext: async (messages, contextText) => {
-        try {
-            const systemPrompt = `You are a helpful AI assistant for a Belgian Real Estate platform.
+        const systemPrompt = `You are a helpful AI assistant for a Belgian Real Estate platform.
 You are helping the user with a specific real estate document (compromis/verkoopakte).
 
 CONTEXT FROM THE DOCUMENT AND ASSOCIATED FILES:
@@ -309,46 +341,58 @@ INSTRUCTIONS:
 3. Keep your answers concise, professional, and in Dutch (unless the user asks in another language).
 4. If you cannot find the answer in the context, politely inform the user.
 `;
-            
-            // Format messages for Gemini API
-            let historyMessages = messages.map(msg => ({
-                role: msg.role === 'user' ? 'user' : 'model',
-                parts: [{ text: msg.content }]
-            }));
-            
-            // Remove any leading 'model' messages (like the welcome greeting) because Gemini requires history to start with 'user'
-            while(historyMessages.length > 0 && historyMessages[0].role === 'model') {
-                 historyMessages.shift();
-            }
-
-            // The last message is what we send as the new prompt.
-            // The rest is history.
-            if (historyMessages.length === 0) {
-                 historyMessages.push({ role: 'user', parts: [{ text: 'Hello' }]});
-            }
-
-            // Inject the system context into the first user message in history
-            historyMessages[0].parts[0].text = systemPrompt + "\n\nUSER QUESTION/CONTEXT:\n" + historyMessages[0].parts[0].text;
-
-            const chat = model.startChat({
-                history: historyMessages.slice(0, -1), // all but the last message
-            });
-
-            const lastMessage = historyMessages[historyMessages.length - 1].parts[0].text;
-            const result = await chat.sendMessage(lastMessage);
-            const response = await result.response;
-            return response.text();
-            
-        } catch (error) {
-            console.error('Error in chatWithContext:', error);
-            throw error; // Throw the actual error
+        
+        // Format messages for Gemini API
+        let historyMessages = messages.map(msg => ({
+            role: msg.role === 'user' ? 'user' : 'model',
+            parts: [{ text: msg.content }]
+        }));
+        
+        // Remove any leading 'model' messages (like the welcome greeting) because Gemini requires history to start with 'user'
+        while(historyMessages.length > 0 && historyMessages[0].role === 'model') {
+             historyMessages.shift();
         }
+
+        // The last message is what we send as the new prompt.
+        // The rest is history.
+        if (historyMessages.length === 0) {
+             historyMessages.push({ role: 'user', parts: [{ text: 'Hello' }]});
+        }
+
+        // Inject the system context into the first user message in history
+        historyMessages[0].parts[0].text = systemPrompt + "\n\nUSER QUESTION/CONTEXT:\n" + historyMessages[0].parts[0].text;
+
+        const maxRetries = 3;
+        let lastError;
+        for (let i = 0; i <= maxRetries; i++) {
+            try {
+                if (i > 0) {
+                    const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                    console.log(`Retry ${i}/${maxRetries} for Gemini Chat. Waiting ${Math.round(delay)}ms...`);
+                    await new Promise(r => setTimeout(r, delay));
+                }
+
+                const chat = model.startChat({
+                    history: historyMessages.slice(0, -1),
+                });
+
+                const lastMessage = historyMessages[historyMessages.length - 1].parts[0].text;
+                const result = await chat.sendMessage(lastMessage);
+                const response = await result.response;
+                return response.text();
+            } catch (error) {
+                lastError = error;
+                const isRateLimit = error.message?.includes('429') || error.status === 429 || error.message?.includes('Resource exhausted');
+                if (!isRateLimit || i === maxRetries) throw error;
+                console.warn(`Gemini Chat Rate Limit (429). Retrying... (${i + 1}/${maxRetries})`);
+            }
+        }
+        throw lastError;
     },
 
     // Chat with context (streaming)
     streamChatWithContext: async (messages, contextText, onChunk) => {
-        try {
-            const systemPrompt = `You are a helpful AI assistant for a Belgian Real Estate platform.
+        const systemPrompt = `You are a helpful AI assistant for a Belgian Real Estate platform.
 You are helping the user with a specific real estate document (compromis/verkoopakte).
 
 CONTEXT FROM THE DOCUMENT AND ASSOCIATED FILES:
@@ -362,38 +406,57 @@ INSTRUCTIONS:
 3. Keep your answers concise, professional, and in Dutch (unless the user asks in another language).
 4. If you cannot find the answer in the context, politely inform the user.
 `;
-            
-            let historyMessages = messages.map(msg => ({
-                role: msg.role === 'user' ? 'user' : 'model',
-                parts: [{ text: msg.content }]
-            }));
-            
-            while(historyMessages.length > 0 && historyMessages[0].role === 'model') {
-                 historyMessages.shift();
-            }
-
-            if (historyMessages.length === 0) {
-                 historyMessages.push({ role: 'user', parts: [{ text: 'Hello' }]});
-            }
-
-            historyMessages[0].parts[0].text = systemPrompt + "\n\nUSER QUESTION/CONTEXT:\n" + historyMessages[0].parts[0].text;
-
-            const chat = model.startChat({
-                history: historyMessages.slice(0, -1),
-            });
-
-            const lastMessage = historyMessages[historyMessages.length - 1].parts[0].text;
-            
-            const result = await chat.sendMessageStream(lastMessage);
-            for await (const chunk of result.stream) {
-                const chunkText = chunk.text();
-                if (chunkText) {
-                    onChunk(chunkText);
-                }
-            }
-        } catch (error) {
-            console.error('Error in streamChatWithContext:', error);
-            throw error;
+        
+        let historyMessages = messages.map(msg => ({
+            role: msg.role === 'user' ? 'user' : 'model',
+            parts: [{ text: msg.content }]
+        }));
+        
+        while(historyMessages.length > 0 && historyMessages[0].role === 'model') {
+             historyMessages.shift();
         }
+
+        if (historyMessages.length === 0) {
+             historyMessages.push({ role: 'user', parts: [{ text: 'Hello' }]});
+        }
+
+        historyMessages[0].parts[0].text = systemPrompt + "\n\nUSER QUESTION/CONTEXT:\n" + historyMessages[0].parts[0].text;
+
+        const maxRetries = 3;
+        let lastError;
+        for (let i = 0; i <= maxRetries; i++) {
+            try {
+                if (i > 0) {
+                    const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                    console.log(`Retry ${i}/${maxRetries} for Gemini Stream Chat. Waiting ${Math.round(delay)}ms...`);
+                    await new Promise(r => setTimeout(r, delay));
+                }
+
+                const chat = model.startChat({
+                    history: historyMessages.slice(0, -1),
+                });
+
+                const lastMessage = historyMessages[historyMessages.length - 1].parts[0].text;
+                const result = await chat.sendMessageStream(lastMessage);
+                
+                for await (const chunk of result.stream) {
+                    const chunkText = chunk.text();
+                    if (chunkText) {
+                        onChunk(chunkText);
+                    }
+                }
+                return; // Success
+            } catch (error) {
+                lastError = error;
+                const isRateLimit = error.message?.includes('429') || error.status === 429 || error.message?.includes('Resource exhausted');
+                
+                if (!isRateLimit || i === maxRetries) {
+                    console.error('Error in streamChatWithContext:', error);
+                    throw error;
+                }
+                console.warn(`Gemini Stream Rate Limit (429). Retrying... (${i + 1}/${maxRetries})`);
+            }
+        }
+        throw lastError;
     }
 };
