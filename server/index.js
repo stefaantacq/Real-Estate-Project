@@ -87,9 +87,8 @@ app.post('/api/ai/chat-stream', authMiddleware, async (req, res) => {
         }
         
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-        res.setHeader('Transfer-Encoding', 'chunked');
         res.setHeader('Cache-Control', 'no-cache');
-        res.setHeader('Connection', 'keep-alive');
+        res.flushHeaders();
 
         await aiService.streamChatWithContext(messages, contextText || '', (chunk) => {
              res.write(chunk);

@@ -22,6 +22,7 @@ export interface Version {
   number: string;
   source: 'AI' | 'Upload' | 'Manual';
   isCurrent: boolean;
+  isBookmarked?: boolean;
   date: string;
   path?: string;
   sections?: DocumentSection[];

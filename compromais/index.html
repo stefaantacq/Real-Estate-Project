@@ -1,119 +1,134 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>compromAIs</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Inter', 'sans-serif'],
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>compromAIs</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+            },
+            colors: {
+              brand: {
+                50: "#f0f9ff",
+                100: "#e0f2fe",
+                500: "#0ea5e9",
+                600: "#0284c7", // Primary Blue
+                700: "#0369a1",
+                800: "#075985",
+                900: "#0f172a", // Dark Background
+                950: "#020617",
+              },
+            },
           },
-          colors: {
-            brand: {
-              50: '#f0f9ff',
-              100: '#e0f2fe',
-              500: '#0ea5e9',
-              600: '#0284c7', // Primary Blue
-              700: '#0369a1',
-              800: '#075985',
-              900: '#0f172a', // Dark Background
-              950: '#020617',
-            }
-          }
+        },
+      };
+    </script>
+    <style>
+      /* Custom scrollbar for dark mode integration */
+      .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+      }
+
+      .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+
+      /* Custom scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+
+      ::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.05);
+        border-radius: 10px;
+      }
+
+      .dark ::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: #0ea5e9;
+        /* brand-500 */
+        border-radius: 10px;
+        border: 2px solid transparent;
+        background-clip: content-box;
+      }
+
+      ::-webkit-scrollbar-thumb:hover {
+        background: #0284c7;
+        /* brand-600 */
+        background-clip: content-box;
+      }
+
+      * {
+        scrollbar-width: thin;
+        scrollbar-color: #0ea5e9 transparent;
+      }
+
+      /* Restore list styles reset by Tailwind */
+      ul {
+        list-style-type: disc;
+        padding-left: 1.5rem;
+        margin-bottom: 1rem;
+      }
+
+      ol {
+        list-style-type: decimal;
+        padding-left: 1.5rem;
+        margin-bottom: 1rem;
+      }
+
+      ol[type="a"] {
+        list-style-type: lower-alpha;
+      }
+
+      li {
+        margin-bottom: 0.25rem;
+      }
+
+      /* Animation for protected elements */
+      @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        20% { transform: translateX(-6px); }
+        40% { transform: translateX(6px); }
+        60% { transform: translateX(-6px); }
+        80% { transform: translateX(6px); }
+      }
+      .animate-shake {
+        animation: shake 0.2s ease-in-out 2;
+      }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "lucide-react": "https://aistudiocdn.com/lucide-react@^0.556.0",
+          "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+          "react/": "https://aistudiocdn.com/react@^19.2.1/",
+          "react": "https://aistudiocdn.com/react@^19.2.1",
+          "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.10.1"
         }
       }
-    }
-  </script>
-  <style>
-    /* Custom scrollbar for dark mode integration */
-    .scrollbar-hide::-webkit-scrollbar {
-      display: none;
-    }
+    </script>
+    <link rel="stylesheet" href="/index.css" />
+  </head>
 
-    .scrollbar-hide {
-      -ms-overflow-style: none;
-      scrollbar-width: none;
-    }
-
-    /* Custom scrollbar */
-    ::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
-    }
-
-    ::-webkit-scrollbar-track {
-      background: rgba(0, 0, 0, 0.05);
-      border-radius: 10px;
-    }
-
-    .dark ::-webkit-scrollbar-track {
-      background: rgba(255, 255, 255, 0.05);
-    }
-
-    ::-webkit-scrollbar-thumb {
-      background: #0ea5e9;
-      /* brand-500 */
-      border-radius: 10px;
-      border: 2px solid transparent;
-      background-clip: content-box;
-    }
-
-    ::-webkit-scrollbar-thumb:hover {
-      background: #0284c7;
-      /* brand-600 */
-      background-clip: content-box;
-    }
-
-    * {
-      scrollbar-width: thin;
-      scrollbar-color: #0ea5e9 transparent;
-    }
-
-    /* Restore list styles reset by Tailwind */
-    ul {
-      list-style-type: disc;
-      padding-left: 1.5rem;
-      margin-bottom: 1rem;
-    }
-    
-    ol {
-      list-style-type: decimal;
-      padding-left: 1.5rem;
-      margin-bottom: 1rem;
-    }
-    
-    ol[type="a"] {
-      list-style-type: lower-alpha;
-    }
-    
-    li {
-      margin-bottom: 0.25rem;
-    }
-  </style>
-  <script type="importmap">
-{
-  "imports": {
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.556.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
-    "react/": "https://aistudiocdn.com/react@^19.2.1/",
-    "react": "https://aistudiocdn.com/react@^19.2.1",
-    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.10.1"
-  }
-}
-</script>
-  <link rel="stylesheet" href="/index.css">
-</head>
-
-<body class="bg-gray-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-200">
-  <div id="root"></div>
-  <script type="module" src="/index.tsx"></script>
-</body>
-
+  <body
+    class="bg-gray-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-200"
+  >
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
 </html>

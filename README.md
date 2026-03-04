@@ -18,42 +18,43 @@ Volg deze stappen om het project lokaal draaiende te krijgen.
   - **Windows (PowerShell):** `winget install OpenJS.NodeJS.LTS`
   - **Mac (Homebrew):** `brew install node`
   - Of download de installer via [nodejs.org](https://nodejs.org/).
-  - *Check installatie:* `node -v`
+  - _Check installatie:_ `node -v`
   - **Docker Desktop**:
     - Download en installeer Docker Desktop via [docker.com](https://www.docker.com/).
-    - *Check installatie:* `docker --version`
+    - _Check installatie:_ `docker --version`
 
 ### 2. Installatie
 
 Clone de repository en installeer de dependencies voor beide projecten:
 
 ```bash
-# Clone de repo
 # Backend installatie
 cd server
 npm install
-npm run dev
-# Kopieer de .env template (vraag Willem om de wachtwoorden)
 
 # Frontend installatie
-cd ../compromisai
+cd ../compromais
 npm install
-npm run dev
 
-
+# Database opstarten
 cd ../docker
 docker-compose up -d
 
-# Initialiseer de databank met test-accounts
+# Automatische setup (Configuratie + Test accounts)
 cd ../server
-node scripts/seedAuth.js
+npm run setup
 ```
+
+> [!TIP]
+> **Krijg je een error bij de Dev Login?**
+> Voer `npm run setup` uit in de `server` map. Dit herstelt je `.env` bestand en zorgt dat de test-accounts in de database staan. Vergeet daarna niet je `GEMINI_API_KEY` weer in te vullen in `.env`.
 
 ### 3. Applicatie Starten
 
 Je hebt drie terminals nodig in antigravity of vscode:
 
 **Terminal 1 (Backend):**
+
 ```bash
 cd server
 npm run dev
@@ -61,18 +62,20 @@ npm run dev
 ```
 
 **Terminal 2 (Frontend):**
+
 ```bash
-cd compromisai
+cd compromais
 npm run dev
 # Frontend draait op http://localhost:5173
 ```
 
-**Terminal 3 (MySQL+Collabora):**
+**Terminal 3 (Docker):**
+
 ```bash
-cd MySQL+Collabora
+cd docker
 docker-compose up -d
-# MySQL draait op http://localhost:3307
-# Collabora draait op http://localhost:9980
+# MySQL draait op localhost:3307
+# Collabora draait op localhost:9980
 ```
 
 ## 🛠️ Tech Stack

@@ -124,6 +124,13 @@ export const api = {
         });
     },
 
+    async toggleVersionBookmark(versionId: string, isBookmarked: boolean) {
+        return this.request(`/dossiers/versions/${versionId}/bookmark`, {
+            method: 'PATCH',
+            body: JSON.stringify({ isBookmarked }),
+        });
+    },
+
     async exportVersion(versionId: string, format: 'pdf' | 'docx') {
         const token = localStorage.getItem('auth_token');
         const headers: Record<string, string> = {};

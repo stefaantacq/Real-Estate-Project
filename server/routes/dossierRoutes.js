@@ -14,6 +14,7 @@ router.get('/versions/:id', dossierController.getVersionById);
 router.put('/versions/:id', dossierController.updateVersion);
 router.delete('/versions/:id', dossierController.deleteVersion);
 router.patch('/versions/:id/rename', dossierController.renameVersion);
+router.patch('/versions/:id/bookmark', dossierController.toggleVersionBookmark);
 router.get('/versions/:id/export', dossierController.exportVersion);
 
 // Agreements

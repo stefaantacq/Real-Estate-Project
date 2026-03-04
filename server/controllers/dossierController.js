@@ -27,26 +27,65 @@ const fetchFullVersionContent = async (versie_id) => {
         ORDER BY s.volgorde ASC
     `, [versie_id]);
 
+    // Check if version-specific snapshots exist for this version
+    const [snapshotCheck] = await pool.query(
+        'SELECT COUNT(*) as cnt FROM VersiePlaceholder WHERE versie_id = ?',
+        [versie_id]
+    );
+    const hasSnapshots = snapshotCheck[0].cnt > 0;
+
+    // Attach top-level flag so callers know whether data is historically accurate
+    sections.__hasPlaceholderSnapshot = hasSnapshots;
     for (let section of sections) {
-        const [placeholders] = await pool.query(`
-            SELECT 
-                pl.placeholder_id, 
-                pl.sleutel as name, 
-                pl.type, 
-                p.pdf_label,
-                ap.ingevulde_waarde as value,
-                ap.validatiestatus as placeholder_validation_status,
-                ap.document_id,
-                ap.bron_text,
-                ap.pagina_nummer,
-                d.bestand_pad as document_pad,
-                d.bestandsnaam as document_naam
-            FROM Placeholder p
-            JOIN Placeholder_Library pl ON p.placeholder_id = pl.placeholder_id
-            LEFT JOIN Aangepaste_Placeholder ap ON pl.placeholder_id = ap.placeholder_id AND ap.dossier_id = ?
-            LEFT JOIN Documenten d ON ap.document_id = d.document_id
-            WHERE p.sectie_id = ?
-        `, [dossierId, section.sectie_id]);
+        let placeholders;
+
+        if (hasSnapshots) {
+            // Use version-specific snapshot values (accurate per-version diff)
+            const [rows] = await pool.query(`
+                SELECT 
+                    pl.placeholder_id,
+                    pl.sleutel as name,
+                    pl.type,
+                    p.pdf_label,
+                    vp.ingevulde_waarde as value,
+                    vp.validatiestatus as placeholder_validation_status,
+                    NULL as document_id,
+                    NULL as bron_text,
+                    NULL as pagina_nummer,
+                    NULL as document_pad,
+                    NULL as document_naam
+                FROM Placeholder p
+                JOIN Placeholder_Library pl ON p.placeholder_id = pl.placeholder_id
+                LEFT JOIN VersiePlaceholder vp
+                    ON pl.placeholder_id = vp.placeholder_id
+                    AND vp.versie_id = ?
+                    AND vp.aangepaste_sectie_id = ?
+                WHERE p.sectie_id = ?
+            `, [versie_id, section.aangepaste_sectie_id, section.sectie_id]);
+            placeholders = rows;
+        } else {
+            // Fallback: use global Aangepaste_Placeholder (older versions before snapshot feature)
+            const [rows] = await pool.query(`
+                SELECT 
+                    pl.placeholder_id, 
+                    pl.sleutel as name, 
+                    pl.type, 
+                    p.pdf_label,
+                    ap.ingevulde_waarde as value,
+                    ap.validatiestatus as placeholder_validation_status,
+                    ap.document_id,
+                    ap.bron_text,
+                    ap.pagina_nummer,
+                    d.bestand_pad as document_pad,
+                    d.bestandsnaam as document_naam
+                FROM Placeholder p
+                JOIN Placeholder_Library pl ON p.placeholder_id = pl.placeholder_id
+                LEFT JOIN Aangepaste_Placeholder ap ON pl.placeholder_id = ap.placeholder_id AND ap.dossier_id = ?
+                LEFT JOIN Documenten d ON ap.document_id = d.document_id
+                WHERE p.sectie_id = ?
+            `, [dossierId, section.sectie_id]);
+            placeholders = rows;
+        }
 
         section.placeholders = placeholders.map(p => ({
             id: p.name,
@@ -358,7 +397,13 @@ const dossierController = {
             const agreements = await Promise.all(agreementRows.map(async (agg) => {
                 const [versionRows] = await pool.query('SELECT * FROM Versie WHERE verkoopsovereenkomst_id = ? ORDER BY created_at ASC', [agg.verkoopsovereenkomst_id]);
                 const versions = await Promise.all(versionRows.map(async (v) => {
-                    const vo = { id: v.ui_id, number: v.versie_nummer, source: v.source, isCurrent: Boolean(v.is_current), date: formatDateBE(v.created_at) };
+                    // Check if this version has placeholder snapshots (needed for compare page warning)
+                    const [snapCheck] = await pool.query(
+                        'SELECT COUNT(*) as cnt FROM VersiePlaceholder WHERE versie_id = ?',
+                        [v.versie_id]
+                    );
+                    const hasPlaceholderSnapshot = snapCheck[0].cnt > 0;
+                    const vo = { id: v.ui_id, number: v.versie_nummer, source: v.source, isCurrent: Boolean(v.is_current), isBookmarked: Boolean(v.is_bookmarked), date: formatDateBE(v.created_at), hasPlaceholderSnapshot };
                     if (v.is_current) vo.sections = await fetchFullVersionContent(v.versie_id);
                     return vo;
                 }));
@@ -394,7 +439,10 @@ const dossierController = {
                 return res.status(404).json({ error: 'Versie niet gevonden' });
             }
             const v = rows[0];
-            v.sections = await fetchFullVersionContent(v.versie_id);
+            const sections = await fetchFullVersionContent(v.versie_id);
+            v.sections = sections;
+            // Expose whether placeholder values are historically accurate for this version
+            v.hasPlaceholderSnapshot = sections.__hasPlaceholderSnapshot || false;
             const [aggRows] = await pool.query('SELECT dossier_id FROM Verkoopsovereenkomst WHERE verkoopsovereenkomst_id = ?', [v.verkoopsovereenkomst_id]);
             if (aggRows.length > 0) {
                 const [docRows] = await pool.query('SELECT naam as name, bestand_pad as path FROM Documenten WHERE dossier_id = ?', [aggRows[0].dossier_id]);
@@ -409,23 +457,90 @@ const dossierController = {
         } catch (error) { console.error(error); res.status(500).json({ error: error.message }); }
     },
 
-    updateVersion: async (req, res) => { /* Omitting detailed loop for brevity but ensuring column names match */
+    updateVersion: async (req, res) => {
         const { id } = req.params;
         const sections = Array.isArray(req.body) ? req.body : req.body.sections;
         try {
-            const [verRows] = await pool.query('SELECT versie_id, verkoopsovereenkomst_id FROM Versie WHERE ui_id = ?', [id]);
+            const [verRows] = await pool.query('SELECT versie_id, verkoopsovereenkomst_id, versie_nummer FROM Versie WHERE ui_id = ?', [id]);
             if (verRows.length === 0) return res.status(404).json({ error: 'Versie niet gevonden' });
-            const [aggRows] = await pool.query('SELECT dossier_id FROM Verkoopsovereenkomst WHERE verkoopsovereenkomst_id = ?', [verRows[0].verkoopsovereenkomst_id]);
+            
+            const ver = verRows[0];
+            const [aggRows] = await pool.query('SELECT dossier_id FROM Verkoopsovereenkomst WHERE verkoopsovereenkomst_id = ?', [ver.verkoopsovereenkomst_id]);
             const dossierId = aggRows[0]?.dossier_id;
+            
+            // Get highest version number for this agreement
+            const [maxVerRows] = await pool.query('SELECT versie_nummer FROM Versie WHERE verkoopsovereenkomst_id = ? ORDER BY created_at DESC LIMIT 1', [ver.verkoopsovereenkomst_id]);
+            let baseNum = "1.0";
+            if (maxVerRows.length > 0) baseNum = maxVerRows[0].versie_nummer || "1.0";
+            
+            // Generate next minor version number
+            const parts = baseNum.split('.');
+            let nextNum = parts[0] + '.' + (parseInt(parts[1] || 0) + 1);
+
+            // Create new version
+            const new_ui_id = 'ver-' + Date.now();
+            await pool.query('UPDATE Versie SET is_current = FALSE WHERE verkoopsovereenkomst_id = ?', [ver.verkoopsovereenkomst_id]);
+            const [vResult] = await pool.query('INSERT INTO Versie(ui_id, verkoopsovereenkomst_id, versie_nummer, source, is_current) VALUES(?, ?, ?, ?, ?)', [new_ui_id, ver.verkoopsovereenkomst_id, nextNum, 'Save', true]);
+            const newVersieId = vResult.insertId;
+
             for (const s of (sections || [])) {
-                await pool.query('UPDATE VersieSectie SET tekst_inhoud = ?, validatiestatus = ? WHERE aangepaste_sectie_id = ?', [s.content, s.isApproved ? 'approved' : 'pending', s.id]);
+                let sectieId = s.sectie_id || null;
+                if (!sectieId && s.id && !isNaN(parseInt(s.id))) {
+                    const [vsRows] = await pool.query('SELECT sectie_id FROM VersieSectie WHERE aangepaste_sectie_id = ?', [s.id]);
+                    if (vsRows.length > 0) sectieId = vsRows[0].sectie_id;
+                }
+                
+                const [sectieResult] = await pool.query('INSERT INTO VersieSectie(versie_id, sectie_id, tekst_inhoud, validatiestatus) VALUES(?, ?, ?, ?)', [newVersieId, sectieId, s.content, s.isApproved ? 'approved' : 'pending']);
+                const newAangepasteSectieId = sectieResult.insertId;
+
                 for (const p of (s.placeholders || [])) {
                     const [pRows] = await pool.query('SELECT placeholder_id FROM Placeholder_Library WHERE sleutel = ?', [p.id]);
-                    if (pRows.length > 0) await pool.query(`INSERT INTO Aangepaste_Placeholder (dossier_id, placeholder_id, ingevulde_waarde, validatiestatus) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE ingevulde_waarde = VALUES(ingevulde_waarde), validatiestatus = VALUES(validatiestatus)`, [dossierId, pRows[0].placeholder_id, p.currentValue, p.isApproved ? 'approved' : 'pending']);
+                    if (pRows.length > 0) {
+                        const placeholderId = pRows[0].placeholder_id;
+                        const placeholderStatus = p.isApproved ? 'approved' : 'pending';
+
+                        // Update the global current value (used by the Editor)
+                        await pool.query(
+                            `INSERT INTO Aangepaste_Placeholder (dossier_id, placeholder_id, aangepaste_sectie_id, ingevulde_waarde, validatiestatus)
+                             VALUES (?, ?, ?, ?, ?)
+                             ON DUPLICATE KEY UPDATE
+                               ingevulde_waarde = VALUES(ingevulde_waarde),
+                               validatiestatus = VALUES(validatiestatus),
+                               aangepaste_sectie_id = VALUES(aangepaste_sectie_id)`,
+                            [dossierId, placeholderId, newAangepasteSectieId, p.currentValue, placeholderStatus]
+                        );
+
+                        // Write a version-specific snapshot so the diff feature can compare values across versions
+                        await pool.query(
+                            `INSERT INTO VersiePlaceholder (versie_id, placeholder_id, aangepaste_sectie_id, ingevulde_waarde, validatiestatus)
+                             VALUES (?, ?, ?, ?, ?)
+                             ON DUPLICATE KEY UPDATE
+                               ingevulde_waarde = VALUES(ingevulde_waarde),
+                               validatiestatus = VALUES(validatiestatus),
+                               aangepaste_sectie_id = VALUES(aangepaste_sectie_id)`,
+                            [newVersieId, placeholderId, newAangepasteSectieId, p.currentValue, placeholderStatus]
+                        );
+                    }
                 }
             }
-            res.json({ message: 'Versie bijgewerkt' });
-        } catch (error) { console.error(error); res.status(500).json({ error: error.message }); }
+
+            // Timeline event
+            const userName = req.user ? (req.user.naam || req.user.email) : 'Auteur';
+            
+            // Note: Ideal implementation would extract language from request but since it's hard to refactor all routes, we use generic info
+            const timestamp = new Date().toLocaleString('nl-BE', { hour: '2-digit', minute: '2-digit', hour12: false });
+            await pool.query('INSERT INTO TimelineEvent (dossier_id, titel, beschrijving, user_name) VALUES (?, ?, ?, ?)', [
+                dossierId, 
+                "Document handmatig opgeslagen / Document saved", 
+                `Versie ${nextNum} werd opgeslagen en als historiek geregistreerd. / Version ${nextNum} saved to history.`, 
+                userName || 'Gebruiker'
+            ]);
+
+            res.json({ message: 'Nieuwe versie aangemaakt bij opslaan', new_ui_id });
+        } catch (error) { 
+            console.error(error); 
+            res.status(500).json({ error: error.message }); 
+        }
     },
 
     deleteDossier: async (req, res) => {
@@ -563,10 +678,19 @@ const dossierController = {
     renameVersion: async (req, res) => {
         try { 
             const id = req.params.id;
-            await pool.query('UPDATE Versie SET versie_nummer = ? WHERE ui_id = ? OR versie_id = ?', [req.body.name, id, isNaN(id) ? -1 : id]); 
-            res.json({ message: 'Versie hernoemd' }); 
+            await pool.query('UPDATE Versie SET source = ? WHERE ui_id = ? OR versie_id = ?', [req.body.name, id, isNaN(id) ? -1 : id]); 
+            res.json({ message: 'Versie label aangepast' }); 
         }
         catch (error) { console.error(error); res.status(500).json({ error: error.message }); }
+    },
+
+    toggleVersionBookmark: async (req, res) => {
+        try {
+            const id = req.params.id;
+            const { isBookmarked } = req.body;
+            await pool.query('UPDATE Versie SET is_bookmarked = ? WHERE ui_id = ? OR versie_id = ?', [isBookmarked ? 1 : 0, id, isNaN(id) ? -1 : id]);
+            res.json({ message: 'Bookmark status aangepast' });
+        } catch (error) { console.error(error); res.status(500).json({ error: error.message }); }
     },
 
     exportVersion: async (req, res) => {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Calendar, MapPin, FileText, Clock, GitCompare, Archive, ExternalLink, RefreshCw, File, Trash2, X, Home, Building2, Edit2 } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, FileText, Clock, GitCompare, Archive, ExternalLink, RefreshCw, File, Trash2, X, Home, Building2, Edit2, Bookmark, BookmarkCheck } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { Language, Dossier, DossierStatus } from '../types';
 import { TRANSLATIONS } from '../constants';
@@ -133,6 +133,19 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
       };
    }, [isScanning]);
 
+   // Auto-scroll version tracks to the right (latest version) on load
+   React.useEffect(() => {
+      if (dossier) {
+         // Small timeout to ensure DOM is updated
+         setTimeout(() => {
+            const tracks = document.querySelectorAll('.version-track-container');
+            tracks.forEach(track => {
+               track.scrollLeft = track.scrollWidth;
+            });
+         }, 100);
+      }
+   }, [dossier]);
+
    const handleArchive = async () => {
       if (!dossier) return;
       const newStatus = dossier.status === DossierStatus.ARCHIVED ? DossierStatus.DRAFT : DossierStatus.ARCHIVED;
@@ -199,10 +212,10 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
    const handleContextMenuRename = () => {
       if (contextMenu) {
          setVersionToRename(contextMenu.versionId);
-         // Find current version name to pre-fill
+         // Find current version label (source) to pre-fill
          const agreement = dossier?.agreements?.find(a => a.id === contextMenu.agreementId);
          const version = agreement?.versions.find(v => v.id === contextMenu.versionId);
-         setNewName(version?.number || '');
+         setNewName(version?.source || '');
          setIsRenameModalOpen(true);
          setContextMenu(null);
       }
@@ -233,6 +246,31 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
             console.error("Failed to delete", error);
             alert("Kon dossier niet verwijderen.");
          }
+      }
+   };
+
+   const handleToggleBookmark = async (e: React.MouseEvent | undefined, versionId: string, currentState: boolean) => {
+      if (e) {
+         e.stopPropagation();
+         e.preventDefault();
+      }
+      try {
+         await api.toggleVersionBookmark(versionId, !currentState);
+         const data: any = await api.getDossierById(id!);
+         setDossier(data as Dossier);
+      } catch (error) {
+         console.error("Failed to toggle bookmark", error);
+      }
+   };
+   
+   const handleContextMenuBookmark = async () => {
+      if (contextMenu) {
+         const agreement = dossier?.agreements?.find(a => a.id === contextMenu.agreementId);
+         const version = agreement?.versions.find(v => v.id === contextMenu.versionId);
+         if (version) {
+            await handleToggleBookmark(undefined, version.id, !!version.isBookmarked);
+         }
+         setContextMenu(null);
       }
    };
 
@@ -466,6 +504,13 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                   {t.renameVersion}
                </button>
                <button
+                  onClick={handleContextMenuBookmark}
+                  className="w-full px-4 py-2 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2 border-b border-gray-100 dark:border-slate-700 pb-2 mb-1"
+               >
+                  <Bookmark className="w-4 h-4 text-slate-400" />
+                  {(t as any).toggleBookmark || 'Bookmark'}
+               </button>
+               <button
                   onClick={handleContextMenuDelete}
                   className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
                >
@@ -619,31 +664,41 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                         </div>
 
                         {/* Version Track UI */}
-                        <div className="flex items-center gap-4 py-4 px-4 overflow-x-auto no-scrollbar">
+                        <div className="version-track-container flex items-center gap-4 py-4 px-4 overflow-x-auto no-scrollbar scroll-smooth">
                            {agg.versions.map((ver, idx) => (
                               <React.Fragment key={ver.id}>
-                                 <div
-                                    onClick={() => onOpenEditor(ver.id)}
-                                    onContextMenu={(e) => {
-                                       if (dossier.status !== DossierStatus.ARCHIVED) {
-                                          handleVersionContextMenu(e, ver.id, agg.id);
-                                       } else {
-                                          e.preventDefault();
-                                       }
-                                    }}
-                                    className={`group/ver cursor-pointer flex flex-col items-center transition-all duration-300
-                                       ${ver.isCurrent ? 'scale-110' : 'opacity-60 hover:opacity-100'}
-                                    `}
-                                 >
-                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border-2 mb-2 transition-all group-hover/ver:border-brand-500
-                                        ${ver.isCurrent
-                                          ? 'bg-brand-50 border-brand-500 text-brand-600 dark:bg-brand-900/20 shadow-md'
-                                          : 'bg-white border-slate-100 text-slate-400 dark:bg-slate-800 dark:border-slate-700'}
-                                     `}>
-                                       <span className="font-bold text-sm">v{ver.number}</span>
-                                    </div>
-                                    <span className="text-[10px] uppercase tracking-tighter font-bold text-slate-400 group-hover/ver:text-brand-500 transition-colors">{ver.source}</span>
-                                 </div>
+                                  <button
+                                     onClick={() => onOpenEditor(ver.id)}
+                                     onContextMenu={(e) => {
+                                        if (dossier.status !== DossierStatus.ARCHIVED) {
+                                           handleVersionContextMenu(e, ver.id, agg.id);
+                                        } else {
+                                           e.preventDefault();
+                                        }
+                                     }}
+                                     type="button"
+                                     className={`group relative cursor-pointer flex flex-col items-center transition-all duration-200 focus:outline-none focus:ring-0
+                                        ${ver.isCurrent ? 'scale-110' : 'opacity-50 hover:opacity-100 text-slate-500 hover:scale-105'}
+                                     `}
+                                  >
+                                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border-2 mb-2 transition-colors relative
+                                         ${ver.isCurrent
+                                           ? 'bg-brand-50 border-brand-500 text-brand-600 dark:bg-brand-900/20 shadow-md'
+                                           : 'bg-white border-slate-200 text-slate-400 group-hover:border-brand-400 group-hover:text-brand-500 dark:bg-slate-800 dark:border-slate-700 dark:group-hover:border-brand-500'}
+                                      `}>
+                                        {/* Bookmark Icon */}
+                                        {ver.isBookmarked && (
+                                           <div 
+                                              className="absolute -top-2 -left-2 p-1 rounded-full z-10 transition-all text-yellow-500 bg-white dark:bg-slate-800 opacity-100 shadow-sm border border-yellow-200 dark:border-yellow-700/50"
+                                              title="Bookmarked"
+                                           >
+                                              <BookmarkCheck className="w-3.5 h-3.5 fill-current" />
+                                           </div>
+                                        )}
+                                        <span className="font-bold text-sm">v{ver.number}</span>
+                                     </div>
+                                     <span className={`text-[10px] uppercase tracking-tighter font-bold transition-colors ${ver.isCurrent ? "text-brand-500" : "text-slate-400 group-hover:text-brand-500"}`}>{ver.source}</span>
+                                  </button>
                                  {
                                     idx < agg.versions.length - 1 && (
                                        <div className="w-8 h-[2px] bg-slate-100 dark:bg-slate-800 shrink-0 mt-[-15px]"></div>

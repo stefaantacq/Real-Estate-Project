@@ -40,6 +40,7 @@ const authController = {
 
     // POST /api/auth/login
     login: async (req, res) => {
+        console.log(`Login attempt for email: ${req.body.email}`);
         const { email, password } = req.body;
 
         if (!email || !password) {

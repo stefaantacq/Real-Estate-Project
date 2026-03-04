@@ -25,14 +25,54 @@ const NAME_PLACEHOLDERS = [
 
 export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     const { id } = useParams<{ id: string }>();
+    const currentVersionId = useRef<string | null>(id || null);
     const t = TRANSLATIONS[lang];
     const [dossier, setDossier] = useState<Dossier | undefined>(undefined);
     const [sections, setSections] = useState<DocumentSection[]>([]);
+    const [history, setHistory] = useState<DocumentSection[][]>([]);
+    const [future, setFuture] = useState<DocumentSection[][]>([]);
+
+    const updateSections = (updater: DocumentSection[] | ((prev: DocumentSection[]) => DocumentSection[])) => {
+        setSections(prev => {
+            const newSections = typeof updater === 'function' ? updater(prev) : updater;
+            if (JSON.stringify(prev) !== JSON.stringify(newSections)) {
+                setHistory(h => [...h, prev]);
+                setFuture([]); // Clear future on new action
+            }
+            return newSections;
+        });
+    };
+
+    const handleUndo = () => {
+        if (history.length === 0) return;
+        setSections(currentSections => {
+            if (history.length === 0) return currentSections;
+            const newHistory = [...history];
+            const previousState = newHistory.pop()!;
+            setHistory(newHistory);
+            setFuture(f => [...f, currentSections]);
+            return previousState;
+        });
+    };
+
+    const handleRedo = () => {
+        if (future.length === 0) return;
+        setSections(currentSections => {
+            if (future.length === 0) return currentSections;
+            const newFuture = [...future];
+            const nextState = newFuture.pop()!;
+            setFuture(newFuture);
+            setHistory(h => [...h, currentSections]);
+            return nextState;
+        });
+    };
+
     const [sidebarMode, setSidebarMode] = useState<'none' | 'ai' | 'checklist'>('none');
     const [splitScreen, setSplitScreen] = useState<boolean>(false);
     const [activePlaceholderId, setActivePlaceholderId] = useState<string | null>(null);
     const [selectedSourceDoc, setSelectedSourceDoc] = useState<{ name: string, path?: string, bronText?: string, placeholderLabel?: string, currentValue?: string, paginaNummer?: number | null } | null>(null);
     const [editingPlaceholder, setEditingPlaceholder] = useState<{ sectionId: string, placeholderId: string } | null>(null);
+    const [isCurrentVersion, setIsCurrentVersion] = useState(true);
     const [isInitialized, setIsInitialized] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [numPages, setNumPages] = useState<number | null>(null);
@@ -66,6 +106,11 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
 
                 if (ver.sections) {
                     setSections(ver.sections);
+                    setHistory([]);
+                    setFuture([]);
+                }
+                if (ver) {
+                    setIsCurrentVersion(ver.is_current === 1 || ver.is_current === true);
                 }
                 setIsInitialized(true);
             } catch (error) {
@@ -88,16 +133,45 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     // Save on Change (Debounced or explicit)
     // For simplicity in this demo, we save when sections change but maybe we should add a save button
     const isArchived = dossier?.status === DossierStatus.ARCHIVED;
+    const isReadOnly = isArchived || !isCurrentVersion;
 
-    const handleSave = async (updatedSections?: DocumentSection[]) => {
-        if (!id || !isInitialized || isArchived) return;
+    const handleSave = async (force: boolean = false) => {
+        if (!currentVersionId.current || !isInitialized || (!force && isReadOnly)) return;
         try {
-            await api.updateVersion(id, updatedSections || sections);
-            // Show some success toast maybe
+            const result: any = await api.updateVersion(currentVersionId.current, sections);
+            if (result && result.new_ui_id) {
+                currentVersionId.current = result.new_ui_id;
+                // Update URL silently so refresh loads the correct version
+                window.history.replaceState(null, '', `#/editor/${result.new_ui_id}`);
+                setIsCurrentVersion(true);
+            }
         } catch (error) {
             console.error("Failed to save version:", error);
         }
     };
+
+    // Keyboard Shortcuts
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
+                e.preventDefault();
+                if (e.shiftKey) {
+                    handleRedo();
+                } else {
+                    handleUndo();
+                }
+            } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'y') {
+                e.preventDefault();
+                handleRedo();
+            } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+                e.preventDefault();
+                handleSave();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [history, future, sections, isInitialized, isReadOnly, id]);
 
     // Helper to get total validation status
     const totalPlaceholders = sections.flatMap(s => s.placeholders).length;
@@ -105,7 +179,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     const progress = Math.round((approvedPlaceholders / totalPlaceholders) * 100);
 
     const toggleApproveSection = (sectionId: string) => {
-        if (isArchived) return;
+        if (isReadOnly) return;
         const updatedSections = sections.map(s => {
             if (s.id === sectionId) {
                 const newApprovedState = !s.isApproved;
@@ -117,21 +191,20 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
             }
             return s;
         });
-        setSections(updatedSections);
-        handleSave(updatedSections);
+        updateSections(updatedSections);
     };
 
     const removeSection = (sectionId: string) => {
-        if (isArchived) return;
+        if (isReadOnly) return;
         if (window.confirm(t.deleteSectionConfirm)) {
-            setSections(prev => prev.filter(s => s.id !== sectionId));
+            updateSections(prev => prev.filter(s => s.id !== sectionId));
         }
     };
 
     const addSection = () => {
-        if (isArchived) return;
+        if (isReadOnly) return;
         const newId = `section-${Date.now()}`;
-        setSections(prev => [
+        updateSections(prev => [
             ...prev,
             {
                 id: newId,
@@ -144,49 +217,52 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     };
 
     const moveSection = (index: number, direction: 'up' | 'down') => {
-        if (isArchived) return;
+        if (isReadOnly) return;
         if (direction === 'up' && index === 0) return;
         if (direction === 'down' && index === sections.length - 1) return;
 
         const newSections = [...sections];
         const targetIndex = direction === 'up' ? index - 1 : index + 1;
         [newSections[index], newSections[targetIndex]] = [newSections[targetIndex], newSections[index]];
-        setSections(newSections);
+        updateSections(newSections);
     };
 
     const toggleApprovePlaceholder = (sectionId: string, placeholderId: string) => {
-        if (isArchived) return;
+        if (isReadOnly) return;
         const updatedSections = sections.map(s => {
             if (s.id !== sectionId) return s;
+            const newPlaceholders = s.placeholders.map(p => {
+                if (p.id === placeholderId) {
+                    return { ...p, isApproved: !p.isApproved };
+                }
+                return p;
+            });
+            // Automatic section approval update
+            const allApproved = newPlaceholders.length > 0 && newPlaceholders.every(p => p.isApproved);
             return {
                 ...s,
-                placeholders: s.placeholders.map(p => p.id === placeholderId ? { ...p, isApproved: !p.isApproved } : p)
+                placeholders: newPlaceholders,
+                isApproved: allApproved
             };
         });
-        setSections(updatedSections);
-        handleSave(updatedSections);
+        updateSections(updatedSections);
     };
 
     const updatePlaceholderValue = async (sectionId: string, placeholderId: string, newValue: string) => {
-        if (isArchived) return;
+        if (isReadOnly) return;
         const updatedSections = sections.map(s => {
             if (s.id !== sectionId) return s;
+            const newPlaceholders = s.placeholders.map(p => p.id === placeholderId ? { ...p, currentValue: newValue } : p);
+            // Also maintain auto-approval state if value changes (though approval is usually separate)
+            const allApproved = newPlaceholders.length > 0 && newPlaceholders.every(p => p.isApproved);
             return {
                 ...s,
-                placeholders: s.placeholders.map(p => p.id === placeholderId ? { ...p, currentValue: newValue } : p)
+                placeholders: newPlaceholders,
+                isApproved: allApproved
             };
         });
-        setSections(updatedSections);
+        updateSections(updatedSections);
         setEditingPlaceholder(null);
-
-        // Immediate Save
-        if (id) {
-            try {
-                await api.updateVersion(id, updatedSections);
-            } catch (error) {
-                console.error("Failed to save placeholder update:", error);
-            }
-        }
     };
 
     const handleSendMessage = async () => {
@@ -358,22 +434,14 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     };
 
     const handleContentEdit = async (sectionId: string, newContent: string) => {
-        if (isArchived) return;
+        if (isReadOnly) return;
         const updatedSections = sections.map(s => s.id === sectionId ? { ...s, content: newContent } : s);
-        setSections(updatedSections);
-
-        if (id) {
-            try {
-                await api.updateVersion(id, updatedSections);
-            } catch (error) {
-                console.error("Failed to save content edit:", error);
-            }
-        }
+        updateSections(updatedSections);
     };
 
     const handleTitleEdit = (sectionId: string, newTitle: string) => {
-        if (isArchived) return;
-        setSections(prev => prev.map(s => s.id === sectionId ? { ...s, title: newTitle } : s));
+        if (isReadOnly) return;
+        updateSections(prev => prev.map(s => s.id === sectionId ? { ...s, title: newTitle } : s));
     };
 
     const handleContentBlur = (sectionId: string, event: React.FocusEvent<HTMLDivElement>) => {
@@ -383,7 +451,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
         // Improved reconstruction to avoid losing tags
         container.childNodes.forEach(node => {
             if (node.nodeType === Node.TEXT_NODE) {
-                content += node.textContent;
+                content += node.textContent || "";
             } else if (node.nodeType === Node.ELEMENT_NODE) {
                 const el = node as HTMLElement;
                 // Look for placeholder ID in the element or its children (in case of browser nesting)
@@ -402,6 +470,166 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
         const currentSection = sections.find(s => s.id === sectionId);
         if (currentSection && currentSection.content !== content) {
             handleContentEdit(sectionId, content);
+        }
+    };
+
+    const handleContentBeforeInput = (e: any) => {
+        if (e.target && (e.target as HTMLElement).tagName === 'INPUT') return;
+        
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0) return;
+        
+        const shakePlaceholder = (phId: string) => {
+            const ph = document.querySelector(`[data-placeholder-id="${phId}"]`) as HTMLElement;
+            if (ph) {
+                ph.classList.remove('animate-shake');
+                void ph.offsetWidth; // Force reflow
+                ph.classList.add('animate-shake');
+            }
+        };
+
+        const ranges = e.getTargetRanges ? e.getTargetRanges() : [selection.getRangeAt(0)];
+        for (const range of ranges) {
+            const fragment = range.cloneContents();
+            const phInside = fragment.querySelector('[data-placeholder-id]');
+            if (phInside) {
+                e.preventDefault();
+                const id = phInside.getAttribute('data-placeholder-id') || phInside.querySelector('[data-placeholder-id]')?.getAttribute('data-placeholder-id');
+                if (id) shakePlaceholder(id);
+                return;
+            }
+            
+            let common = range.commonAncestorContainer;
+            let directPlaceholder: HTMLElement | null = null;
+            if (common.nodeType === Node.ELEMENT_NODE) {
+                directPlaceholder = (common as HTMLElement).closest('[data-placeholder-id]');
+            } else if (common.parentElement) {
+                directPlaceholder = common.parentElement.closest('[data-placeholder-id]');
+            }
+            
+            if (directPlaceholder) {
+                e.preventDefault();
+                const id = directPlaceholder.getAttribute('data-placeholder-id');
+                if (id) shakePlaceholder(id);
+                return;
+            }
+        }
+    };
+
+    const handleContentKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+        const isCtrlD = e.key === 'd' && e.ctrlKey;
+        const isCtrlH = e.key === 'h' && e.ctrlKey;
+        if (e.key === 'Backspace' || e.key === 'Delete' || isCtrlD || isCtrlH) {
+            if ((e.target as HTMLElement).tagName === 'INPUT') return;
+
+            const isBackspace = e.key === 'Backspace' || isCtrlH;
+            const selection = window.getSelection();
+            if (!selection || selection.rangeCount === 0) return;
+            const range = selection.getRangeAt(0);
+
+            const shakePlaceholder = (ph: HTMLElement) => {
+                ph.classList.remove('animate-shake');
+                void ph.offsetWidth; 
+                ph.classList.add('animate-shake');
+            };
+
+            // 1. Block range selections that contain placeholders
+            if (!range.collapsed) {
+                const fragment = range.cloneContents();
+                const phInside = fragment.querySelector('[data-placeholder-id]');
+                if (phInside) {
+                    e.preventDefault();
+                    const id = phInside.getAttribute('data-placeholder-id') || phInside.querySelector('[data-placeholder-id]')?.getAttribute('data-placeholder-id');
+                    if (id) {
+                        const targetPh = document.querySelector(`[data-placeholder-id="${id}"]`) as HTMLElement;
+                        if (targetPh) shakePlaceholder(targetPh);
+                    }
+                    return;
+                }
+            }
+
+            // 2. Comprehensive boundary detection
+            let currNode: Node | null = range.startContainer;
+            let currOffset = range.startOffset;
+
+            // Fast exit if cursor is placed directly inside or on the placeholder element itself 
+            // (common in Chrome when clicking near uneditable elements)
+            let directPlaceholder: HTMLElement | null = null;
+            if (currNode.nodeType === Node.ELEMENT_NODE) {
+                directPlaceholder = (currNode as HTMLElement).closest('[data-placeholder-id]');
+                // If it's the parent div and offset points EXACTLY to the placeholder (Chrome often does this for Delete)
+                if (!directPlaceholder) {
+                    const pointedChild = currNode.childNodes[currOffset];
+                    if (pointedChild && pointedChild.nodeType === Node.ELEMENT_NODE) {
+                        // For Backspace, index is currOffset - 1. For Delete, it's currOffset.
+                        const targetChild = isBackspace && currOffset > 0 ? currNode.childNodes[currOffset - 1] : pointedChild;
+                        directPlaceholder = (targetChild as HTMLElement).closest('[data-placeholder-id]');
+                    }
+                }
+            } else if (currNode.parentElement) {
+                directPlaceholder = currNode.parentElement.closest('[data-placeholder-id]');
+            }
+
+            if (directPlaceholder) {
+                e.preventDefault();
+                shakePlaceholder(directPlaceholder);
+                return;
+            }
+
+            let targetPlaceholder: HTMLElement | null = null;
+
+            const checkNode = (n: Node | null): HTMLElement | null => {
+                if (!n) return null;
+                if (n.nodeType === Node.ELEMENT_NODE) {
+                    const el = n as HTMLElement;
+                    if (el.hasAttribute('data-placeholder-id')) return el;
+                    return el.querySelector('[data-placeholder-id]') as HTMLElement;
+                }
+                return null;
+            };
+
+            while (currNode) {
+                let target: Node | null = null;
+                
+                if (isBackspace) {
+                    if (currOffset > 0) {
+                        target = currNode.nodeType === Node.ELEMENT_NODE ? currNode.childNodes[currOffset - 1] : null; 
+                    }
+                } else {
+                    const len = currNode.nodeType === Node.TEXT_NODE ? (currNode.textContent?.length || 0) : currNode.childNodes.length;
+                    if (currOffset < len) {
+                        target = currNode.nodeType === Node.ELEMENT_NODE ? currNode.childNodes[currOffset] : null;
+                    }
+                }
+
+                if (target) {
+                    targetPlaceholder = checkNode(target);
+                    if (targetPlaceholder) break;
+                    
+                    if (target.nodeType === Node.TEXT_NODE && target.textContent?.trim()) break;
+                }
+
+                const atBoundary = isBackspace 
+                    ? currOffset === 0 
+                    : currOffset >= (currNode.nodeType === Node.TEXT_NODE ? (currNode.textContent?.length || 0) : currNode.childNodes.length);
+
+                if (atBoundary) {
+                    if (currNode === e.currentTarget) break;
+                    const parent: Node | null = currNode.parentNode;
+                    if (!parent) break;
+                    currOffset = Array.from(parent.childNodes).indexOf(currNode as ChildNode);
+                    if (!isBackspace) currOffset += 1;
+                    currNode = parent;
+                } else {
+                    break;
+                }
+            }
+
+            if (targetPlaceholder) {
+                e.preventDefault();
+                shakePlaceholder(targetPlaceholder);
+                return;
+            }
         }
     };
 
@@ -433,19 +661,18 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                 key={p.id}
                 data-placeholder-id={p.id}
                 className={`
-                    inline-block align-baseline relative group/placeholder mx-1 px-2 py-0.5 rounded-md border-2 transition-all duration-300 cursor-pointer select-none
+                    inline-block align-baseline relative group/placeholder mx-1 px-2 py-0.5 rounded-md border-2 transition-all duration-300
                     ${p.isApproved 
-                        ? 'bg-green-50 border-green-200 hover:border-green-400 text-green-700 dark:bg-green-900/10 dark:border-green-800' 
-                        : 'bg-orange-50 border-orange-200 border-dashed hover:border-orange-400 text-orange-700 dark:bg-orange-900/10 dark:border-orange-800 animate-pulse-subtle'
+                        ? 'bg-green-50 border-green-200 text-green-700 dark:bg-green-900/10 dark:border-green-800 cursor-default' 
+                        : 'bg-orange-50 border-orange-200 border-dashed hover:border-orange-400 text-orange-700 dark:bg-orange-900/10 dark:border-orange-800 animate-pulse-subtle cursor-pointer hover:scale-[1.02] active:scale-[0.98]'
                     }
                 `}
                 contentEditable={false}
-                onDoubleClick={() => !isArchived && setEditingPlaceholder({ sectionId: section.id, placeholderId: p.id })}
+                onClick={() => !isReadOnly && !p.isApproved && setEditingPlaceholder({ sectionId: section.id, placeholderId: p.id })}
             >
                 {/* The Value */}
-                <span className="text-sm font-bold flex items-center gap-1">
-                    {p.isApproved ? <Check className="w-3 h-3 text-green-500" /> : <AlertCircle className="w-3 h-3 text-orange-500" />}
-                    {p.currentValue || <span className="italic opacity-50">Leeg</span>}
+                <span className="text-sm font-bold">
+                    {p.currentValue || <span className="italic opacity-50">{p.label}</span>}
                 </span>
 
                 {/* Tooltip / Controls */}
@@ -453,9 +680,6 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                     <div className="w-full bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-gray-100 dark:border-slate-800 p-2 flex flex-col gap-2 relative ring-1 ring-black/5">
                         <div className="flex items-center justify-between px-1">
                             <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">{p.label}</span>
-                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${p.isApproved ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'}`}>
-                                {p.isApproved ? t.statusApproved : t.statusForReview}
-                            </span>
                         </div>
                         
                         <div className="flex gap-2 items-center">
@@ -465,7 +689,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                             >
                                 <Eye className="w-3.5 h-3.5 mr-1.5" /> {t.source}
                             </button>
-                            {!isArchived && (
+                            {!isReadOnly && (
                                 <button
                                     onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleApprovePlaceholder(section.id, p.id); }}
                                     className={`flex-1 flex items-center justify-center px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-all shadow-md active:scale-95
@@ -512,13 +736,49 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     return (
         <div className="flex flex-col h-[calc(100vh-6rem)] animate-in fade-in duration-500">
 
+            
             {/* Top Toolbar */}
+            {!isCurrentVersion && dossier?.status !== DossierStatus.ARCHIVED && (
+                <div className="bg-yellow-50 border-b border-yellow-200 p-3 flex flex-col md:flex-row items-center justify-between text-yellow-800 dark:bg-yellow-900/30 dark:border-yellow-900 dark:text-yellow-200">
+                    <div className="flex items-center gap-2 font-medium">
+                        <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                        U bekijkt een oudere versie. Oude versies kunnen niet meer bewerkt worden.
+                    </div>
+                    <button 
+                        onClick={() => handleSave(true)} 
+                        className="mt-2 md:mt-0 flex items-center px-4 py-1.5 bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold rounded-lg transition-colors shadow-sm"
+                    >
+                        Ga verder vanaf deze versie
+                    </button>
+                </div>
+            )}
             <div className="h-14 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 flex items-center justify-between px-4 shrink-0 shadow-sm z-10">
+
                 <div className="flex items-center gap-4">
                     <button onClick={() => onBack(dossier?.id)} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-500">
                         <ArrowLeft className="w-5 h-5" />
                     </button>
-                    {!isArchived && (
+                    {!isReadOnly && (
+                        <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 gap-1">
+                            <button 
+                                onClick={handleUndo} 
+                                disabled={history.length === 0} 
+                                className="p-1.5 hover:bg-white dark:hover:bg-slate-600 rounded text-slate-500 disabled:opacity-30 disabled:hover:bg-transparent shadow-sm transition-all"
+                                title="Ongedaan maken"
+                            >
+                                <Undo className="w-4 h-4" />
+                            </button>
+                            <button 
+                                onClick={handleRedo} 
+                                disabled={future.length === 0} 
+                                className="p-1.5 hover:bg-white dark:hover:bg-slate-600 rounded text-slate-500 disabled:opacity-30 disabled:hover:bg-transparent shadow-sm transition-all"
+                                title="Opnieuw uitvoeren"
+                            >
+                                <Redo className="w-4 h-4" />
+                            </button>
+                        </div>
+                    )}
+                    {!isReadOnly && (
                         <button onClick={handleSave} className="flex items-center px-3 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded-lg text-sm font-bold transition-all border border-brand-200">
                             <Save className="w-4 h-4 mr-2" />
                             {t.save}
@@ -602,7 +862,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                             <div key={section.id} className="group/section relative border border-transparent hover:border-dashed hover:border-blue-400 rounded-xl p-6 -m-6 transition-all hover:bg-blue-50/50 dark:hover:bg-blue-900/10">
 
                                                 {/* Floating Actions */}
-                                                {!isArchived && (
+                                                {!isReadOnly && (
                                                     <div className="absolute -top-3 -right-2 flex gap-1 opacity-0 group-hover/section:opacity-100 transition-all bg-white dark:bg-slate-900 shadow-lg border border-gray-100 dark:border-slate-700 rounded-lg p-1 scale-90 hover:scale-100 z-10">
                                                     <button onClick={() => moveSection(globalIndex, 'up')} disabled={globalIndex === 0} className="p-1.5 text-slate-400 hover:text-brand-500 disabled:opacity-30 rounded hover:bg-gray-50">
                                                         <ArrowUp className="w-4 h-4" />
@@ -624,8 +884,8 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
 
                                                 {/* Editable Title */}
                                                 <div
-                                                    className={`font-bold text-lg mb-3 uppercase flex items-center border-b border-gray-100 dark:border-slate-800 pb-2 outline-none ${!isArchived ? 'focus:border-brand-300' : ''}`}
-                                                    contentEditable={!isArchived}
+                                                    className={`font-bold text-lg mb-3 uppercase flex items-center border-b border-gray-100 dark:border-slate-800 pb-2 outline-none ${!isReadOnly ? 'focus:border-brand-300' : ''}`}
+                                                    contentEditable={!isReadOnly}
                                                     suppressContentEditableWarning
                                                     onBlur={(e) => handleTitleEdit(section.id, e.currentTarget.innerText)}
                                                 >
@@ -635,10 +895,12 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
 
                                                 {/* Editable Content Area */}
                                                 <div
-                                                    className={`text-base text-justify text-slate-700 dark:text-slate-300 outline-none rounded p-1 -ml-1 min-h-[1.5em] whitespace-pre-wrap ${!isArchived ? 'focus:ring-2 focus:ring-brand-100' : ''}`}
-                                                    contentEditable={!editingPlaceholder && !isArchived}
+                                                    className={`text-base text-justify text-slate-700 dark:text-slate-300 outline-none rounded p-1 -ml-1 min-h-[1.5em] whitespace-pre-wrap ${!isReadOnly ? 'focus:ring-2 focus:ring-brand-100' : ''}`}
+                                                    contentEditable={!editingPlaceholder && !isReadOnly}
                                                     suppressContentEditableWarning
                                                     onBlur={(e) => handleContentBlur(section.id, e)}
+                                                    onKeyDown={handleContentKeyDown}
+                                                    onBeforeInput={handleContentBeforeInput}
                                                 >
                                                     {(section.content || '').split(/(\[\[[A-Za-z0-9_]+\]\]|\[placeholder:[A-Za-z0-9_]+\])/g).map((part, i) => {
                                                         const match = part.match(/\[\[([A-Za-z0-9_]+)\]\]|\[placeholder:([A-Za-z0-9_]+)\]/);
@@ -663,7 +925,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                         ))}
 
                         {/* Add Section Button */}
-                        {!isArchived && (
+                        {!isReadOnly && (
                             <div className="flex justify-center py-8 opacity-40 hover:opacity-100 transition-opacity">
                                 <button
                                     onClick={addSection}
