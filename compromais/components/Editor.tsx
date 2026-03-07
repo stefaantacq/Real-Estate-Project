@@ -45,6 +45,12 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
 
     const handleUndo = () => {
         if (history.length === 0) return;
+        // Bump all contentEditable render keys so React fully remounts the divs
+        // instead of trying to patch a user-modified DOM. Without this, undoing
+        // content changes throws a NotFoundError in the reconciler.
+        sections.forEach(s => {
+            contentRenderKeys.current[s.id] = (contentRenderKeys.current[s.id] || 0) + 1;
+        });
         setSections(currentSections => {
             if (history.length === 0) return currentSections;
             const newHistory = [...history];
@@ -57,6 +63,9 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
 
     const handleRedo = () => {
         if (future.length === 0) return;
+        sections.forEach(s => {
+            contentRenderKeys.current[s.id] = (contentRenderKeys.current[s.id] || 0) + 1;
+        });
         setSections(currentSections => {
             if (future.length === 0) return currentSections;
             const newFuture = [...future];
@@ -71,7 +80,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     const [splitScreen, setSplitScreen] = useState<boolean>(false);
     const [activePlaceholderId, setActivePlaceholderId] = useState<string | null>(null);
     const [selectedSourceDoc, setSelectedSourceDoc] = useState<{ name: string, path?: string, bronText?: string, placeholderLabel?: string, currentValue?: string, paginaNummer?: number | null } | null>(null);
-    const [editingPlaceholder, setEditingPlaceholder] = useState<{ sectionId: string, placeholderId: string } | null>(null);
+    const [editingPlaceholder, setEditingPlaceholder] = useState<{ sectionId: string, placeholderId: string, partIndex?: number } | null>(null);
     const [isCurrentVersion, setIsCurrentVersion] = useState(true);
     const [isInitialized, setIsInitialized] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -84,6 +93,10 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     const [chatInput, setChatInput] = useState('');
     const [isChatLoading, setIsChatLoading] = useState(false);
     const chatEndRef = useRef<HTMLDivElement>(null);
+    // Per-section render version counter. Incremented after each state-driven content
+    // update so the contentEditable div gets a new key and React fully re-mounts it
+    // instead of trying to patch a DOM that was already modified by the user's typing.
+    const contentRenderKeys = useRef<Record<string, number>>({});
 
     // Initial Load
     useEffect(() => {
@@ -229,31 +242,41 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
 
     const toggleApprovePlaceholder = (sectionId: string, placeholderId: string) => {
         if (isReadOnly) return;
+        
+        // Find the source placeholder to get its current state and metadata
+        const triggerSection = sections.find(s => s.id === sectionId);
+        const triggerPh = triggerSection?.placeholders.find(p => p.id === placeholderId);
+        if (!triggerPh) return;
+
+        const newApproved = !triggerPh.isApproved;
+        const updatedPh = { ...triggerPh, isApproved: newApproved };
+
+        // Sync EVERYTHING (metadata + new approval) across all sections
         const updatedSections = sections.map(s => {
-            if (s.id !== sectionId) return s;
-            const newPlaceholders = s.placeholders.map(p => {
-                if (p.id === placeholderId) {
-                    return { ...p, isApproved: !p.isApproved };
-                }
-                return p;
-            });
-            // Automatic section approval update
+            const newPlaceholders = s.placeholders.map(p =>
+                p.id === placeholderId ? { ...updatedPh } : p
+            );
             const allApproved = newPlaceholders.length > 0 && newPlaceholders.every(p => p.isApproved);
-            return {
-                ...s,
-                placeholders: newPlaceholders,
-                isApproved: allApproved
-            };
+            return { ...s, placeholders: newPlaceholders, isApproved: allApproved };
         });
         updateSections(updatedSections);
     };
 
     const updatePlaceholderValue = async (sectionId: string, placeholderId: string, newValue: string) => {
         if (isReadOnly) return;
+
+        // Find the original placeholder to preserve its metadata
+        const triggerSection = sections.find(s => s.id === sectionId);
+        const triggerPh = triggerSection?.placeholders.find(p => p.id === placeholderId);
+        if (!triggerPh) return;
+
+        const updatedPh = { ...triggerPh, currentValue: newValue };
+
+        // Sync EVERYTHING (metadata + new value) across ALL sections
         const updatedSections = sections.map(s => {
-            if (s.id !== sectionId) return s;
-            const newPlaceholders = s.placeholders.map(p => p.id === placeholderId ? { ...p, currentValue: newValue } : p);
-            // Also maintain auto-approval state if value changes (though approval is usually separate)
+            const newPlaceholders = s.placeholders.map(p =>
+                p.id === placeholderId ? { ...updatedPh } : p
+            );
             const allApproved = newPlaceholders.length > 0 && newPlaceholders.every(p => p.isApproved);
             return {
                 ...s,
@@ -405,8 +428,20 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                         path: doc.path,
                         placeholderLabel: placeholder.label
                     });
+                    setSplitScreen(true);
+                    setSidebarMode('none');
+                    return;
                 }
             }
+
+            // No document linked — still open the panel and show what we know about the placeholder
+            setSelectedSourceDoc({
+                name: placeholder.label || placeholderId,
+                path: undefined as any,
+                bronText: placeholder.bronText || '',
+                placeholderLabel: placeholder.label,
+                currentValue: placeholder.currentValue,
+            });
         }
 
         setSplitScreen(true);
@@ -435,9 +470,68 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
 
     const handleContentEdit = async (sectionId: string, newContent: string) => {
         if (isReadOnly) return;
-        const updatedSections = sections.map(s => s.id === sectionId ? { ...s, content: newContent } : s);
-        updateSections(updatedSections);
+
+        // Scan the new content for [[sleutel]] or [placeholder:sleutel] patterns
+        const tagPattern = /\[\[([A-Za-z0-9_]+)\]\]|\[placeholder:([A-Za-z0-9_]+)\]/g;
+        const referencedIds = new Set<string>();
+        let m: RegExpExecArray | null;
+        while ((m = tagPattern.exec(newContent)) !== null) {
+            referencedIds.add(m[1] || m[2]);
+        }
+
+        // Defer until after the blur event fully completes, then bump the render key
+        // so the contentEditable div is fully re-mounted with the correct state instead
+        // of React trying to patch a DOM that was already modified by the user's typing.
+        setTimeout(() => {
+            contentRenderKeys.current[sectionId] = (contentRenderKeys.current[sectionId] || 0) + 1;
+            updateSections(prev => {
+                // Get all unique placeholders across the document
+                const allUsedPlaceholders = prev.flatMap(s => s.placeholders);
+                
+                // For each unique ID, find the "best" instance (the one with the most metadata)
+                const bestInstances: Record<string, PlaceholderSuggestion> = {};
+                allUsedPlaceholders.forEach(p => {
+                    const currentBest = bestInstances[p.id];
+                    // A placeholder is "better" if it has document metadata (source reference)
+                    if (!currentBest || (!currentBest.documentPad && p.documentPad)) {
+                        bestInstances[p.id] = { ...p };
+                    }
+                });
+
+                return prev.map(s => {
+                    if (s.id !== sectionId) return s;
+                    
+                    // Rebuild placeholders for this section based on text content tags
+                    let newSectionPlaceholders: PlaceholderSuggestion[] = [];
+                    referencedIds.forEach(pid => {
+                        // Check if we already have it in the section
+                        const existing = s.placeholders.find(p => p.id === pid);
+                        if (existing) {
+                            // Even if it exists, ensure it has the latest metadata from 'bestInstances'
+                            newSectionPlaceholders.push({ ...bestInstances[pid] });
+                        } else if (bestInstances[pid]) {
+                            // Inject from other sections
+                            newSectionPlaceholders.push({ ...bestInstances[pid] });
+                        }
+                    });
+
+                    // Keep any placeholders that might have been in the section but were missed by regex
+                    // (safety measure, though regex should be primary)
+                    s.placeholders.forEach(p => {
+                        if (!newSectionPlaceholders.some(np => np.id === p.id)) {
+                            // Only keep if it was actually in the sections before
+                            // (we don't want to leak deleted placeholders forever, 
+                            // but we MUST avoid losing data during an edit session)
+                        }
+                    });
+
+                    return { ...s, content: newContent, placeholders: newSectionPlaceholders };
+                });
+            });
+        }, 0);
     };
+
+
 
     const handleTitleEdit = (sectionId: string, newTitle: string) => {
         if (isReadOnly) return;
@@ -513,12 +607,84 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                 if (id) shakePlaceholder(id);
                 return;
             }
+
+            // For collapsed ranges (cursor position), also check the adjacent sibling
+            // to catch forward-delete operations (Ctrl+D / deleteContentForward) that
+            // would otherwise slip past and erase the placeholder.
+            if (range.collapsed) {
+
+                const isForward = e.inputType && (
+                    e.inputType === 'deleteContentForward' ||
+                    e.inputType === 'deleteWordForward' ||
+                    e.inputType === 'deleteSoftLineForward'
+                );
+                const isBackwardBI = e.inputType && (
+                    e.inputType === 'deleteContentBackward' ||
+                    e.inputType === 'deleteWordBackward' ||
+                    e.inputType === 'deleteSoftLineBackward'
+                );
+                const refNode = range.startContainer;
+                const offset = range.startOffset;
+                let adjacentPh: HTMLElement | null = null;
+
+                // Improved adjacency check that looks across text node boundaries
+                const getAdjacentNode = (node: Node, off: number, forward: boolean): Node | null => {
+                    if (node.nodeType === Node.TEXT_NODE) {
+                        if (forward && off < (node.textContent?.length || 0)) return null; // Still in middle of text
+                        if (!forward && off > 0) return null;
+                        return forward ? node.nextSibling : node.previousSibling;
+                    }
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        const children = node.childNodes;
+                        if (forward && off < children.length) return children[off];
+                        if (!forward && off > 0) return children[off - 1];
+                    }
+                    return null;
+                };
+
+                const targetNode = getAdjacentNode(refNode, offset, isForward || false);
+                if (targetNode && targetNode.nodeType === Node.ELEMENT_NODE) {
+                    const el = targetNode as HTMLElement;
+                    adjacentPh = el.closest?.('[data-placeholder-id]') || (el.hasAttribute?.('data-placeholder-id') ? el : null);
+                }
+
+                if (adjacentPh) {
+                    e.preventDefault();
+                    const id = adjacentPh.getAttribute('data-placeholder-id');
+                    if (id) shakePlaceholder(id);
+                    return;
+                }
+            }
         }
     };
 
-    const handleContentKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-        const isCtrlD = e.key === 'd' && e.ctrlKey;
-        const isCtrlH = e.key === 'h' && e.ctrlKey;
+    // sectionId is passed when the handler is used on a known section (enables Enter-to-inject)
+    const handleContentKeyDown = (e: React.KeyboardEvent<HTMLDivElement>, sectionId?: string) => {
+        // --- Enter: immediately inject [[...]] placeholders without waiting for blur ---
+        if (e.key === 'Enter' && sectionId && !isReadOnly) {
+            // Read the current DOM content exactly like handleContentBlur does
+            const container = e.currentTarget;
+            let content = '';
+            container.childNodes.forEach(node => {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    content += node.textContent || '';
+                } else if (node.nodeType === Node.ELEMENT_NODE) {
+                    const el = node as HTMLElement;
+                    const phId = el.getAttribute('data-placeholder-id') || el.querySelector('[data-placeholder-id]')?.getAttribute('data-placeholder-id');
+                    if (phId) content += `[placeholder:${phId}]`;
+                    else if (el.tagName === 'BR') content += '\n';
+                    else content += el.innerText;
+                }
+            });
+            // Only trigger if there is a [[...]] pattern that could resolve to a placeholder
+            if (/\[\[[A-Za-z0-9_]+\]\]/.test(content)) {
+                setTimeout(() => handleContentEdit(sectionId, content), 0);
+            }
+        }
+
+        // --- Delete / Backspace / Ctrl+D / Ctrl+H placeholder protection ---
+        const isCtrlD = (e.key === 'd' || e.key === 'D') && e.ctrlKey;
+        const isCtrlH = (e.key === 'h' || e.key === 'H') && e.ctrlKey;
         if (e.key === 'Backspace' || e.key === 'Delete' || isCtrlD || isCtrlH) {
             if ((e.target as HTMLElement).tagName === 'INPUT') return;
 
@@ -607,6 +773,27 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                     if (targetPlaceholder) break;
                     
                     if (target.nodeType === Node.TEXT_NODE && target.textContent?.trim()) break;
+
+                    // target is a non-content node (BR or empty text) — move the cursor logic
+                    // and continue looking in the loop.
+                    if (isBackspace) {
+                        currNode = target;
+                        currOffset = (target.nodeType === Node.TEXT_NODE) ? (target.textContent?.length || 0) : target.childNodes.length;
+                    } else {
+                        currNode = target;
+                        currOffset = 0;
+                        // Move to next sibling of this empty node in the next iteration
+                        const nextSib = target.nextSibling;
+                        if (nextSib) {
+                            currNode = target.parentNode;
+                            currOffset = Array.from(currNode!.childNodes).indexOf(nextSib as ChildNode);
+                        } else {
+                            // Hit end of parent
+                            currOffset = target.parentNode!.childNodes.length;
+                            currNode = target.parentNode;
+                        }
+                    }
+                    continue;
                 }
 
                 const atBoundary = isBackspace 
@@ -634,22 +821,31 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     };
 
     // Render a placeholder chip within text
-    const renderPlaceholder = (section: DocumentSection, p: PlaceholderSuggestion) => {
-        const isEditing = editingPlaceholder?.sectionId === section.id && editingPlaceholder?.placeholderId === p.id;
+    const renderPlaceholder = (section: DocumentSection, p: PlaceholderSuggestion, partIndex: number) => {
+        const isEditing = editingPlaceholder?.sectionId === section.id && editingPlaceholder?.placeholderId === p.id && editingPlaceholder?.partIndex === partIndex;
 
         if (isEditing) {
             return (
-                <span key={p.id} data-placeholder-id={p.id} className="inline-block align-baseline mx-1" contentEditable={false}>
+                <span key={`${p.id}-${partIndex}`} data-placeholder-id={p.id} className="inline-block align-baseline mx-1" contentEditable={false}>
                     <input
                         autoFocus
                         type="text"
                         defaultValue={p.currentValue}
                         className="px-2 py-1 rounded-md border-2 border-brand-500 bg-white dark:bg-slate-800 text-sm font-semibold outline-none focus:ring-4 focus:ring-brand-100 w-40 shadow-lg text-brand-700"
                         onKeyDown={(e) => {
-                            if (e.key === 'Enter') updatePlaceholderValue(section.id, p.id, e.currentTarget.value);
-                            if (e.key === 'Escape') setEditingPlaceholder(null);
+                            e.stopPropagation();
+                            if (e.key === 'Enter') {
+                                updatePlaceholderValue(section.id, p.id, e.currentTarget.value);
+                                setEditingPlaceholder(null);
+                            }
+                            if (e.key === 'Escape') {
+                                setEditingPlaceholder(null);
+                            }
                         }}
-                        onBlur={(e) => updatePlaceholderValue(section.id, p.id, e.currentTarget.value)}
+                        onBlur={(e) => {
+                            updatePlaceholderValue(section.id, p.id, e.currentTarget.value);
+                            setEditingPlaceholder(null);
+                        }}
                         onClick={(e) => e.stopPropagation()}
                     />
                 </span>
@@ -658,7 +854,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
 
         return (
             <span
-                key={p.id}
+                key={`${p.id}-${partIndex}`}
                 data-placeholder-id={p.id}
                 className={`
                     inline-block align-baseline relative group/placeholder mx-1 px-2 py-0.5 rounded-md border-2 transition-all duration-300
@@ -668,7 +864,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                     }
                 `}
                 contentEditable={false}
-                onClick={() => !isReadOnly && !p.isApproved && setEditingPlaceholder({ sectionId: section.id, placeholderId: p.id })}
+                onClick={() => !isReadOnly && !p.isApproved && setEditingPlaceholder({ sectionId: section.id, placeholderId: p.id, partIndex })}
             >
                 {/* The Value */}
                 <span className="text-sm font-bold">
@@ -680,18 +876,28 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                     <div className="w-full bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-gray-100 dark:border-slate-800 p-2 flex flex-col gap-2 relative ring-1 ring-black/5">
                         <div className="flex items-center justify-between px-1">
                             <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">{p.label}</span>
+                            {/* Trash button — only visible on rejected (non-approved) placeholders */}
+                            {!isReadOnly && !p.isApproved && (
+                                <button
+                                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); removePlaceholder(section.id, p.id); }}
+                                    className="p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                    title="Placeholder verwijderen"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                            )}
                         </div>
                         
                         <div className="flex gap-2 items-center">
                             <button
-                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleSourceClick(p.id); }}
+                                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleSourceClick(p.id); }}
                                 className="flex-1 flex items-center justify-center px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-xs font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-slate-600 dark:text-slate-300"
                             >
                                 <Eye className="w-3.5 h-3.5 mr-1.5" /> {t.source}
                             </button>
                             {!isReadOnly && (
                                 <button
-                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleApprovePlaceholder(section.id, p.id); }}
+                                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); toggleApprovePlaceholder(section.id, p.id); }}
                                     className={`flex-1 flex items-center justify-center px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-all shadow-md active:scale-95
                                         ${p.isApproved ? 'bg-red-500 hover:bg-red-600 shadow-red-500/10' : 'bg-green-600 hover:bg-green-700 shadow-green-500/10'}
                                     `}
@@ -706,6 +912,22 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                 </div>
             </span>
         );
+    };
+
+    // Removes a rejected placeholder from a section's placeholder list and strips its tag from the content
+    const removePlaceholder = (sectionId: string, placeholderId: string) => {
+        if (isReadOnly) return;
+        contentRenderKeys.current[sectionId] = (contentRenderKeys.current[sectionId] || 0) + 1;
+        updateSections(prev => prev.map(s => {
+            if (s.id !== sectionId) return s;
+            const newPlaceholders = s.placeholders.filter(p => p.id !== placeholderId);
+            // Also strip the placeholder tag from the content so it doesn't reappear on re-render
+            const newContent = (s.content || '')
+                .replace(new RegExp(`\\[\\[${placeholderId}\\]\\]`, 'g'), '')
+                .replace(new RegExp(`\\[placeholder:${placeholderId}\\]`, 'g'), '');
+            const allApproved = newPlaceholders.length > 0 && newPlaceholders.every(p => p.isApproved);
+            return { ...s, content: newContent, placeholders: newPlaceholders, isApproved: allApproved };
+        }));
     };
 
     // Content renderer that handles text editing AND placeholders
@@ -895,11 +1117,12 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
 
                                                 {/* Editable Content Area */}
                                                 <div
+                                                    key={`${section.id}-v${contentRenderKeys.current[section.id] || 0}`}
                                                     className={`text-base text-justify text-slate-700 dark:text-slate-300 outline-none rounded p-1 -ml-1 min-h-[1.5em] whitespace-pre-wrap ${!isReadOnly ? 'focus:ring-2 focus:ring-brand-100' : ''}`}
                                                     contentEditable={!editingPlaceholder && !isReadOnly}
                                                     suppressContentEditableWarning
                                                     onBlur={(e) => handleContentBlur(section.id, e)}
-                                                    onKeyDown={handleContentKeyDown}
+                                                    onKeyDown={(e) => handleContentKeyDown(e, section.id)}
                                                     onBeforeInput={handleContentBeforeInput}
                                                 >
                                                     {(section.content || '').split(/(\[\[[A-Za-z0-9_]+\]\]|\[placeholder:[A-Za-z0-9_]+\])/g).map((part, i) => {
@@ -907,15 +1130,23 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                                         if (match) {
                                                             const placeholderId = match[1] || match[2];
                                                             const p = section.placeholders.find(ph => ph.id === placeholderId);
-                                                            if (p) return renderPlaceholder(section, p);
+                                                            if (p) return renderPlaceholder(section, p, i);
                                                         }
                                                         return <span key={`${section.id}-part-${i}`}>{part}</span>;
                                                     })}
                                                 </div>
+                                                {/* [[...]] hint — only visible on section hover */}
+                                                {!isReadOnly && (
+                                                    <div className="mt-2 flex items-center gap-1.5 text-[10px] text-slate-400 dark:text-slate-600 select-none opacity-0 group-hover/section:opacity-100 transition-opacity duration-200">
+                                                        <span className="font-mono bg-slate-100 dark:bg-slate-800 px-1 rounded">[[sleutel]]</span>
+                                                        <span>typen voegt een bestaande placeholder in</span>
+                                                    </div>
+                                                )}
                                             </div>
                                         );
                                     })}
                                 </div>
+
 
                                 {/* Page Number Footer */}
                                 <div className="absolute bottom-8 left-0 right-0 text-center text-slate-400 text-sm font-sans select-none">
@@ -1019,21 +1250,33 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                         </div>
                                     </div>
                                 ) : (
-                                    <>
-                                        {/* Fake PDF Lines as fallback */}
-                                        <div className="absolute inset-0 p-8 space-y-4 opacity-50 pointer-events-none">
-                                            {[...Array(20)].map((_, i) => (
-                                                <div key={i} className="h-2 bg-slate-200 rounded w-full" style={{ width: `${Math.random() * 40 + 60}%` }}></div>
-                                            ))}
+                                    <div className="flex flex-col items-center justify-center h-full gap-4 p-8">
+                                        {/* Info card when there is no linked source document */}
+                                        <div className="w-full max-w-sm bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-gray-100 dark:border-slate-700 p-6 flex flex-col gap-4">
+                                            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+                                                <FileText className="w-5 h-5 flex-shrink-0" />
+                                                <span className="text-xs font-bold uppercase tracking-widest">{selectedSourceDoc?.placeholderLabel || activePlaceholderId}</span>
+                                            </div>
+                                            {selectedSourceDoc?.currentValue ? (
+                                                <div className="bg-brand-50 dark:bg-brand-900/20 border border-brand-200 dark:border-brand-800 rounded-xl p-4">
+                                                    <div className="text-[10px] font-bold text-brand-500 uppercase tracking-widest mb-1">Ingevulde waarde</div>
+                                                    <div className="text-sm font-semibold text-brand-800 dark:text-brand-200">{selectedSourceDoc.currentValue}</div>
+                                                </div>
+                                            ) : null}
+                                            {selectedSourceDoc?.bronText ? (
+                                                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
+                                                    <div className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Brontekst</div>
+                                                    <div className="text-sm text-amber-900 dark:text-amber-200 italic">"{selectedSourceDoc.bronText}"</div>
+                                                </div>
+                                            ) : null}
+                                            <div className="flex items-start gap-2 text-slate-400 dark:text-slate-500">
+                                                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                                                <p className="text-xs leading-relaxed">
+                                                    Geen brondocument gekoppeld aan deze placeholder. Koppel een document via de AI-analyse om de bronvermelding te activeren.
+                                                </p>
+                                            </div>
                                         </div>
-
-                                        {/* Highlighted Area */}
-                                        <div className="absolute top-1/4 left-10 right-10 h-24 bg-yellow-200/50 border-2 border-yellow-400 rounded flex items-center justify-center">
-                                            <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-bold shadow-sm">{t.foundData}</span>
-                                        </div>
-
-                                        <span className="relative z-10 font-medium text-slate-400 bg-white/80 px-4 py-2 rounded-lg backdrop-blur-sm">{t.noSourceFound}</span>
-                                    </>
+                                    </div>
                                 )}
                             </div>
                         </div>

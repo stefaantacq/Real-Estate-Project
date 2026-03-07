@@ -10,7 +10,7 @@ const dlog = (msg) => {
 };
 const fetchFullVersionContent = async (versie_id) => {
     const [verRows] = await pool.query(`
-        SELECT vo.dossier_id 
+        SELECT vo.dossier_id, vo.verkoopsovereenkomst_id
         FROM Versie v 
         JOIN Verkoopsovereenkomst vo ON v.verkoopsovereenkomst_id = vo.verkoopsovereenkomst_id 
         WHERE v.versie_id = ?
@@ -18,6 +18,7 @@ const fetchFullVersionContent = async (versie_id) => {
 
     if (verRows.length === 0) return [];
     const dossierId = verRows[0].dossier_id;
+    const verkoopsovereenkomstId = verRows[0].verkoopsovereenkomst_id;
 
     const [sections] = await pool.query(`
         SELECT vs.*, s.titel as title, s.tekst_content as original_content
@@ -49,20 +50,26 @@ const fetchFullVersionContent = async (versie_id) => {
                     p.pdf_label,
                     vp.ingevulde_waarde as value,
                     vp.validatiestatus as placeholder_validation_status,
-                    NULL as document_id,
-                    NULL as bron_text,
-                    NULL as pagina_nummer,
-                    NULL as document_pad,
-                    NULL as document_naam
+                    -- Use metadata from snapshot if available, otherwise from Master table
+                    COALESCE(vp.document_id, ap.document_id) as document_id,
+                    COALESCE(vp.bron_text, ap.bron_text) as bron_text,
+                    COALESCE(vp.pagina_nummer, ap.pagina_nummer) as pagina_nummer,
+                    COALESCE(d1.bestand_pad, d2.bestand_pad) as document_pad,
+                    COALESCE(d1.bestandsnaam, d2.bestandsnaam) as document_naam
                 FROM Placeholder p
                 JOIN Placeholder_Library pl ON p.placeholder_id = pl.placeholder_id
                 LEFT JOIN VersiePlaceholder vp
                     ON pl.placeholder_id = vp.placeholder_id
                     AND vp.versie_id = ?
                     AND vp.aangepaste_sectie_id = ?
+                LEFT JOIN Aangepaste_Placeholder ap 
+                    ON pl.placeholder_id = ap.placeholder_id 
+                    AND ap.verkoopsovereenkomst_id = ?
+                LEFT JOIN Documenten d1 ON vp.document_id = d1.document_id
+                LEFT JOIN Documenten d2 ON ap.document_id = d2.document_id
                 WHERE p.sectie_id = ?
-            `, [versie_id, section.aangepaste_sectie_id, section.sectie_id]);
-            placeholders = rows;
+            `, [versie_id, section.aangepaste_sectie_id, verkoopsovereenkomstId, section.sectie_id]);
+            placeholders = rows; console.log(`[FETCH] Version ${versie_id} Section ${section.aangepaste_sectie_id} found ${rows.length} placeholders with snapshot. First metadata:`, rows[0] ? { name: rows[0].name, doc_id: rows[0].document_id } : 'none');
         } else {
             // Fallback: use global Aangepaste_Placeholder (older versions before snapshot feature)
             const [rows] = await pool.query(`
@@ -80,11 +87,11 @@ const fetchFullVersionContent = async (versie_id) => {
                     d.bestandsnaam as document_naam
                 FROM Placeholder p
                 JOIN Placeholder_Library pl ON p.placeholder_id = pl.placeholder_id
-                LEFT JOIN Aangepaste_Placeholder ap ON pl.placeholder_id = ap.placeholder_id AND ap.dossier_id = ?
+                LEFT JOIN Aangepaste_Placeholder ap ON pl.placeholder_id = ap.placeholder_id AND ap.verkoopsovereenkomst_id = ?
                 LEFT JOIN Documenten d ON ap.document_id = d.document_id
                 WHERE p.sectie_id = ?
-            `, [dossierId, section.sectie_id]);
-            placeholders = rows;
+            `, [verkoopsovereenkomstId, section.sectie_id]);
+            placeholders = rows; console.log(`[FETCH] Version ${versie_id} Section ${section.aangepaste_sectie_id} found ${rows.length} placeholders in FALLBACK. First metadata:`, rows[0] ? { name: rows[0].name, doc_id: rows[0].document_id } : 'none');
         }
 
         section.placeholders = placeholders.map(p => ({
@@ -111,7 +118,7 @@ const fetchFullVersionContent = async (versie_id) => {
     return sections;
 };
 
-const initializeVersionFromTemplate = async (versie_id, template_id, dossier_id) => {
+const initializeVersionFromTemplate = async (versie_id, template_id, dossier_id, verkoopsovereenkomstId = null) => {
     dlog(`[INIT] initializeVersionFromTemplate called for versie ${versie_id} with template ${template_id}`);
     const [templateSections] = await pool.query('SELECT * FROM Sectie WHERE template_id = ? ORDER BY volgorde ASC', [template_id]);
     dlog(`[INIT] found ${templateSections.length} sections for template ${template_id}`);
@@ -130,16 +137,15 @@ const initializeVersionFromTemplate = async (versie_id, template_id, dossier_id)
         `, [ts.sectie_id]);
 
         for (const tp of templatePlaceholders) {
-            const [existing] = await pool.query('SELECT 1 FROM Aangepaste_Placeholder WHERE dossier_id = ? AND placeholder_id = ?', [dossier_id, tp.placeholder_id]);
+            const [existing] = await pool.query('SELECT 1 FROM Aangepaste_Placeholder WHERE verkoopsovereenkomst_id = ? AND placeholder_id = ?', [verkoopsovereenkomstId, tp.placeholder_id]);
             if (existing.length > 0) {
                 await pool.query(
-                    'UPDATE Aangepaste_Placeholder SET aangepaste_sectie_id = ? WHERE dossier_id = ? AND placeholder_id = ?',
-                    [aangepasteSectieId, dossier_id, tp.placeholder_id]
+                    'UPDATE Aangepaste_Placeholder SET aangepaste_sectie_id = ? WHERE verkoopsovereenkomst_id = ? AND placeholder_id = ?', [aangepasteSectieId, verkoopsovereenkomstId, tp.placeholder_id]
                 );
             } else {
                 await pool.query(
-                    'INSERT INTO Aangepaste_Placeholder (dossier_id, placeholder_id, aangepaste_sectie_id, ingevulde_waarde, validatiestatus) VALUES (?, ?, ?, ?, ?)',
-                    [dossier_id, tp.placeholder_id, aangepasteSectieId, '', 'unverified']
+                    'INSERT INTO Aangepaste_Placeholder (dossier_id, placeholder_id, verkoopsovereenkomst_id, aangepaste_sectie_id, ingevulde_waarde, validatiestatus) VALUES (?, ?, ?, ?, ?, ?)',
+                    [dossier_id, tp.placeholder_id, verkoopsovereenkomstId, aangepasteSectieId, '', 'unverified']
                 );
             }
         }
@@ -149,38 +155,84 @@ const initializeVersionFromTemplate = async (versie_id, template_id, dossier_id)
 const copyVersionContent = async (sourceVersionId, targetVersionId) => {
     const [oldSections] = await pool.query('SELECT * FROM VersieSectie WHERE versie_id = ?', [sourceVersionId]);
     for (const os of oldSections) {
-        await pool.query(
+        const [vsResult] = await pool.query(
             'INSERT INTO VersieSectie (versie_id, sectie_id, tekst_inhoud, validatiestatus) VALUES (?, ?, ?, ?)',
             [targetVersionId, os.sectie_id, os.tekst_inhoud, os.validatiestatus]
         );
+        const newAangepasteSectieId = vsResult.insertId;
+
+        // Copy placeholders snapshots too so the historical reference is preserved
+        const [oldSnapshots] = await pool.query('SELECT * FROM VersiePlaceholder WHERE versie_id = ? AND aangepaste_sectie_id = ?', [sourceVersionId, os.aangepaste_sectie_id]);
+        for (const snap of oldSnapshots) {
+            await pool.query(
+                `INSERT INTO VersiePlaceholder (versie_id, placeholder_id, aangepaste_sectie_id, ingevulde_waarde, validatiestatus, document_id, bron_text, pagina_nummer)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                [targetVersionId, snap.placeholder_id, newAangepasteSectieId, snap.ingevulde_waarde, snap.validatiestatus, snap.document_id, snap.bron_text, snap.pagina_nummer]
+            );
+        }
     }
 };
 
-const syncDossierMasterData = async (dossierId, tag, value, documentId = null, bronText = null) => {
+const syncDossierMasterData = async (dossierId, tag, value, documentId = null, bronText = null, paginaNummer = null, verkoopsovereenkomstId = null) => {
     try {
         const [pDef] = await pool.query('SELECT placeholder_id FROM Placeholder_Library WHERE sleutel = ? LIMIT 1', [tag]);
-        if (pDef.length > 0) {
-            const placeholderId = pDef[0].placeholder_id;
-            const [existing] = await pool.query('SELECT 1 FROM Aangepaste_Placeholder WHERE dossier_id = ? AND placeholder_id = ?', [dossierId, placeholderId]);
-            if (existing.length > 0) {
+        if (pDef.length === 0) return;
+        
+        const placeholderId = pDef[0].placeholder_id;
+
+        // 1. Update the global Master Data table (Aangepaste_Placeholder)
+        const [existing] = await pool.query('SELECT 1 FROM Aangepaste_Placeholder WHERE verkoopsovereenkomst_id = ? AND placeholder_id = ?', [verkoopsovereenkomstId, placeholderId]);
+        if (existing.length > 0) {
+            await pool.query(
+                `UPDATE Aangepaste_Placeholder SET 
+                  ingevulde_waarde = ?, 
+                  validatiestatus = ?, 
+                  document_id = COALESCE(?, document_id), 
+                  bron_text = COALESCE(?, bron_text), 
+                  pagina_nummer = COALESCE(?, pagina_nummer) 
+                WHERE verkoopsovereenkomst_id = ? AND placeholder_id = ?`, 
+                [value, 'unverified', documentId, bronText, paginaNummer, verkoopsovereenkomstId, placeholderId]
+            );
+        } else {
+            await pool.query(
+                'INSERT INTO Aangepaste_Placeholder (dossier_id, placeholder_id, verkoopsovereenkomst_id, ingevulde_waarde, validatiestatus, document_id, bron_text, pagina_nummer) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', 
+                [dossierId, placeholderId, verkoopsovereenkomstId, value, 'unverified', documentId, bronText, paginaNummer]
+            );
+        }
+
+        // 2. Also PROPGATE the findings to the CURRENT (active) version's snapshots if they exist
+        // This ensures the user sees the latest AI data even if they've already saved a version.
+        const [versionRows] = await pool.query(`
+            SELECT v.versie_id 
+            FROM Versie v 
+            JOIN Verkoopsovereenkomst vo ON v.verkoopsovereenkomst_id = vo.verkoopsovereenkomst_id
+            WHERE vo.verkoopsovereenkomst_id = ? AND v.is_current = TRUE
+        `, [verkoopsovereenkomstId]);
+
+        if (versionRows.length > 0) {
+            const currentVersieId = versionRows[0].versie_id;
+            // Check if snapshots exist for this placeholder in the current version
+            const [snapshotRows] = await pool.query('SELECT 1 FROM VersiePlaceholder WHERE versie_id = ? AND placeholder_id = ?', [currentVersieId, placeholderId]);
+            if (snapshotRows.length > 0) {
                 await pool.query(
-                    'UPDATE Aangepaste_Placeholder SET ingevulde_waarde = ?, validatiestatus = ?, document_id = ?, bron_text = ? WHERE dossier_id = ? AND placeholder_id = ?',
-                    [value, 'unverified', documentId, bronText, dossierId, placeholderId]
-                );
-            } else {
-                await pool.query(
-                    'INSERT INTO Aangepaste_Placeholder (dossier_id, placeholder_id, ingevulde_waarde, validatiestatus, document_id, bron_text) VALUES (?, ?, ?, ?, ?, ?)',
-                    [dossierId, placeholderId, value, 'unverified', documentId, bronText]
+                    `UPDATE VersiePlaceholder SET 
+                      ingevulde_waarde = ?, 
+                      document_id = COALESCE(?, document_id), 
+                      bron_text = COALESCE(?, bron_text), 
+                      pagina_nummer = COALESCE(?, pagina_nummer) 
+                    WHERE versie_id = ? AND placeholder_id = ?`,
+                    [value, documentId, bronText, paginaNummer, currentVersieId, placeholderId]
                 );
             }
         }
+
         if (['adres_eigendom', 'ligging', 'ligging_eigendom', 'ObjectAdres', 'property_street', 'property_municipality', 'property_address'].includes(tag)) {
             if (value && value.trim()) await pool.query('UPDATE Dossier SET adres = ? WHERE dossier_id = ?', [value, dossierId]);
         }
     } catch (err) { console.error('Error in syncDossierMasterData:', err); }
 };
 
-const processDossierDocuments = async (dossierId, files, customPrompt = null, templateId = null) => {
+const processDossierDocuments = async (dossierId, files, customPrompt = null, templateId = null, verkoopsovereenkomstId = null) => {
     try {
         let pRows;
         if (templateId) {
@@ -238,7 +290,8 @@ const processDossierDocuments = async (dossierId, files, customPrompt = null, te
                         combinedExtractedData[key] = {
                             waarde: val.waarde,
                             bron_text: val.bron_text || null,
-                            document_id: file.id || null
+                            document_id: file.id || null,
+                            pagina_nummer: val.pagina_nummer || null
                         };
                     } else if (typeof val === 'string' && val.trim() !== '') {
                         combinedExtractedData[key] = {
@@ -254,7 +307,7 @@ const processDossierDocuments = async (dossierId, files, customPrompt = null, te
         for (const [tag, data] of Object.entries(combinedExtractedData)) {
             if (data && data.waarde && data.waarde.toString().trim()) { 
                 console.log(`AI extracted field [${tag}]: ${data.waarde}`);
-                await syncDossierMasterData(dossierId, tag, data.waarde.toString(), data.document_id, data.bron_text); 
+                await syncDossierMasterData(dossierId, tag, data.waarde.toString(), data.document_id, data.bron_text, data.pagina_nummer, verkoopsovereenkomstId); 
                 matchCount++; 
             }
         }
@@ -318,7 +371,7 @@ const dossierController = {
             console.log("Inserting Dossier record...");
             const [dosResult] = await pool.query(
                 `INSERT INTO Dossier (account_id, ui_id, titel, verkoper_naam, adres, type, status, remarks) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [req.user.id, ui_id, titel, verkoper_naam, adres, type || 'House', 'draft', remarks || null]
             );
             const dossier_id = dosResult.insertId;
@@ -465,6 +518,7 @@ const dossierController = {
             if (verRows.length === 0) return res.status(404).json({ error: 'Versie niet gevonden' });
             
             const ver = verRows[0];
+            const verkoopsovereenkomstId = ver.verkoopsovereenkomst_id;
             const [aggRows] = await pool.query('SELECT dossier_id FROM Verkoopsovereenkomst WHERE verkoopsovereenkomst_id = ?', [ver.verkoopsovereenkomst_id]);
             const dossierId = aggRows[0]?.dossier_id;
             
@@ -483,6 +537,20 @@ const dossierController = {
             const [vResult] = await pool.query('INSERT INTO Versie(ui_id, verkoopsovereenkomst_id, versie_nummer, source, is_current) VALUES(?, ?, ?, ?, ?)', [new_ui_id, ver.verkoopsovereenkomst_id, nextNum, 'Save', true]);
             const newVersieId = vResult.insertId;
 
+            // Pre-scan all sections to collect the best available metadata for each unique placeholder
+            const metadataMap = {};
+            for (const s of (sections || [])) {
+                for (const p of (s.placeholders || [])) {
+                    if (p.documentId && !metadataMap[p.id]) {
+                        metadataMap[p.id] = {
+                            documentId: p.documentId,
+                            bronText: p.bronText || p.bron_text,
+                            paginaNummer: p.paginaNummer || p.pagina_nummer
+                        };
+                    }
+                }
+            }
+
             for (const s of (sections || [])) {
                 let sectieId = s.sectie_id || null;
                 if (!sectieId && s.id && !isNaN(parseInt(s.id))) {
@@ -493,32 +561,55 @@ const dossierController = {
                 const [sectieResult] = await pool.query('INSERT INTO VersieSectie(versie_id, sectie_id, tekst_inhoud, validatiestatus) VALUES(?, ?, ?, ?)', [newVersieId, sectieId, s.content, s.isApproved ? 'approved' : 'pending']);
                 const newAangepasteSectieId = sectieResult.insertId;
 
-                for (const p of (s.placeholders || [])) {
-                    const [pRows] = await pool.query('SELECT placeholder_id FROM Placeholder_Library WHERE sleutel = ?', [p.id]);
+                                for (const p of (s.placeholders || [])) {
+                    // DIAGNOSTIC LOG
+                                                            const [pRows] = await pool.query('SELECT placeholder_id FROM Placeholder_Library WHERE sleutel = ?', [p.id]);
                     if (pRows.length > 0) {
                         const placeholderId = pRows[0].placeholder_id;
                         const placeholderStatus = p.isApproved ? 'approved' : 'pending';
+                        
+                        const bestMeta = metadataMap[p.id] || {};
+                        let docId = p.documentId || p.document_id || bestMeta.documentId || null;
+                        let bronText = p.bronText || p.bron_text || bestMeta.bronText || null;
+                        let paginaNummer = p.paginaNummer || p.pagina_nummer || bestMeta.paginaNummer || null;
+
+                        if (!docId || !bronText) {
+                            const [existRows] = await pool.query('SELECT document_id, bron_text, pagina_nummer FROM Aangepaste_Placeholder WHERE verkoopsovereenkomst_id = ? AND placeholder_id = ?', [verkoopsovereenkomstId, placeholderId]);
+                            if (existRows.length > 0) {
+                                docId = docId || existRows[0].document_id;
+                                bronText = bronText || existRows[0].bron_text;
+                                paginaNummer = paginaNummer !== null ? paginaNummer : existRows[0].pagina_nummer;
+                            }
+                        }
+
+                        console.log(`[updateVersion] Placeholder ${p.id} docId=${docId} (from p.documentId=${p.documentId})`);
 
                         // Update the global current value (used by the Editor)
                         await pool.query(
-                            `INSERT INTO Aangepaste_Placeholder (dossier_id, placeholder_id, aangepaste_sectie_id, ingevulde_waarde, validatiestatus)
-                             VALUES (?, ?, ?, ?, ?)
+                            `INSERT INTO Aangepaste_Placeholder (dossier_id, placeholder_id, verkoopsovereenkomst_id, aangepaste_sectie_id, ingevulde_waarde, validatiestatus, document_id, bron_text, pagina_nummer)
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                              ON DUPLICATE KEY UPDATE
                                ingevulde_waarde = VALUES(ingevulde_waarde),
                                validatiestatus = VALUES(validatiestatus),
-                               aangepaste_sectie_id = VALUES(aangepaste_sectie_id)`,
-                            [dossierId, placeholderId, newAangepasteSectieId, p.currentValue, placeholderStatus]
+                               aangepaste_sectie_id = VALUES(aangepaste_sectie_id),
+                                document_id = COALESCE(VALUES(document_id), document_id),
+                                bron_text = COALESCE(VALUES(bron_text), bron_text),
+                                pagina_nummer = COALESCE(VALUES(pagina_nummer), pagina_nummer)`,
+                            [dossierId, placeholderId, verkoopsovereenkomstId, newAangepasteSectieId, p.currentValue, placeholderStatus, docId, bronText, paginaNummer]
                         );
 
                         // Write a version-specific snapshot so the diff feature can compare values across versions
                         await pool.query(
-                            `INSERT INTO VersiePlaceholder (versie_id, placeholder_id, aangepaste_sectie_id, ingevulde_waarde, validatiestatus)
-                             VALUES (?, ?, ?, ?, ?)
+                            `INSERT INTO VersiePlaceholder (versie_id, placeholder_id, aangepaste_sectie_id, ingevulde_waarde, validatiestatus, document_id, bron_text, pagina_nummer)
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                              ON DUPLICATE KEY UPDATE
-                               ingevulde_waarde = VALUES(ingevulde_waarde),
-                               validatiestatus = VALUES(validatiestatus),
-                               aangepaste_sectie_id = VALUES(aangepaste_sectie_id)`,
-                            [newVersieId, placeholderId, newAangepasteSectieId, p.currentValue, placeholderStatus]
+                                ingevulde_waarde = VALUES(ingevulde_waarde),
+                                validatiestatus = VALUES(validatiestatus),
+                                aangepaste_sectie_id = VALUES(aangepaste_sectie_id),
+                                document_id = COALESCE(VALUES(document_id), document_id),
+                                bron_text = COALESCE(VALUES(bron_text), bron_text),
+                                pagina_nummer = COALESCE(VALUES(pagina_nummer), pagina_nummer)`,
+                            [newVersieId, placeholderId, newAangepasteSectieId, p.currentValue, placeholderStatus, docId, bronText, paginaNummer]
                         );
                     }
                 }
@@ -567,7 +658,7 @@ const dossierController = {
             const ver_ui_id = `ver-${Date.now()}`;
             const [voResult] = await pool.query('INSERT INTO Verkoopsovereenkomst (ui_id, dossier_id, template_id) VALUES (?, ?, ?)', [vo_ui_id, dosRows[0].dossier_id, req.body.template_id]);
             const [vResult] = await pool.query('INSERT INTO Versie (ui_id, verkoopsovereenkomst_id, versie_nummer, source, is_current) VALUES (?, ?, ?, ?, ?)', [ver_ui_id, voResult.insertId, verNum, 'AI', true]);
-            await initializeVersionFromTemplate(vResult.insertId, req.body.template_id, dosRows[0].dossier_id);
+            await initializeVersionFromTemplate(vResult.insertId, req.body.template_id, dosRows[0].dossier_id, voResult.insertId);
             
             // Trigger AI analysis if documents exist
             dlog(`triggering AI analysis for createAgreement verNum ${verNum}`);
@@ -580,7 +671,7 @@ const dossierController = {
                     mimetype: doc.bestandstype
                 }));
                 dlog(`docRows > 0, calling AI on files: ${files.length} for remarks: ${req.body.remarks}`);
-                await processDossierDocuments(dosRows[0].dossier_id, files, req.body.remarks || null, req.body.template_id);
+                await processDossierDocuments(dosRows[0].dossier_id, files, req.body.remarks || null, req.body.template_id, voResult.insertId);
             }
 
             res.json({ id: vo_ui_id, versionId: ver_ui_id, version_nummer: verNum });
@@ -608,7 +699,7 @@ const dossierController = {
             } else {
                 console.log(`Initializing new version from template ${aggRows[0].template_id} to ${vResult.insertId}`);
                 dlog(`Initializing new version from template ${aggRows[0].template_id} to ${vResult.insertId}`);
-                await initializeVersionFromTemplate(vResult.insertId, aggRows[0].template_id, aggRows[0].dossier_id);
+                await initializeVersionFromTemplate(vResult.insertId, aggRows[0].template_id, aggRows[0].dossier_id, aggRows[0].verkoopsovereenkomst_id);
             }
 
             // Trigger AI analysis if documents exist
@@ -624,7 +715,7 @@ const dossierController = {
                 const remarks = `Analyze for version ${nextNum} created via ${source}`;
                 console.log(`Triggering AI analysis for new version ${nextNum} of agreement ${req.params.id}`);
                 // Wait for AI analysis to finish before responding so that placeholders exist in Editor immediately
-                await processDossierDocuments(aggRows[0].dossier_id, files, remarks, aggRows[0].template_id);
+                await processDossierDocuments(aggRows[0].dossier_id, files, remarks, aggRows[0].template_id, aggRows[0].verkoopsovereenkomst_id);
             }
 
             res.json({ id: ver_ui_id, version_nummer: nextNum });

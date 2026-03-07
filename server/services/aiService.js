@@ -92,9 +92,10 @@ const analyzeDocument = async (text, fieldNames, customPrompt = null, fieldConte
         3. For names, dates, and addresses: Be extremely precise. 
            - Distinguish clearly between Buyer (Koper) and Seller (Verkoper).
            - Identify the Property Address (Adres van de eigendom/het goed).
-        4. Return ONLY a JSON object where the keys are the English keys provided. The value for each key MUST be an object with two properties:
+        4. Return ONLY a JSON object where the keys are the English keys provided. The value for each key MUST be an object with these properties:
            - "waarde": The extracted value as a string (use an empty string "" if not found).
            - "bron_text": The exact, literal short sentence or phrase from the source text that proves this value (use an empty string "" if not found).
+           - "pagina_nummer": The page number (integer) where this value was found (use 0 if you are uncertain or if not applicable).
         5. Return nothing but the JSON object.
 
         ${contextStr}

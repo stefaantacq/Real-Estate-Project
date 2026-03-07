@@ -397,22 +397,7 @@ export const Compare: React.FC<CompareProps> = ({ lang, onBack }) => {
                 </div>
             )}
 
-            {/* ── Snapshot warning banner ── */}
-            {!isSameVersion && (!v1HasSnapshot || !v2HasSnapshot) && (
-                <div className="shrink-0 flex items-start gap-3 px-6 py-3 bg-amber-50 dark:bg-amber-950/20 border-b border-amber-200 dark:border-amber-800/40">
-                    <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                    <div className="text-xs text-amber-800 dark:text-amber-200">
-                        <strong>Beperkte vergelijking:</strong> {
-                            !v1HasSnapshot && !v2HasSnapshot
-                                ? 'Beide versies hebben geen historische placeholder-snapshot. Placeholders tonen huidige waarden.'
-                                : !v1HasSnapshot
-                                    ? 'De linker (oude) versie heeft geen historische placeholder-snapshot — placeholders tonen de huidige waarden i.p.v. de waarden van toen die versie werd aangemaakt.'
-                                    : 'De rechter (nieuwe) versie heeft geen historische placeholder-snapshot.'
-                        }{' '}
-                        <span className="opacity-70">Versies aangemaakt vóór de snapshot-functie bevatten geen historische placeholder data.</span>
-                    </div>
-                </div>
-            )}
+
 
             {/* ── Main content ── */}
             <div className="flex flex-1 min-h-0 relative">
