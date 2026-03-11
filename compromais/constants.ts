@@ -249,6 +249,8 @@ export const TRANSLATIONS = {
     changesSavedToast: 'Wijzigingen succesvol opgeslagen',
     editBtn: 'Bewerken',
     templateNameExists: 'De naam van deze template bestaat al. Kies een andere naam.',
+    tabManual: 'Zelf aanmaken',
+    tabUpload: 'Bestand uploaden',
     // Compare page
     compareTitle: 'Versie Vergelijking',
     compareOld: 'Oud',
@@ -497,6 +499,8 @@ export const TRANSLATIONS = {
     changesSavedToast: 'Modifications enregistrées avec succès',
     editBtn: 'Éditer',
     templateNameExists: 'Le nom de ce modèle existe déjà. Veuillez choisir un autre nom.',
+    tabManual: 'Créer manuellement',
+    tabUpload: 'Charger un fichier',
     // Compare page
     compareTitle: 'Comparaison de versions',
     compareOld: 'Ancien',
@@ -743,6 +747,8 @@ export const TRANSLATIONS = {
     changesSavedToast: 'Changes saved successfully',
     editBtn: 'Edit',
     templateNameExists: 'This template name already exists. Please choose a different name.',
+    tabManual: 'Create manually',
+    tabUpload: 'Upload document',
     // Compare page
     compareTitle: 'Version Comparison',
     compareOld: 'Old',

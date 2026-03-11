@@ -74,7 +74,9 @@ const authController = {
                 user: {
                     id: user.account_id,
                     name: user.naam,
-                    email: user.email
+                    email: user.email,
+                    customDocumentPrompt: user.custom_document_prompt,
+                    customTemplatePrompt: user.custom_template_prompt
                 }
             });
         } catch (error) {
@@ -86,12 +88,31 @@ const authController = {
     // GET /api/auth/me
     me: async (req, res) => {
         try {
-            const [rows] = await pool.query('SELECT account_id, naam, email FROM Account WHERE account_id = ?', [req.user.id]);
+            const [rows] = await pool.query(
+                'SELECT account_id, naam, email, custom_document_prompt as customDocumentPrompt, custom_template_prompt as customTemplatePrompt FROM Account WHERE account_id = ?',
+                [req.user.id]
+            );
             if (rows.length === 0) {
                 return res.status(404).json({ error: 'Gebruiker niet gevonden' });
             }
             res.json(rows[0]);
         } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    },
+
+    // PUT /api/auth/settings
+    updateSettings: async (req, res) => {
+        const { customDocumentPrompt, customTemplatePrompt } = req.body;
+        
+        try {
+            await pool.query(
+                'UPDATE Account SET custom_document_prompt = ?, custom_template_prompt = ? WHERE account_id = ?',
+                [customDocumentPrompt, customTemplatePrompt, req.user.id]
+            );
+            res.json({ message: 'Instellingen bijgewerkt' });
+        } catch (error) {
+            console.error('Update settings error:', error);
             res.status(500).json({ error: error.message });
         }
     }

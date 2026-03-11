@@ -68,6 +68,13 @@ export const api = {
         localStorage.removeItem('auth_user');
     },
 
+    async updateSettings(settings: { customDocumentPrompt?: string; customTemplatePrompt?: string }) {
+        return this.request('/auth/settings', {
+            method: 'PUT',
+            body: JSON.stringify(settings),
+        });
+    },
+
     // Dossiers
     async getDossiers() {
         return this.request('/dossiers');

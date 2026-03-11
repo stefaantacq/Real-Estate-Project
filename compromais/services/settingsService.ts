@@ -1,4 +1,5 @@
 import { UserSettings } from '../types';
+import { api } from './api';
 
 const STORAGE_KEY = 'compromisai_settings';
 
@@ -32,6 +33,26 @@ export const SettingsService = {
         const current = SettingsService.getSettings();
         const updated = { ...current, ...settings };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+        
+        // Sync to backend if it's one of the AI prompts
+        if (settings.customDocumentPrompt !== undefined || settings.customTemplatePrompt !== undefined) {
+             api.updateSettings({
+                 customDocumentPrompt: updated.customDocumentPrompt,
+                 customTemplatePrompt: updated.customTemplatePrompt
+             }).catch(err => console.error('Failed to sync settings to backend:', err));
+        }
+        
         return updated;
+    },
+
+    syncWithUser: (user: any) => {
+        if (!user) return;
+        const current = SettingsService.getSettings();
+        const updated = {
+            ...current,
+            customDocumentPrompt: user.customDocumentPrompt ?? current.customDocumentPrompt,
+            customTemplatePrompt: user.customTemplatePrompt ?? current.customTemplatePrompt,
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     }
 };

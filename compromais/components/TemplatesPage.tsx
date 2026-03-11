@@ -91,6 +91,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [isPreviewLoading, setIsPreviewLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [createTab, setCreateTab] = useState<'manual' | 'upload'>('manual');
 
     const handleOpenPreview = async (template: Template) => {
         setPreviewTemplate(template);
@@ -277,6 +278,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
         setNewType('House');
         setAnalyzedSections([]);
         setSelectedFile(null);
+        setCreateTab('manual');
         setIsCreating(true);
     };
 
@@ -797,75 +799,129 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                             <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t.newTemplateBtn}</h2>
                             <button onClick={() => setIsCreating(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full text-slate-400"><X className="w-6 h-6" /></button>
                         </div>
-                        <div className="p-6 space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t.newNameLabel}</label>
-                                <input
-                                    type="text"
-                                    value={newName}
-                                    onChange={(e) => setNewName(e.target.value)}
-                                    className={`w-full px-4 py-2 rounded-lg border ${templates.some(t => t.name.toLowerCase() === newName.toLowerCase() && newName.length > 0) ? 'border-red-500 bg-red-50 dark:bg-red-900/10' : 'border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-950'} focus:ring-2 focus:ring-brand-500 outline-none transition-all`}
-                                    placeholder={t.newNamePlaceholder}
-                                />
-                                {templates.some(t => t.name.toLowerCase() === newName.toLowerCase() && newName.length > 0) && (
-                                    <p className="text-xs text-red-500 mt-1 font-medium">{t.templateNameExists}</p>
-                                )}
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t.newDescLabel}</label>
-                                <textarea
-                                    value={newDesc}
-                                    onChange={(e) => setNewDesc(e.target.value)}
-                                    className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-950 focus:ring-2 focus:ring-brand-500 outline-none transition-all h-24"
-                                    placeholder={t.newDescPlaceholder}
-                                ></textarea>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t.newTypeLabel}</label>
-                                <select
-                                    value={newType}
-                                    onChange={(e) => setNewType(e.target.value as any)}
-                                    className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-950 focus:ring-2 focus:ring-brand-500 outline-none transition-all"
+                        <div className="p-6 space-y-3 flex-1 overflow-y-auto max-h-[70vh]">
+                            {/* Create Tab Selection (Small Filter style) */}
+                            <div className="flex bg-gray-100 dark:bg-slate-800 p-1 rounded-lg mb-4">
+                                <button
+                                    onClick={() => setCreateTab('manual')}
+                                    className={`flex-1 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${createTab === 'manual' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                                 >
-                                    <option value="House">House</option>
-                                    <option value="Apartment">Apartment</option>
-                                    <option value="Commercial">Commercial</option>
-                                </select>
+                                    {t.tabManual}
+                                </button>
+                                <button
+                                    onClick={() => setCreateTab('upload')}
+                                    className={`flex-1 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${createTab === 'upload' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                                >
+                                    {t.tabUpload}
+                                </button>
                             </div>
-                            <div className="pt-4 border-t border-gray-100 dark:border-slate-800">
-                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">{t.startFromFileLabel}</label>
-                                <div className="border-2 border-dashed border-gray-300 dark:border-slate-700 rounded-xl p-6 text-center hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors relative cursor-pointer group">
-                                    <input
-                                        type="file"
-                                        accept=".pdf,.docx"
-                                        onChange={(e) => {
-                                            const file = e.target.files?.[0] || null;
-                                            setSelectedFile(file);
-                                            if (file && !newName) {
-                                                const cleanName = file.name.replace(/\.pdf$/i, '').replace(/\.docx$/i, '');
-                                                setNewName(cleanName);
-                                            }
-                                        }}
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                    />
-                                    <div className="flex flex-col items-center pointer-events-none group-hover:scale-105 transition-transform">
-                                        <div className="w-10 h-10 bg-brand-50 dark:bg-brand-900/20 rounded-full flex items-center justify-center mb-3 text-brand-600 dark:text-brand-400">
-                                            <Upload className="w-5 h-5" />
-                                        </div>
-                                        {selectedFile ? (
-                                            <>
-                                                <p className="text-brand-600 dark:text-brand-400 font-bold text-sm truncate max-w-full px-4">{selectedFile.name}</p>
-                                                <p className="text-slate-500 text-xs mt-1 max-w-xs mx-auto">{t.geminiAnalysisDesc}</p>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <p className="text-slate-900 dark:text-white font-medium text-sm">{t.uploadFile}</p>
-                                                <p className="text-slate-500 text-xs mt-1 max-w-xs mx-auto">{t.geminiAnalysisDesc}</p>
-                                            </>
+
+                            {createTab === 'manual' ? (
+                                <div className="space-y-3 animate-in fade-in slide-in-from-left-2 duration-300">
+                                    <div>
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">{t.newNameLabel}</label>
+                                        <input
+                                            type="text"
+                                            value={newName}
+                                            onChange={(e) => setNewName(e.target.value)}
+                                            className={`w-full px-3 py-1.5 rounded-lg border ${templates.some(t => t.name.toLowerCase() === newName.toLowerCase() && newName.length > 0) ? 'border-red-500 bg-red-50 dark:bg-red-900/10' : 'border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-950'} focus:ring-2 focus:ring-brand-500 outline-none transition-all text-sm`}
+                                            placeholder={t.newNamePlaceholder}
+                                        />
+                                        {templates.some(t => t.name.toLowerCase() === newName.toLowerCase() && newName.length > 0) && (
+                                            <p className="text-[10px] text-red-500 mt-0.5 font-medium">{t.templateNameExists}</p>
                                         )}
                                     </div>
+                                    <div>
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">{t.newDescLabel}</label>
+                                        <textarea
+                                            value={newDesc}
+                                            onChange={(e) => setNewDesc(e.target.value)}
+                                            className="w-full px-3 py-1.5 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-950 focus:ring-2 focus:ring-brand-500 outline-none transition-all h-20 text-sm"
+                                            placeholder={t.newDescPlaceholder}
+                                        ></textarea>
+                                    </div>
+                                    <div>
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">{t.newTypeLabel}</label>
+                                        <select
+                                            value={newType}
+                                            onChange={(e) => setNewType(e.target.value as any)}
+                                            className="w-full px-3 py-1.5 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-950 focus:ring-2 focus:ring-brand-500 outline-none transition-all text-sm"
+                                        >
+                                            <option value="House">House</option>
+                                            <option value="Apartment">Apartment</option>
+                                            <option value="Commercial">Commercial</option>
+                                        </select>
+                                    </div>
                                 </div>
-                            </div>
+                            ) : (
+                                <div className="space-y-3 animate-in fade-in slide-in-from-right-2 duration-300">
+                                    <div className="border-2 border-dashed border-gray-300 dark:border-slate-700 rounded-xl p-4 text-center hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors relative cursor-pointer group">
+                                        <input
+                                            type="file"
+                                            accept=".pdf,.docx"
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0] || null;
+                                                setSelectedFile(file);
+                                                if (file && !newName) {
+                                                    const cleanName = file.name.replace(/\.pdf$/i, '').replace(/\.docx$/i, '');
+                                                    setNewName(cleanName);
+                                                }
+                                            }}
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                        />
+                                        <div className="flex flex-col items-center pointer-events-none group-hover:scale-105 transition-transform">
+                                            <div className="w-10 h-10 bg-brand-50 dark:bg-brand-900/20 rounded-full flex items-center justify-center mb-2 text-brand-600 dark:text-brand-400">
+                                                <Upload className="w-5 h-5" />
+                                            </div>
+                                            {selectedFile ? (
+                                                <>
+                                                    <p className="text-brand-600 dark:text-brand-400 font-bold text-sm truncate max-w-full px-4">{selectedFile.name}</p>
+                                                    <p className="text-slate-500 text-[10px] mt-0.5 max-w-xs mx-auto">{t.geminiAnalysisDesc}</p>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <p className="text-slate-900 dark:text-white font-medium text-sm">{t.uploadFile}</p>
+                                                    <p className="text-slate-500 text-[10px] mt-0.5 max-w-xs mx-auto">{t.geminiAnalysisDesc}</p>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">{t.newNameLabel}</label>
+                                        <input
+                                            type="text"
+                                            value={newName}
+                                            onChange={(e) => setNewName(e.target.value)}
+                                            className={`w-full px-3 py-1.5 rounded-lg border ${templates.some(t => t.name.toLowerCase() === newName.toLowerCase() && newName.length > 0) ? 'border-red-500 bg-red-50 dark:bg-red-900/10' : 'border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-950'} focus:ring-2 focus:ring-brand-500 outline-none transition-all text-sm`}
+                                            placeholder={t.newNamePlaceholder}
+                                        />
+                                        {templates.some(t => t.name.toLowerCase() === newName.toLowerCase() && newName.length > 0) && (
+                                            <p className="text-[10px] text-red-500 mt-0.5 font-medium">{t.templateNameExists}</p>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">{t.newDescLabel}</label>
+                                        <textarea
+                                            value={newDesc}
+                                            onChange={(e) => setNewDesc(e.target.value)}
+                                            className="w-full px-3 py-1.5 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-950 focus:ring-2 focus:ring-brand-500 outline-none transition-all h-20 text-sm"
+                                            placeholder={t.newDescPlaceholder}
+                                        ></textarea>
+                                    </div>
+                                    <div>
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">{t.newTypeLabel}</label>
+                                        <select
+                                            value={newType}
+                                            onChange={(e) => setNewType(e.target.value as any)}
+                                            className="w-full px-3 py-1.5 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-950 focus:ring-2 focus:ring-brand-500 outline-none transition-all text-sm"
+                                        >
+                                            <option value="House">House</option>
+                                            <option value="Apartment">Apartment</option>
+                                            <option value="Commercial">Commercial</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                         <div className="px-6 py-4 border-t border-gray-100 dark:border-slate-800 flex justify-end gap-3 bg-gray-50/50 dark:bg-slate-900/50">
                             <button onClick={() => setIsCreating(false)} className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900">{t.cancel}</button>

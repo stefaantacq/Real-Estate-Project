@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Save, Download, FileText, Check, ChevronRight, Wand2, ArrowLeft, Eye, Undo, Redo, MoreHorizontal, Trash2, Plus, X, ListChecks, Maximize2, Split, ArrowUp, ArrowDown, ArrowRight, ExternalLink, Edit2, RefreshCw, AlertCircle } from 'lucide-react';
 import { Language, DocumentSection, PlaceholderSuggestion, Dossier, DossierStatus } from '../types';
-import { TRANSLATIONS, MOCK_SECTIONS } from '../constants';
+import { TRANSLATIONS, MOCK_SECTIONS, SUPPORTED_PLACEHOLDERS } from '../constants';
 import { api } from '../services/api';
 
 import { Document, Page, pdfjs } from 'react-pdf';
@@ -85,6 +85,11 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     const [isInitialized, setIsInitialized] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [numPages, setNumPages] = useState<number | null>(null);
+    const [suggestionState, setSuggestionState] = useState<{
+        active: boolean;
+        query: string;
+        sectionId: string | null;
+    }>({ active: false, query: '', sectionId: null });
 
     // AI Chat state
     const [chatMessages, setChatMessages] = useState<{role: 'user'|'model', content: string}[]>([
@@ -529,6 +534,66 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                 });
             });
         }, 0);
+    };
+
+    const handlePlaceholderInput = (e: React.FormEvent<HTMLDivElement>, sectionId: string) => {
+        if (isReadOnly) return;
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0) return;
+
+        const range = selection.getRangeAt(0);
+        const node = range.startContainer;
+        if (node.nodeType !== Node.TEXT_NODE) return;
+
+        const textBeforeCursor = node.textContent?.slice(0, range.startOffset) || "";
+        const lastDoubleBracket = textBeforeCursor.lastIndexOf('[[');
+
+        if (lastDoubleBracket !== -1) {
+            const query = textBeforeCursor.slice(lastDoubleBracket + 2).toLowerCase();
+            if (!query.includes(']]')) {
+                setSuggestionState({
+                    active: true,
+                    query,
+                    sectionId
+                });
+                return;
+            }
+        }
+
+        if (suggestionState.active) {
+            setSuggestionState({ active: false, query: '', sectionId: null });
+        }
+    };
+
+    const handleSelectPlaceholderInEditor = (placeholderId: string) => {
+        if (!suggestionState.sectionId || !suggestionState.active) return;
+
+        const sectionId = suggestionState.sectionId;
+        const activeEl = document.activeElement as HTMLDivElement;
+        if (!activeEl || !activeEl.isContentEditable) return;
+
+        let content = "";
+        activeEl.childNodes.forEach(node => {
+            if (node.nodeType === Node.TEXT_NODE) {
+                content += node.textContent || "";
+            } else if (node.nodeType === Node.ELEMENT_NODE) {
+                const el = node as HTMLElement;
+                const phId = el.getAttribute('data-placeholder-id') || el.querySelector('[data-placeholder-id]')?.getAttribute('data-placeholder-id');
+                if (phId) content += `[placeholder:${phId}]`;
+                else if (el.tagName === 'BR') content += '\n';
+                else content += el.innerText;
+            }
+        });
+
+        // We replace "[[query" with "[[placeholderId]]"
+        const trigger = `[[${suggestionState.query}`;
+        const lastIdx = content.lastIndexOf(trigger);
+        if (lastIdx !== -1) {
+            const newContent = content.slice(0, lastIdx) + `[[${placeholderId}]]` + content.slice(lastIdx + trigger.length);
+            handleContentEdit(sectionId, newContent);
+        }
+
+        setSuggestionState({ active: false, query: '', sectionId: null });
     };
 
 
@@ -1116,24 +1181,51 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                                 </div>
 
                                                 {/* Editable Content Area */}
-                                                <div
-                                                    key={`${section.id}-v${contentRenderKeys.current[section.id] || 0}`}
-                                                    className={`text-base text-justify text-slate-700 dark:text-slate-300 outline-none rounded p-1 -ml-1 min-h-[1.5em] whitespace-pre-wrap ${!isReadOnly ? 'focus:ring-2 focus:ring-brand-100' : ''}`}
-                                                    contentEditable={!editingPlaceholder && !isReadOnly}
-                                                    suppressContentEditableWarning
-                                                    onBlur={(e) => handleContentBlur(section.id, e)}
-                                                    onKeyDown={(e) => handleContentKeyDown(e, section.id)}
-                                                    onBeforeInput={handleContentBeforeInput}
-                                                >
-                                                    {(section.content || '').split(/(\[\[[A-Za-z0-9_]+\]\]|\[placeholder:[A-Za-z0-9_]+\])/g).map((part, i) => {
-                                                        const match = part.match(/\[\[([A-Za-z0-9_]+)\]\]|\[placeholder:([A-Za-z0-9_]+)\]/);
-                                                        if (match) {
-                                                            const placeholderId = match[1] || match[2];
-                                                            const p = section.placeholders.find(ph => ph.id === placeholderId);
-                                                            if (p) return renderPlaceholder(section, p, i);
-                                                        }
-                                                        return <span key={`${section.id}-part-${i}`}>{part}</span>;
-                                                    })}
+                                                <div className="relative">
+                                                    <div
+                                                        key={`${section.id}-v${contentRenderKeys.current[section.id] || 0}`}
+                                                        className={`text-base text-justify text-slate-700 dark:text-slate-300 outline-none rounded p-1 -ml-1 min-h-[1.5em] whitespace-pre-wrap ${!isReadOnly ? 'focus:ring-2 focus:ring-brand-100' : ''}`}
+                                                        contentEditable={!editingPlaceholder && !isReadOnly}
+                                                        suppressContentEditableWarning
+                                                        onBlur={(e) => handleContentBlur(section.id, e)}
+                                                        onKeyDown={(e) => handleContentKeyDown(e, section.id)}
+                                                        onBeforeInput={handleContentBeforeInput}
+                                                        onInput={(e) => handlePlaceholderInput(e, section.id)}
+                                                    >
+                                                        {(section.content || '').split(/(\[\[[A-Za-z0-9_]+\]\]|\[placeholder:[A-Za-z0-9_]+\])/g).map((part, i) => {
+                                                            const match = part.match(/\[\[([A-Za-z0-9_]+)\]\]|\[placeholder:([A-Za-z0-9_]+)\]/);
+                                                            if (match) {
+                                                                const placeholderId = match[1] || match[2];
+                                                                const p = section.placeholders.find(ph => ph.id === placeholderId);
+                                                                if (p) return renderPlaceholder(section, p, i);
+                                                            }
+                                                            return <span key={`${section.id}-part-${i}`}>{part}</span>;
+                                                        })}
+                                                    </div>
+
+                                                    {/* Suggestion Dropdown */}
+                                                    {suggestionState.active && suggestionState.sectionId === section.id && (
+                                                        <div className="absolute z-50 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg shadow-xl mt-1 w-64 max-h-48 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200" style={{ top: '100%', left: 0 }}>
+                                                            <div className="p-2 border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50">
+                                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.choosePlaceholder}</span>
+                                                            </div>
+                                                            {SUPPORTED_PLACEHOLDERS
+                                                                .filter(p => p.id.toLowerCase().includes(suggestionState.query) || p.label.toLowerCase().includes(suggestionState.query))
+                                                                .map(p => (
+                                                                    <button
+                                                                        key={p.id}
+                                                                        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleSelectPlaceholderInEditor(p.id); }}
+                                                                        className="w-full text-left px-4 py-2 text-xs hover:bg-brand-50 dark:hover:bg-brand-900/20 text-slate-700 dark:text-slate-300 flex flex-col border-b border-gray-50 dark:border-slate-700/50 last:border-0"
+                                                                    >
+                                                                        <span className="font-bold text-brand-600">{p.label}</span>
+                                                                        <span className="text-[10px] text-slate-400 opacity-70">placeholder:{p.id}</span>
+                                                                    </button>
+                                                                ))}
+                                                            {SUPPORTED_PLACEHOLDERS.filter(p => p.id.toLowerCase().includes(suggestionState.query) || p.label.toLowerCase().includes(suggestionState.query)).length === 0 && (
+                                                                <div className="px-4 py-3 text-xs text-slate-400 italic">{t.noMatchingPlaceholders}</div>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 {/* [[...]] hint — only visible on section hover */}
                                                 {!isReadOnly && (

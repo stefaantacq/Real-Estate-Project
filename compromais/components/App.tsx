@@ -13,6 +13,7 @@ import { Language } from '../types';
 
 import { Compare } from './Compare';
 import { api } from '../services/api';
+import { SettingsService } from '../services/settingsService';
 
 
 
@@ -37,13 +38,24 @@ const MainApp: React.FC = () => {
       document.documentElement.classList.remove('dark');
     }
   }, [darkMode]);
+  
+  // Initial Settings Sync
+  useEffect(() => {
+    if (isAuthenticated && user) {
+        SettingsService.syncWithUser(user);
+    }
+  }, [isAuthenticated, user]);
 
   const toggleDarkMode = () => setDarkMode(!darkMode);
 
   // Authentication
   const handleLogin = () => {
     const savedUser = localStorage.getItem('auth_user');
-    if (savedUser) setUser(JSON.parse(savedUser));
+    if (savedUser) {
+        const parsedUser = JSON.parse(savedUser);
+        setUser(parsedUser);
+        SettingsService.syncWithUser(parsedUser);
+    }
     setIsAuthenticated(true);
     navigate('/dashboard');
   };
