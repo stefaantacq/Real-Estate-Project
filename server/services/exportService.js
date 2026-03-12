@@ -1,32 +1,27 @@
 const axios = require('axios');
 const FormData = require('form-data');
 const fs = require('fs');
+const fsPromises = fs.promises;
 const path = require('path');
+const os = require('os');
+const crypto = require('crypto');
+const { exec } = require('child_process');
 
 // User confirmed IP for Collabora
 const COLLABORA_HOST = process.env.COLLABORA_HOST || 'http://localhost:9980';
 const CONVERT_URL_PDF = `${COLLABORA_HOST}/lool/convert-to/pdf`;
-const CONVERT_URL_DOCX = `${COLLABORA_HOST}/lool/convert-to/docx`;
 
 /**
- * Generates DOCX by sending HTML to Collabora.
- * This replaces the buggy 'html-to-docx' library.
+ * Generates DOCX via Pandoc using a reference stylesheet
  */
 exports.generateDocx = async (sections, title = 'Document') => {
     // 1. Construct HTML
-    // Collabora (LibreOffice) handles full HTML documents well.
     let htmlContent = `
         <!DOCTYPE html>
         <html>
         <head>
             <meta charset="UTF-8">
             <title>${title}</title>
-            <style>
-                body { font-family: 'Arial', sans-serif; font-size: 11pt; }
-                h1 { font-size: 16pt; font-weight: bold; margin-bottom: 12pt; }
-                p { margin-bottom: 10pt; }
-
-            </style>
         </head>
         <body>
             <h1>${title}</h1>
@@ -63,26 +58,53 @@ exports.generateDocx = async (sections, title = 'Document') => {
 
     htmlContent += `</body></html>`;
 
-    // 2. Send to Collabora
-    try {
-        console.log(`Sending HTML to Collabora for DOCX (${htmlContent.length} bytes)...`);
-        const form = new FormData();
-        form.append('data', Buffer.from(htmlContent, 'utf-8'), { filename: 'index.html', contentType: 'text/html' });
+    // 2. Setup paths for temp files and template
+    const uniqueId = crypto.randomBytes(16).toString('hex');
+    const tempHtmlPath = path.join(os.tmpdir(), `temp_docx_${uniqueId}.html`);
+    const tempDocxPath = path.join(os.tmpdir(), `temp_docx_${uniqueId}.docx`);
+    
+    // Path to the reference docx template
+    const templatePath = path.join(__dirname, '..', 'templates', 'CIB_Stylesheet.docx');
 
-        const response = await axios.post(CONVERT_URL_DOCX, form, {
-            headers: { ...form.getHeaders() },
-            responseType: 'arraybuffer'
+    try {
+        // 3. Write temp HTML
+        await fsPromises.writeFile(tempHtmlPath, htmlContent, 'utf-8');
+
+        // 4. Call Pandoc
+        // We check if the template file exists. If so, apply it, else run without
+        let command = `pandoc "${tempHtmlPath}" -f html -t docx -o "${tempDocxPath}"`;
+        try {
+            await fsPromises.access(templatePath);
+            // Template exists, use it!
+            command += ` --reference-doc="${templatePath}"`;
+            console.log("Using Pandoc WITH reference template:", templatePath);
+        } catch (err) {
+            console.log("Using Pandoc WITHOUT reference template. File not found at:", templatePath);
+        }
+
+        await new Promise((resolve, reject) => {
+            exec(command, (error, stdout, stderr) => {
+                if (error) {
+                    console.error("Pandoc Execution Error:", stderr);
+                    reject(error);
+                } else {
+                    resolve();
+                }
+            });
         });
 
-        console.log("Collabora DOCX generation successful.");
-        return response.data; // This is the valid DOCX buffer
+        // 5. Read the resulting DOCX buffer
+        const docxBuffer = await fsPromises.readFile(tempDocxPath);
+        console.log("Pandoc DOCX generation successful.");
+        return docxBuffer;
+
     } catch (error) {
-        console.error("Collabora DOCX Error:", error.message);
-        if (error.response) {
-            console.error("Status:", error.response.status);
-            try { console.error("Body:", error.response.data.toString()) } catch (e) { }
-        }
-        throw new Error("Failed to generate DOCX via Collabora");
+        console.error("Failed to generate DOCX via Pandoc:", error.message);
+        throw new Error("Failed to generate DOCX via Pandoc");
+    } finally {
+        // 6. Cleanup temp files
+        try { await fsPromises.unlink(tempHtmlPath); } catch (e) { }
+        try { await fsPromises.unlink(tempDocxPath); } catch (e) { }
     }
 };
 
