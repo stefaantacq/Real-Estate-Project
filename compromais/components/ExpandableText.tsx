@@ -11,11 +11,11 @@ export const ExpandableText: React.FC<ExpandableTextProps> = ({ text = '', limit
     const content = text || '';
     const shouldTruncate = content.length > limit;
 
-    if (!shouldTruncate) return <p className={className}>{content}</p>;
+    if (!shouldTruncate) return <p className={`${className} break-words`}>{content}</p>;
 
     return (
         <div className={className}>
-            <p>
+            <p className="break-words">
                 {isExpanded ? content : `${content.slice(0, limit)}...`}
                 <button
                     onClick={(e) => {

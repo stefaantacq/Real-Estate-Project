@@ -103,6 +103,7 @@ export interface PlaceholderSuggestion {
   confidence?: 'High' | 'Medium' | 'Low'; // Made optional
   isApproved: boolean;
   type?: string;
+  coords?: [number, number, number, number] | null;
 }
 
 export interface DocumentSection {

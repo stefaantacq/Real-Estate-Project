@@ -366,7 +366,8 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
       if (relativeUrl) {
          const filename = relativeUrl.split('/').pop() || relativeUrl;
          relativeUrl = relativeUrl.startsWith('http') ? relativeUrl : `/api/documents/preview/${filename}`;
-         if (!relativeUrl.toLowerCase().endsWith('.pdf') && !relativeUrl.startsWith('http')) {
+         const isWordDoc = (doc.path || '').toLowerCase().endsWith('.docx') || (doc.path || '').toLowerCase().endsWith('.doc');
+         if (isWordDoc && !relativeUrl.startsWith('http')) {
              relativeUrl += '.pdf';
          }
       }
@@ -940,11 +941,11 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                                        {isApartment ? <Building2 className="w-5 h-5" /> : <Home className="w-5 h-5" />}
                                     </div>
 
-                                    <h3 className="font-bold text-slate-900 dark:text-white group-hover:text-brand-700 dark:hover:text-brand-400 transition-colors mb-1">{template.name}</h3>
+                                    <h3 className="font-bold text-slate-900 dark:text-white group-hover:text-brand-700 dark:hover:text-brand-400 transition-colors mb-1 break-all">{template.name}</h3>
                                     <ExpandableText
                                        text={template.description || 'Geen beschrijving beschikbaar.'}
                                        limit={60}
-                                       className="text-xs text-slate-500 leading-relaxed mb-4"
+                                       className="text-xs text-slate-500 leading-relaxed mb-4 break-words"
                                     />
 
                                     <div className="mt-auto flex items-center justify-end">
@@ -971,7 +972,7 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
             ref={fileInputRef}
             onChange={handleFileChange}
             className="hidden"
-            accept=".pdf,.doc,.docx"
+            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
          />
 
          {/* Premium Side Drawer Viewer */}
@@ -1006,25 +1007,35 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
             <div className="flex-1 p-8 overflow-y-auto bg-slate-50/50 dark:bg-slate-950/50">
                <div className="max-w-4xl mx-auto w-full h-full bg-white dark:bg-slate-900 shadow-2xl border border-gray-200 dark:border-slate-800 rounded-sm overflow-hidden relative group">
                   {selectedDocument?.path ? (
-                     <div className="w-full h-full overflow-y-auto bg-slate-200 flex flex-col items-center py-6">
-                        <Document
-                           file={selectedDocument.path}
-                           onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-                           loading={<div className="p-4 text-slate-500 font-medium flex items-center"><RefreshCw className="animate-spin w-4 h-4 mr-2"/> {t.documentLoading || 'Laden...'}</div>}
-                           error={<div className="p-4 text-red-500 font-medium">{t.documentLoadError || 'Fout bij het laden'}</div>}
-                        >
-                           {Array.from(new Array(numPages || 0), (el, index) => (
-                               <div key={`page_${index + 1}`} className="mb-6 shadow-2xl bg-white">
-                                   <Page 
-                                       pageNumber={index + 1} 
-                                       width={Math.min(window.innerWidth * 0.45, 800)}
-                                       renderTextLayer={true}
-                                       renderAnnotationLayer={true}
-                                   />
-                               </div>
-                           ))}
-                        </Document>
-                     </div>
+                      <div className="w-full h-full overflow-y-auto bg-slate-200 flex flex-col items-center py-6">
+                         {/\.(jpg|jpeg|png|gif|webp)(\.pdf)?($|\?|#)/i.test(selectedDocument.path || '') ? (
+                            <div className="max-w-[90%] bg-white shadow-2xl rounded-lg p-2">
+                               <img 
+                                  src={selectedDocument.path} 
+                                  alt={selectedDocument.name}
+                                  className="w-full h-auto object-contain"
+                               />
+                            </div>
+                         ) : (
+                            <Document
+                               file={selectedDocument.path}
+                               onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+                               loading={<div className="p-4 text-slate-500 font-medium flex items-center"><RefreshCw className="animate-spin w-4 h-4 mr-2"/> {t.documentLoading || 'Laden...'}</div>}
+                               error={<div className="p-4 text-red-500 font-medium">{t.documentLoadError || 'Fout bij het laden'}</div>}
+                            >
+                               {Array.from(new Array(numPages || 0), (el, index) => (
+                                   <div key={`page_${index + 1}`} className="mb-6 shadow-2xl bg-white">
+                                       <Page 
+                                           pageNumber={index + 1} 
+                                           width={Math.min(window.innerWidth * 0.45, 800)}
+                                           renderTextLayer={true}
+                                           renderAnnotationLayer={true}
+                                       />
+                                   </div>
+                               ))}
+                            </Document>
+                         )}
+                      </div>
                   ) : (
                      <div className="flex items-center justify-center h-full text-slate-400">
                         {t.selectDocumentToView}

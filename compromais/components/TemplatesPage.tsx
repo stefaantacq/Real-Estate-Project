@@ -486,11 +486,11 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                 <LayoutIcon className="w-6 h-6" />
                             </div>
 
-                            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">{template.name}</h3>
+                            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2 break-all">{template.name}</h3>
                             <ExpandableText
                                 text={template.description}
                                 limit={80}
-                                className="text-sm text-slate-500 dark:text-slate-400 mb-6"
+                                className="text-sm text-slate-500 dark:text-slate-400 mb-6 break-words"
                             />
 
                             <div className="flex items-center justify-between pt-4 border-t border-gray-50 dark:border-slate-800">
@@ -858,26 +858,30 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                     <div className="border-2 border-dashed border-gray-300 dark:border-slate-700 rounded-xl p-4 text-center hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors relative cursor-pointer group">
                                         <input
                                             type="file"
-                                            accept=".pdf,.docx"
+                                            accept=".pdf,.docx,.jpg,.jpeg,.png"
                                             onChange={(e) => {
                                                 const file = e.target.files?.[0] || null;
                                                 setSelectedFile(file);
                                                 if (file && !newName) {
-                                                    const cleanName = file.name.replace(/\.pdf$/i, '').replace(/\.docx$/i, '');
+                                                    const cleanName = file.name.replace(/\.(pdf|docx|jpg|jpeg|png)$/i, '');
                                                     setNewName(cleanName);
                                                 }
                                             }}
                                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                                         />
-                                        <div className="flex flex-col items-center pointer-events-none group-hover:scale-105 transition-transform">
-                                            <div className="w-10 h-10 bg-brand-50 dark:bg-brand-900/20 rounded-full flex items-center justify-center mb-2 text-brand-600 dark:text-brand-400">
-                                                <Upload className="w-5 h-5" />
+                                        <div className={`flex flex-col items-center pointer-events-none group-hover:scale-105 transition-transform ${selectedFile ? 'text-green-600 dark:text-green-400' : ''}`}>
+                                            <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 transition-colors ${selectedFile ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400'}`}>
+                                                {selectedFile ? (
+                                                    <Check className="w-6 h-6" />
+                                                ) : (
+                                                    <Upload className="w-6 h-6" />
+                                                )}
                                             </div>
                                             {selectedFile ? (
-                                                <>
-                                                    <p className="text-brand-600 dark:text-brand-400 font-bold text-sm truncate max-w-full px-4">{selectedFile.name}</p>
-                                                    <p className="text-slate-500 text-[10px] mt-0.5 max-w-xs mx-auto">{t.geminiAnalysisDesc}</p>
-                                                </>
+                                                <div className="bg-green-50 dark:bg-green-900/10 px-4 py-2 rounded-xl border border-green-100 dark:border-green-900/20 max-w-[90%] shadow-sm">
+                                                    <p className="text-green-700 dark:text-green-400 font-bold text-sm truncate">{selectedFile.name}</p>
+                                                    <p className="text-green-600/70 dark:text-green-400/50 text-[10px] mt-0.5 font-medium">{t.geminiAnalysisDesc}</p>
+                                                </div>
                                             ) : (
                                                 <>
                                                     <p className="text-slate-900 dark:text-white font-medium text-sm">{t.uploadFile}</p>

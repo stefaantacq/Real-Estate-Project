@@ -112,6 +112,12 @@ export const api = {
         });
     },
 
+    async reAnalyzeDossier(id: string) {
+        return this.request(`/dossiers/${id}/analyze`, {
+            method: 'POST',
+        });
+    },
+
     // Versions
     async getVersion(id: string) {
         return this.request(`/dossiers/versions/${id}`);

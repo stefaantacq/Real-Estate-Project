@@ -45,8 +45,8 @@ const templateController = {
                 return {
                     id: row.template_id.toString(),
                     name: row.naam,
-                    title: row.title || row.naam,
-                    description: row.description,
+                    title: row.titel || row.naam,
+                    description: row.beschrijving,
                     sections: [], 
                     isAiSuggested: Boolean(row.is_ai_suggested),
                     isArchived: Boolean(row.is_archived),
@@ -72,8 +72,8 @@ const templateController = {
             res.json({
                 id: row.template_id.toString(),
                 name: row.naam,
-                title: row.title || row.naam,
-                description: row.description,
+                title: row.titel || row.naam,
+                description: row.beschrijving,
                 sections: sections,
                 isAiSuggested: Boolean(row.is_ai_suggested),
                 source: row.source || 'Custom'
@@ -95,7 +95,7 @@ const templateController = {
             if (check[0].account_id !== req.user.id) return res.status(403).json({ error: 'Geen toegang tot deze template' });
 
             await pool.query(
-                'UPDATE Template SET naam = COALESCE(?, naam), title = COALESCE(?, title), description = COALESCE(?, description) WHERE template_id = ?',
+                'UPDATE Template SET naam = COALESCE(?, naam), titel = COALESCE(?, titel), beschrijving = COALESCE(?, beschrijving) WHERE template_id = ?',
                 [name, title, description, id]
             );
             if (sections) {
@@ -209,7 +209,7 @@ const templateController = {
             }
             const defaultName = req.file ? req.file.originalname.replace('.pdf', '') : 'Unnamed Template';
             const [result] = await pool.query(
-                'INSERT INTO Template (naam, title, description, source, account_id) VALUES (?, ?, ?, ?, ?)',
+                'INSERT INTO Template (naam, titel, beschrijving, source, account_id) VALUES (?, ?, ?, ?, ?)',
                 [name || defaultName, title || name || defaultName, description || '', source || 'Custom', req.user.id]
             );
             const templateId = result.insertId;

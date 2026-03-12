@@ -7,20 +7,42 @@ require('dotenv').config();
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({
     model: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
+    generationConfig: { 
+        maxOutputTokens: 16000,
+        responseMimeType: "application/json"
+    }
+});
+
+// A separate model instance for text-only/fallback without JSON enforcement if needed
+const textModel = genAI.getGenerativeModel({
+    model: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
     generationConfig: { maxOutputTokens: 16000 }
 });
 
 /**
  * Extracts raw text from a PDF file.
+ * Automatically falls back to Vision OCR for scanned PDFs.
  */
 const extractTextFromPDF = async (filePath) => {
     try {
         const dataBuffer = fs.readFileSync(filePath);
         const data = await pdf(dataBuffer);
-        return data.text;
+        
+        // If extracted text is very short (e.g. < 50 chars) but the file is large, it's likely a scan.
+        if (data.text && data.text.trim().length > 50) {
+            return data.text;
+        }
+
+        console.log(`PDF text extraction yielded very little content (${data.text?.length || 0} chars). Falling back to Vision OCR...`);
+        return await extractTextFromImage(filePath, 'application/pdf');
     } catch (error) {
         console.error(`Error extracting text from PDF (${filePath}):`, error);
-        throw error;
+        // Fallback to vision if pdf-parse fails completely
+        try {
+            return await extractTextFromImage(filePath, 'application/pdf');
+        } catch (e) {
+            return '';
+        }
     }
 };
 
@@ -38,20 +60,49 @@ const extractTextFromDOCX = async (filePath) => {
 };
 
 /**
+ * Extracts text from an image using Gemini vision.
+ */
+const extractTextFromImage = async (filePath, mimeType) => {
+    try {
+        const imageBuffer = fs.readFileSync(filePath);
+        const imageBase64 = imageBuffer.toString('base64');
+
+        const prompt = "Analyseer deze afbeelding van een vastgoeddocument. Extraheer alle tekst die je ziet, inclusief namen, data, bedragen en omschrijvingen. Probeer de structuur van het document te behouden in de tekst.";
+        
+        const result = await textModel.generateContent([
+            { text: prompt },
+            {
+                inlineData: {
+                    data: imageBase64,
+                    mimeType: mimeType
+                }
+            }
+        ]);
+        const response = await result.response;
+        return response.text();
+    } catch (error) {
+        console.error(`Error extracting text from image (${filePath}):`, error);
+        return '';
+    }
+};
+
+/**
  * Helper to call Gemini with exponential backoff retry logic.
  */
-const callGeminiWithRetry = async (prompt, maxRetries = 3) => {
+const callGeminiWithRetry = async (contents, maxRetries = 5) => {
     let lastError;
+    // Allow both string prompts and multimodal contents
+    const input = typeof contents === 'string' ? contents : contents; 
+    
     for (let i = 0; i <= maxRetries; i++) {
         try {
             if (i > 0) {
-                const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                const delay = Math.pow(2, i + 2) * 1000 + Math.random() * 1000; // Exponential backoff
                 console.log(`Retry ${i}/${maxRetries} for Gemini call. Waiting ${Math.round(delay)}ms...`);
                 await new Promise(r => setTimeout(r, delay));
             }
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-            return response.text();
+            const result = await model.generateContent(input);
+            return result;
         } catch (error) {
             lastError = error;
             const isRateLimit = error.message?.includes('429') || error.status === 429 || error.message?.includes('Resource exhausted');
@@ -70,7 +121,9 @@ const callGeminiWithRetry = async (prompt, maxRetries = 3) => {
  */
 const analyzeDocument = async (text, fieldNames, customPrompt = null, fieldContexts = []) => {
     const contextStr = fieldContexts.length > 0
-        ? `\nCONTEXT FOR DATA FIELDS (Use these labels to find the data in the Dutch text):\n${fieldContexts.map(ctx => `- Key: "${ctx.naam}" | Dutch Labels/Description: "${ctx.label}" | Sections: "${ctx.sections}"`).join('\n')}`
+        ? `\nCONTEXT FOR DATA FIELDS:\n${fieldContexts.map(ctx => 
+            `- Key: "${ctx.naam}" | Dutch Labels: "${ctx.label}" | Sections: "${ctx.sections}"`
+          ).join('\n')}`
         : '';
 
     const userInstruction = customPrompt
@@ -79,48 +132,81 @@ const analyzeDocument = async (text, fieldNames, customPrompt = null, fieldConte
 
     const prompt = `
         You are an expert AI assistant specializing in Belgian Real Estate (Vastgoed).
-        Your task is to extract data from a Dutch real estate document (compromis/verkoopakte).
-        
-        TEXT TO ANALYZE:
-        ---
-        ${text}
-        ---
+        Your task is to extract data from one or more Dutch real estate documents.
 
-        INSTRUCTIONS:
-        1. Extract the values for the keys listed below.
-        2. Use the provided "Dutch Labels" and "Sections" context to identify where these fields appear in the Dutch text.
-        3. For names, dates, and addresses: Be extremely precise. 
-           - Distinguish clearly between Buyer (Koper) and Seller (Verkoper).
-           - Identify the Property Address (Adres van de eigendom/het goed).
-        4. Return ONLY a JSON object where the keys are the English keys provided. The value for each key MUST be an object with these properties:
-           - "waarde": The extracted value as a string (use an empty string "" if not found).
-           - "bron_text": The exact, literal short sentence or phrase from the source text that proves this value (use an empty string "" if not found).
-           - "pagina_nummer": The page number (integer) where this value was found (use 0 if you are uncertain or if not applicable).
-        5. Return nothing but the JSON object.
+        CRITICAL RULES:
+        1. NEVER confuse Buyer (Koper) and Seller (Verkoper). They are always distinct parties.
+           - The Seller is the person/entity transferring ownership.
+           - The Buyer is the person/entity acquiring ownership.
+           - A "lasthebber" or "gevolmachtigde" acts ON BEHALF of another party — do not confuse them with that party.
+        2. Extract values EXACTLY as they appear in the source. Do not reformat dates, names, or numbers unless explicitly asked.
+        3. If the same field could match multiple values (e.g. two addresses), always prefer the one that matches the role (Koper/Verkoper) described in the field key/label.
+        4. If a value is NOT present in the documents, return "" for waarde. NEVER invent or infer values.
+        5. If a value appears in multiple documents, prefer the most official source (e.g. identity card > WhatsApp message).
+        6. For addresses: always include street, number, bus (if any), postcode, and city as one complete string.
+        7. For names: always include first name AND last name in full.
+        8. All keys must be present in the output JSON, even if the value is "".
 
+        OUTPUT FORMAT:
+        Return ONLY a valid JSON object. No markdown, no explanation, no preamble.
+        Each key maps to an object with:
+        - "waarde": extracted value as string ("" if not found)
+        - "bron_text": the complete, exact surrounding context/paragraph (at least 20-50 words if possible) from the source document that proves this value ("" if not found). We need this full paragraph so the user can read the context.
+        - "pagina_nummer": page number as integer (null if not applicable)
+
+        CONTEXT FOR DATA FIELDS:
         ${contextStr}
         ${userInstruction}
 
-        EXTRACT THESE KEYS: ${fieldNames.join(', ')}.
+        KEYS TO EXTRACT: ${fieldNames.join(', ')}
     `;
 
     try {
-        console.log(`Sending prompt to Gemini...`);
+        console.log(`Sending dynamic prompt to Gemini (JSON mode)...`);
         
-        const textResponse = await callGeminiWithRetry(prompt);
+        let contents = [];
+        // If text is actually a file path (starts with / or has common image extensions) and file exists
+        const isFilePath = typeof text === 'string' && (text.startsWith('/') || text.includes('uploads/')) && fs.existsSync(text);
+        
+        if (isFilePath) {
+            let mimeType = 'application/pdf';
+            if (text.toLowerCase().endsWith('.png')) mimeType = 'image/png';
+            else if (text.toLowerCase().endsWith('.jpg') || text.toLowerCase().endsWith('.jpeg')) mimeType = 'image/jpeg';
+            else if (!text.toLowerCase().endsWith('.pdf')) mimeType = 'image/jpeg'; // Default for other potential images
+            
+            contents = [
+                { text: prompt },
+                {
+                    inlineData: {
+                        data: fs.readFileSync(text).toString('base64'),
+                        mimeType: mimeType
+                    }
+                }
+            ];
+        } else {
+            contents = [
+                { text: prompt + "\n\nTEXT TO ANALYZE:\n" + text }
+            ];
+        }
+
+        const result = await callGeminiWithRetry(contents);
+        const response = await result.response;
+        const textResponse = response.text();
 
         console.log('--- GEMINI RESPONSE RECEIVED ---');
+        console.log('Text Response Segment:', textResponse.substring(0, 100));
 
         let jsonText = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
-        
-        // Final fallback: try to find the JSON structure if there's conversational noise
         const firstBrace = jsonText.indexOf('{');
         const lastBrace = jsonText.lastIndexOf('}');
         if (firstBrace !== -1 && lastBrace !== -1) {
             jsonText = jsonText.substring(firstBrace, lastBrace + 1);
         }
-
-        return JSON.parse(jsonText);
+        const parsed = JSON.parse(jsonText);
+        // Debug: Log if coordinates are present in any of the keys
+        const keysWithCoords = Object.keys(parsed).filter(k => parsed[k].coords);
+        console.log(`AI extracted ${Object.keys(parsed).length} keys. Found coords for: ${keysWithCoords.join(', ') || 'NONE'}`);
+        return parsed;
     } catch (error) {
         console.error('Error analyzing document with Gemini:', error);
         
@@ -302,6 +388,7 @@ const analyzeTemplate = async (text, libraryPlaceholders, customPrompt = null) =
 module.exports = {
     extractTextFromPDF,
     extractTextFromDOCX,
+    extractTextFromImage,
 
     // Check connection to Gemini
     checkConnection: async () => {

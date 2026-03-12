@@ -79,7 +79,15 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     const [sidebarMode, setSidebarMode] = useState<'none' | 'ai' | 'checklist'>('none');
     const [splitScreen, setSplitScreen] = useState<boolean>(false);
     const [activePlaceholderId, setActivePlaceholderId] = useState<string | null>(null);
-    const [selectedSourceDoc, setSelectedSourceDoc] = useState<{ name: string, path?: string, bronText?: string, placeholderLabel?: string, currentValue?: string, paginaNummer?: number | null } | null>(null);
+    const [selectedSourceDoc, setSelectedSourceDoc] = useState<{ 
+        name: string, 
+        path?: string, 
+        bronText?: string, 
+        placeholderLabel?: string, 
+        currentValue?: string, 
+        paginaNummer?: number | null,
+        coords?: [number, number, number, number] | null 
+    } | null>(null);
     const [editingPlaceholder, setEditingPlaceholder] = useState<{ sectionId: string, placeholderId: string, partIndex?: number } | null>(null);
     const [isCurrentVersion, setIsCurrentVersion] = useState(true);
     const [isInitialized, setIsInitialized] = useState(false);
@@ -388,7 +396,8 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
 
                 // Chrome's PDF viewer requires the URL to end in .pdf to process the #search hash
                 // We append a pseudo .pdf extension so it forces the PDF-viewer behavior
-                if (!relativeUrl.toLowerCase().endsWith('.pdf') && !pathStr.startsWith('http')) {
+                const isWordDoc = pathStr.toLowerCase().endsWith('.docx') || pathStr.toLowerCase().endsWith('.doc');
+                if (isWordDoc && !pathStr.startsWith('http')) {
                     relativeUrl += '.pdf';
                 }
 
@@ -417,7 +426,8 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                     bronText: placeholder.bronText || '',
                     placeholderLabel: placeholder.label,
                     currentValue: placeholder.currentValue,
-                    paginaNummer: placeholder.paginaNummer
+                    paginaNummer: placeholder.paginaNummer,
+                    coords: placeholder.coords
                 });
                 setSplitScreen(true);
                 setSidebarMode('none');
@@ -497,8 +507,8 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                 const bestInstances: Record<string, PlaceholderSuggestion> = {};
                 allUsedPlaceholders.forEach(p => {
                     const currentBest = bestInstances[p.id];
-                    // A placeholder is "better" if it has document metadata (source reference)
-                    if (!currentBest || (!currentBest.documentPad && p.documentPad)) {
+                    // A placeholder is "better" if it has document metadata (source reference) or coordinates
+                    if (!currentBest || (!currentBest.documentPad && p.documentPad) || (!currentBest.coords && p.coords)) {
                         bestInstances[p.id] = { ...p };
                     }
                 });
@@ -1071,6 +1081,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                             {t.save}
                         </button>
                     )}
+
                     <div className="flex items-center gap-2">
                         <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-1 mr-2">
                             <button
@@ -1289,43 +1300,89 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                             <div className="w-full h-full bg-white shadow-lg flex flex-col items-center justify-center text-slate-300 border border-gray-200 overflow-hidden relative group">
                                 {selectedSourceDoc?.path ? (
                                     <div className="w-full h-full overflow-y-auto bg-slate-200 flex flex-col items-center py-6">
-                                        <Document
-                                            file={selectedSourceDoc.path}
-                                            onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-                                            loading={<div className="p-4 text-slate-500 font-medium flex items-center"><RefreshCw className="animate-spin w-4 h-4 mr-2"/> {t.documentLoading}</div>}
-                                            error={<div className="p-4 text-red-500 font-medium">{t.documentLoadError}</div>}
-                                        >
-                                            {Array.from(new Array(numPages || 0), (el, index) => (
-                                                <div key={`page_${index + 1}`} className="mb-6 shadow-2xl bg-white">
-                                                    <Page 
-                                                        pageNumber={index + 1} 
-                                                        width={Math.min(window.innerWidth * 0.45, 800)}
-                                                        renderTextLayer={true}
-                                                        renderAnnotationLayer={true}
-                                                        onRenderSuccess={() => {
-                                                            setTimeout(() => {
-                                                                const marks = document.querySelectorAll('.react-pdf__Page mark');
-                                                                if (marks.length > 0) {
-                                                                    marks[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                                                }
-                                                            }, 300);
-                                                        }}
-                                                        customTextRenderer={textItem => {
-                                                            const { bronText, currentValue, paginaNummer } = selectedSourceDoc;
-                                                            // Only highlight if we are on the exact specified page (if known)
-                                                            if (paginaNummer && paginaNummer !== (index + 1)) return textItem.str;
-                                                            
-                                                            const textToSearch = currentValue?.trim() || bronText?.trim();
-                                                            if (!textToSearch || textToSearch.length < 2) return textItem.str;
-                                                            
-                                                            // Highlight the exact value (or exact full sentence fallback)
-                                                            const regex = new RegExp(`(${textToSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-                                                            return textItem.str.replace(regex, '<mark class="bg-yellow-300 font-bold px-1 rounded shadow-sm text-black">$1</mark>');
-                                                        }}
+                                        <div className="flex flex-col items-center w-full gap-6 pb-12">
+                                            {/\.(jpg|jpeg|png|gif|webp)(\.pdf)?($|\?|#)/i.test(selectedSourceDoc.path || '') ? (
+                                                <div className="max-w-[90%] bg-white shadow-2xl rounded-lg p-2">
+                                                    <img 
+                                                        src={selectedSourceDoc.path} 
+                                                        alt={selectedSourceDoc.name}
+                                                        className="w-full h-auto object-contain block"
                                                     />
                                                 </div>
-                                            ))}
-                                        </Document>
+                                            ) : (
+                                                <div className="max-w-[90%] flex flex-col items-center">
+                                                    <Document
+                                                        file={selectedSourceDoc.path}
+                                                        onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+                                                        loading={<div className="p-4 text-slate-500 font-medium flex items-center"><RefreshCw className="animate-spin w-4 h-4 mr-2"/> {t.documentLoading}</div>}
+                                                        error={<div className="p-4 text-red-500 font-medium">{t.documentLoadError}</div>}
+                                                    >
+                                                        {Array.from(new Array(numPages || 0), (el, index) => (
+                                                            <div key={`page_${index + 1}`} className="mb-6 shadow-2xl bg-white relative">
+                                                                <Page 
+                                                                    pageNumber={index + 1} 
+                                                                    width={Math.min(window.innerWidth * 0.45, 800)}
+                                                                    renderTextLayer={true}
+                                                                    renderAnnotationLayer={true}
+                                                                    onRenderSuccess={() => {
+                                                                        setTimeout(() => {
+                                                                            const marks = document.querySelectorAll('.react-pdf__Page mark');
+                                                                            if (marks.length > 0) {
+                                                                                marks[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                                            }
+                                                                        }, 300);
+                                                                    }}
+                                                                    customTextRenderer={textItem => {
+                                                                        const { bronText, currentValue, paginaNummer } = selectedSourceDoc;
+                                                                        // Only highlight if we are on the exact specified page (if known)
+                                                                        if (paginaNummer && paginaNummer !== (index + 1)) return textItem.str;
+                                                                        
+                                                                        const textToSearch = currentValue?.trim() || bronText?.trim();
+                                                                        if (!textToSearch || textToSearch.length < 2) return textItem.str;
+                                                                        
+                                                                        // Build a flexible regex that ignores differences in whitespace/newlines
+                                                                        const words = textToSearch.split(/[\s\r\n]+/).map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+                                                                        const flexRegex = new RegExp(`(${words.join('[\\s\\r\\n]+')})`, 'gi');
+                                                                        return textItem.str.replace(flexRegex, '<mark class="bg-yellow-300 font-bold px-1 rounded shadow-sm text-black">$1</mark>');
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        ))}
+                                                    </Document>
+                                                </div>
+                                            )}
+                                            
+                                            {/* Text recognized by AI below the image/PDF */}
+                                            {(selectedSourceDoc.bronText || selectedSourceDoc.currentValue) && (
+                                                <div className="max-w-[90%] w-full bg-white shadow-lg rounded-lg p-6 border-l-4 border-yellow-400 shrink-0">
+                                                    <h4 className="flex items-center text-sm font-bold text-slate-600 uppercase mb-3">
+                                                        <FileText className="w-4 h-4 mr-2" />
+                                                        Herkend Tekstfragment
+                                                    </h4>
+                                                    <div className="text-slate-800 whitespace-pre-wrap leading-relaxed bg-slate-50 p-4 rounded border border-slate-100 italic">
+                                                        " {(() => {
+                                                            const sourceText = selectedSourceDoc.bronText || selectedSourceDoc.currentValue || '';
+                                                            const valToHighlight = selectedSourceDoc.currentValue?.trim();
+                                                            if (!valToHighlight || valToHighlight.length < 2) return sourceText;
+                                                            
+                                                            // Build a flexible regex that allows different spaces/newlines between words
+                                                            const words = valToHighlight.split(/[\s\r\n]+/).map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+                                                            const flexRegex = new RegExp(`(${words.join('[\\s\\r\\n]+')})`, 'gi');
+                                                            const parts = sourceText.split(flexRegex);
+                                                            
+                                                            return parts.map((part, i) => {
+                                                                // Because of the regex capturing group '()', 
+                                                                // every odd index in the split array is our guaranteed regex match!
+                                                                if (i % 2 !== 0) {
+                                                                    return <mark key={i} className="bg-yellow-300 font-bold px-1 rounded shadow-sm text-black">{part}</mark>;
+                                                                }
+                                                                return part;
+                                                            });
+                                                        })()} "
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 ) : activePlaceholderId && NAME_PLACEHOLDERS.includes(activePlaceholderId) ? (
                                     <div className="relative w-full h-full flex items-center justify-center bg-slate-200">

@@ -122,8 +122,11 @@ app.get('/api/documents/preview/:filename', async (req, res, next) => {
     try {
         let filename = req.params.filename;
         // If the frontend appended .pdf to a docx file (to trigger Chrome's PDF viewer #search hash):
-        if ((filename.endsWith('.docx.pdf') || filename.endsWith('.doc.pdf')) && !fs.existsSync(path.join(uploadDir, filename))) {
-            filename = filename.slice(0, -4);
+        if (filename.toLowerCase().endsWith('.pdf') && !fs.existsSync(path.join(uploadDir, filename))) {
+            const baseFilename = filename.slice(0, -4);
+            if (fs.existsSync(path.join(uploadDir, baseFilename))) {
+                filename = baseFilename;
+            }
         }
         
         const filePath = path.join(uploadDir, filename);
@@ -141,9 +144,19 @@ app.get('/api/documents/preview/:filename', async (req, res, next) => {
             return res.send(pdfBuffer);
         }
         
-        // Default fallback: send inline
+        // Map extensions to content types
+        const mimeMap = {
+            '.pdf': 'application/pdf',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.png': 'image/png',
+            '.gif': 'image/gif',
+            '.webp': 'image/webp'
+        };
+        
+        const contentType = mimeMap[ext] || 'application/octet-stream';
+        res.setHeader('Content-Type', contentType);
         res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
-        res.setHeader('Content-Type', 'application/pdf');
         res.sendFile(filePath);
     } catch (error) {
         next(error);

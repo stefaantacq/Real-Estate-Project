@@ -1,5 +1,5 @@
 const { pool } = require('../config/db');
-const { extractTextFromPDF, extractTextFromDOCX, analyzeDocument } = require('../services/aiService');
+const { extractTextFromPDF, extractTextFromDOCX, extractTextFromImage, analyzeDocument } = require('../services/aiService');
 const path = require('path');
 const fs = require('fs');
 
@@ -54,6 +54,7 @@ const fetchFullVersionContent = async (versie_id) => {
                     COALESCE(vp.document_id, ap.document_id) as document_id,
                     COALESCE(vp.bron_text, ap.bron_text) as bron_text,
                     COALESCE(vp.pagina_nummer, ap.pagina_nummer) as pagina_nummer,
+                    COALESCE(vp.coords_json, ap.coords_json) as coords_json,
                     COALESCE(d1.bestand_pad, d2.bestand_pad) as document_pad,
                     COALESCE(d1.bestandsnaam, d2.bestandsnaam) as document_naam
                 FROM Placeholder p
@@ -83,6 +84,7 @@ const fetchFullVersionContent = async (versie_id) => {
                     ap.document_id,
                     ap.bron_text,
                     ap.pagina_nummer,
+                    ap.coords_json,
                     d.bestand_pad as document_pad,
                     d.bestandsnaam as document_naam
                 FROM Placeholder p
@@ -104,7 +106,8 @@ const fetchFullVersionContent = async (versie_id) => {
             bronText: p.bron_text || null,
             paginaNummer: p.pagina_nummer || null,
             documentPad: p.document_pad || null,
-            documentNaam: p.document_naam || null
+            documentNaam: p.document_naam || null,
+            coords: p.coords_json ? (typeof p.coords_json === 'string' ? JSON.parse(p.coords_json) : p.coords_json) : null
         }));
 
         section.id = section.aangepaste_sectie_id.toString();
@@ -165,20 +168,21 @@ const copyVersionContent = async (sourceVersionId, targetVersionId) => {
         const [oldSnapshots] = await pool.query('SELECT * FROM VersiePlaceholder WHERE versie_id = ? AND aangepaste_sectie_id = ?', [sourceVersionId, os.aangepaste_sectie_id]);
         for (const snap of oldSnapshots) {
             await pool.query(
-                `INSERT INTO VersiePlaceholder (versie_id, placeholder_id, aangepaste_sectie_id, ingevulde_waarde, validatiestatus, document_id, bron_text, pagina_nummer)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-                [targetVersionId, snap.placeholder_id, newAangepasteSectieId, snap.ingevulde_waarde, snap.validatiestatus, snap.document_id, snap.bron_text, snap.pagina_nummer]
+                `INSERT INTO VersiePlaceholder (versie_id, placeholder_id, aangepaste_sectie_id, ingevulde_waarde, validatiestatus, document_id, bron_text, pagina_nummer, coords_json)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [targetVersionId, snap.placeholder_id, newAangepasteSectieId, snap.ingevulde_waarde, snap.validatiestatus, snap.document_id, snap.bron_text, snap.pagina_nummer, snap.coords_json]
             );
         }
     }
 };
 
-const syncDossierMasterData = async (dossierId, tag, value, documentId = null, bronText = null, paginaNummer = null, verkoopsovereenkomstId = null) => {
+const syncDossierMasterData = async (dossierId, tag, value, documentId = null, bronText = null, paginaNummer = null, verkoopsovereenkomstId = null, coords = null) => {
     try {
         const [pDef] = await pool.query('SELECT placeholder_id FROM Placeholder_Library WHERE sleutel = ? LIMIT 1', [tag]);
         if (pDef.length === 0) return;
         
         const placeholderId = pDef[0].placeholder_id;
+        const coordsStr = coords ? JSON.stringify(coords) : null;
 
         // 1. Update the global Master Data table (Aangepaste_Placeholder)
         const [existing] = await pool.query('SELECT 1 FROM Aangepaste_Placeholder WHERE verkoopsovereenkomst_id = ? AND placeholder_id = ?', [verkoopsovereenkomstId, placeholderId]);
@@ -189,14 +193,15 @@ const syncDossierMasterData = async (dossierId, tag, value, documentId = null, b
                   validatiestatus = ?, 
                   document_id = COALESCE(?, document_id), 
                   bron_text = COALESCE(?, bron_text), 
-                  pagina_nummer = COALESCE(?, pagina_nummer) 
+                  pagina_nummer = COALESCE(?, pagina_nummer),
+                  coords_json = COALESCE(?, coords_json)
                 WHERE verkoopsovereenkomst_id = ? AND placeholder_id = ?`, 
-                [value, 'unverified', documentId, bronText, paginaNummer, verkoopsovereenkomstId, placeholderId]
+                [value, 'unverified', documentId, bronText, paginaNummer, coordsStr, verkoopsovereenkomstId, placeholderId]
             );
         } else {
             await pool.query(
-                'INSERT INTO Aangepaste_Placeholder (dossier_id, placeholder_id, verkoopsovereenkomst_id, ingevulde_waarde, validatiestatus, document_id, bron_text, pagina_nummer) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', 
-                [dossierId, placeholderId, verkoopsovereenkomstId, value, 'unverified', documentId, bronText, paginaNummer]
+                'INSERT INTO Aangepaste_Placeholder (dossier_id, placeholder_id, verkoopsovereenkomst_id, ingevulde_waarde, validatiestatus, document_id, bron_text, pagina_nummer, coords_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', 
+                [dossierId, placeholderId, verkoopsovereenkomstId, value, 'unverified', documentId, bronText, paginaNummer, coordsStr]
             );
         }
 
@@ -219,9 +224,10 @@ const syncDossierMasterData = async (dossierId, tag, value, documentId = null, b
                       ingevulde_waarde = ?, 
                       document_id = COALESCE(?, document_id), 
                       bron_text = COALESCE(?, bron_text), 
-                      pagina_nummer = COALESCE(?, pagina_nummer) 
+                      pagina_nummer = COALESCE(?, pagina_nummer),
+                      coords_json = COALESCE(?, coords_json)
                     WHERE versie_id = ? AND placeholder_id = ?`,
-                    [value, documentId, bronText, paginaNummer, currentVersieId, placeholderId]
+                    [value, documentId, bronText, paginaNummer, coordsStr, currentVersieId, placeholderId]
                 );
             }
         }
@@ -263,37 +269,50 @@ const processDossierDocuments = async (dossierId, files, customPrompt = null, te
         for (const file of files) {
             dlog(`[AI] Processing file ${file.filename} / ${file.originalname} (mimetype: ${file.mimetype})`);
             
-            let text = null;
+            // Wait 2 seconds to avoid rate limiting
+            await new Promise(r => setTimeout(r, 2000));
+            
+            let extractedData = null;
             const filePath = path.join(__dirname, '..', 'uploads', file.filename);
             
-            if (file.mimetype === 'application/pdf') {
-                dlog(`[AI] File path: ${filePath}`);
-                await pool.query('INSERT INTO TimelineEvent (dossier_id, titel, beschrijving, user_name) VALUES (?, ?, ?, ?)', [dossierId, 'AI Analyse: PDF inlezen', `Tekst extraheren uit ${file.originalname}...`, 'AI Assistent']);
-                text = await extractTextFromPDF(filePath);
+            if (file.mimetype === 'application/pdf' || file.mimetype.startsWith('image/')) {
+                dlog(`[AI] Processing ${file.mimetype === 'application/pdf' ? 'PDF' : 'IMAGE'} with Vision extraction: ${file.originalname}`);
+                await pool.query('INSERT INTO TimelineEvent (dossier_id, titel, beschrijving, user_name) VALUES (?, ?, ?, ?)', [dossierId, 'AI Analyse: Vision Scan', `Systeem analyseert visueel: ${file.originalname}...`, 'AI Assistent']);
+                // Direct file analysis for images and PDFs
+                extractedData = await analyzeDocument(filePath, tagsToExtract, customPrompt, fieldContexts);
             } else if (file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.mimetype === 'application/msword') {
-                dlog(`[AI] File path: ${filePath}`);
-                await pool.query('INSERT INTO TimelineEvent (dossier_id, titel, beschrijving, user_name) VALUES (?, ?, ?, ?)', [dossierId, 'AI Analyse: Word inlezen', `Tekst extraheren uit ${file.originalname}...`, 'AI Assistent']);
+                dlog(`[AI] Processing Word with text extraction: ${file.originalname}`);
+                await pool.query('INSERT INTO TimelineEvent (dossier_id, titel, beschrijving, user_name) VALUES (?, ?, ?, ?)', [dossierId, 'AI Analyse: Word inlezen', `Tekst herkenning op ${file.originalname}...`, 'AI Assistent']);
                 text = await extractTextFromDOCX(filePath);
+                if (text && text.trim().length > 0) {
+                    extractedData = await analyzeDocument(text, tagsToExtract, customPrompt, fieldContexts);
+                }
             } else {
                 dlog(`[AI] Unsupported mimetype: ${file.mimetype}`);
                 continue;
             }
 
-            dlog(`[AI] Extracted text length: ${text ? text.length : 0}`);
-            if (text && text.trim().length > 0) {
-                await pool.query('INSERT INTO TimelineEvent (dossier_id, titel, beschrijving, user_name) VALUES (?, ?, ?, ?)', [dossierId, 'AI Analyse: Gegevens zoeken', `Gemini analyseert ${file.originalname} (${text.length} tekens)...`, 'AI Assistent']);
-                dlog(`[AI] Calling analyzeDocument for ${tagsToExtract.length} tags`);
-                const extractedData = await analyzeDocument(text, tagsToExtract, customPrompt, fieldContexts);
-                dlog(`[AI] Extracted ${Object.keys(extractedData || {}).length} items from document`);
+            if (extractedData) {
+                dlog(`[AI] Extracted ${Object.keys(extractedData || {}).length} items from ${file.originalname}`);
                 for (const [key, val] of Object.entries(extractedData || {})) {
-                    if (val && typeof val === 'object' && val.waarde !== undefined && val.waarde !== '') {
+                    // Only update if we don't have a value yet found in a previous file (unless the new one is non-empty)
+                    const isNewValSolid = val && typeof val === 'object' && val.waarde !== undefined && val.waarde.toString().trim() !== '';
+                    const isOldValEmpty = !combinedExtractedData[key] || !combinedExtractedData[key].waarde;
+
+                    if (isNewValSolid && isOldValEmpty) {
                         combinedExtractedData[key] = {
                             waarde: val.waarde,
                             bron_text: val.bron_text || null,
                             document_id: file.id || null,
-                            pagina_nummer: val.pagina_nummer || null
+                            pagina_nummer: val.pagina_nummer || null,
+                            coords: val.coords || null
                         };
-                    } else if (typeof val === 'string' && val.trim() !== '') {
+                    } else if (isNewValSolid && !isOldValEmpty && val.coords) {
+                        // If we already have a value but now we found one WITH coordinates, update it (or at least add the coordinates)
+                        combinedExtractedData[key].coords = val.coords;
+                        combinedExtractedData[key].document_id = file.id; // Switch to the file that has coords
+                        combinedExtractedData[key].bron_text = val.bron_text || combinedExtractedData[key].bron_text;
+                    } else if (typeof val === 'string' && val.trim() !== '' && isOldValEmpty) {
                         combinedExtractedData[key] = {
                             waarde: val,
                             bron_text: null,
@@ -307,7 +326,7 @@ const processDossierDocuments = async (dossierId, files, customPrompt = null, te
         for (const [tag, data] of Object.entries(combinedExtractedData)) {
             if (data && data.waarde && data.waarde.toString().trim()) { 
                 console.log(`AI extracted field [${tag}]: ${data.waarde}`);
-                await syncDossierMasterData(dossierId, tag, data.waarde.toString(), data.document_id, data.bron_text, data.pagina_nummer, verkoopsovereenkomstId); 
+                await syncDossierMasterData(dossierId, tag, data.waarde.toString(), data.document_id, data.bron_text, data.pagina_nummer, verkoopsovereenkomstId, data.coords); 
                 matchCount++; 
             }
         }
@@ -371,7 +390,7 @@ const dossierController = {
             console.log("Inserting Dossier record...");
             const [dosResult] = await pool.query(
                 `INSERT INTO Dossier (account_id, ui_id, titel, verkoper_naam, adres, type, status, remarks) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
                 [req.user.id, ui_id, titel, verkoper_naam, adres, type || 'House', 'draft', remarks || null]
             );
             const dossier_id = dosResult.insertId;
@@ -545,7 +564,8 @@ const dossierController = {
                         metadataMap[p.id] = {
                             documentId: p.documentId,
                             bronText: p.bronText || p.bron_text,
-                            paginaNummer: p.paginaNummer || p.pagina_nummer
+                            paginaNummer: p.paginaNummer || p.pagina_nummer,
+                            coords: p.coords
                         };
                     }
                 }
@@ -572,44 +592,54 @@ const dossierController = {
                         let docId = p.documentId || p.document_id || bestMeta.documentId || null;
                         let bronText = p.bronText || p.bron_text || bestMeta.bronText || null;
                         let paginaNummer = p.paginaNummer || p.pagina_nummer || bestMeta.paginaNummer || null;
+                        let coords = p.coords || bestMeta.coords || null;
+                        const coordsStr = coords ? JSON.stringify(coords) : null;
 
                         if (!docId || !bronText) {
-                            const [existRows] = await pool.query('SELECT document_id, bron_text, pagina_nummer FROM Aangepaste_Placeholder WHERE verkoopsovereenkomst_id = ? AND placeholder_id = ?', [verkoopsovereenkomstId, placeholderId]);
+                            const [existRows] = await pool.query('SELECT document_id, bron_text, pagina_nummer, coords_json FROM Aangepaste_Placeholder WHERE verkoopsovereenkomst_id = ? AND placeholder_id = ?', [verkoopsovereenkomstId, placeholderId]);
                             if (existRows.length > 0) {
                                 docId = docId || existRows[0].document_id;
                                 bronText = bronText || existRows[0].bron_text;
                                 paginaNummer = paginaNummer !== null ? paginaNummer : existRows[0].pagina_nummer;
+                                if (!coordsStr && existRows[0].coords_json) {
+                                    coords = existRows[0].coords_json;
+                                }
                             }
                         }
+                        
+                        // Properly recalculate coordsStr with the potentially fetched DB value
+                        const finalCoordsStr = coords ? (typeof coords === 'string' ? coords : JSON.stringify(coords)) : null;
 
-                        console.log(`[updateVersion] Placeholder ${p.id} docId=${docId} (from p.documentId=${p.documentId})`);
+                        console.log(`[updateVersion] Placeholder ${p.id} docId=${docId} (from p.documentId=${p.documentId}) coordsStr=${finalCoordsStr}`);
 
                         // Update the global current value (used by the Editor)
                         await pool.query(
-                            `INSERT INTO Aangepaste_Placeholder (dossier_id, placeholder_id, verkoopsovereenkomst_id, aangepaste_sectie_id, ingevulde_waarde, validatiestatus, document_id, bron_text, pagina_nummer)
-                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            `INSERT INTO Aangepaste_Placeholder (dossier_id, placeholder_id, verkoopsovereenkomst_id, aangepaste_sectie_id, ingevulde_waarde, validatiestatus, document_id, bron_text, pagina_nummer, coords_json)
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                              ON DUPLICATE KEY UPDATE
                                ingevulde_waarde = VALUES(ingevulde_waarde),
                                validatiestatus = VALUES(validatiestatus),
                                aangepaste_sectie_id = VALUES(aangepaste_sectie_id),
                                 document_id = COALESCE(VALUES(document_id), document_id),
                                 bron_text = COALESCE(VALUES(bron_text), bron_text),
-                                pagina_nummer = COALESCE(VALUES(pagina_nummer), pagina_nummer)`,
-                            [dossierId, placeholderId, verkoopsovereenkomstId, newAangepasteSectieId, p.currentValue, placeholderStatus, docId, bronText, paginaNummer]
+                                pagina_nummer = COALESCE(VALUES(pagina_nummer), pagina_nummer),
+                                coords_json = COALESCE(VALUES(coords_json), coords_json)`,
+                            [dossierId, placeholderId, verkoopsovereenkomstId, newAangepasteSectieId, p.currentValue, placeholderStatus, docId, bronText, paginaNummer, finalCoordsStr]
                         );
 
                         // Write a version-specific snapshot so the diff feature can compare values across versions
                         await pool.query(
-                            `INSERT INTO VersiePlaceholder (versie_id, placeholder_id, aangepaste_sectie_id, ingevulde_waarde, validatiestatus, document_id, bron_text, pagina_nummer)
-                             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            `INSERT INTO VersiePlaceholder (versie_id, placeholder_id, aangepaste_sectie_id, ingevulde_waarde, validatiestatus, document_id, bron_text, pagina_nummer, coords_json)
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                              ON DUPLICATE KEY UPDATE
                                 ingevulde_waarde = VALUES(ingevulde_waarde),
                                 validatiestatus = VALUES(validatiestatus),
                                 aangepaste_sectie_id = VALUES(aangepaste_sectie_id),
                                 document_id = COALESCE(VALUES(document_id), document_id),
                                 bron_text = COALESCE(VALUES(bron_text), bron_text),
-                                pagina_nummer = COALESCE(VALUES(pagina_nummer), pagina_nummer)`,
-                            [newVersieId, placeholderId, newAangepasteSectieId, p.currentValue, placeholderStatus, docId, bronText, paginaNummer]
+                                pagina_nummer = COALESCE(VALUES(pagina_nummer), pagina_nummer),
+                                coords_json = COALESCE(VALUES(coords_json), coords_json)`,
+                            [newVersieId, placeholderId, newAangepasteSectieId, p.currentValue, placeholderStatus, docId, bronText, paginaNummer, finalCoordsStr]
                         );
                     }
                 }
@@ -811,7 +841,44 @@ const dossierController = {
             res.json({ message: 'Reordered and status updated' }); 
         }
         catch (error) { console.error(error); res.status(500).json({ error: error.message }); }
-    }
+    },
+
+    reAnalyzeDossier: async (req, res) => {
+        try {
+            const { id } = req.params;
+            const [dRows] = await pool.query('SELECT dossier_id, template_id, account_id FROM Dossier WHERE ui_id = ? OR dossier_id = ?', [id, isNaN(id) ? -1 : id]);
+            if (dRows.length === 0) return res.status(404).json({ error: 'Dossier niet gevonden' });
+            
+            const dossier_id = dRows[0].dossier_id;
+            const template_id = dRows[0].template_id;
+
+            // Fetch current agreement for this dossier to sync with
+            const [agRows] = await pool.query('SELECT verkoopsovereenkomst_id FROM Verkoopsovereenkomst WHERE dossier_id = ?', [dossier_id]);
+            const verkoopsovereenkomst_id = agRows.length > 0 ? agRows[0].verkoopsovereenkomst_id : null;
+
+            // Fetch documents
+            const [docRows] = await pool.query('SELECT document_id as id, bestandsnaam as filename, naam as originalname, bestandstype as mimetype FROM Documenten WHERE dossier_id = ?', [dossier_id]);
+
+            if (docRows.length === 0) {
+                return res.status(400).json({ error: 'Geen documenten gevonden in dit dossier om te analyseren.' });
+            }
+
+            // Fetch user prompts if available
+            const [uRows] = await pool.query('SELECT custom_document_prompt FROM Account WHERE account_id = ?', [dRows[0].account_id]);
+            const customPrompt = uRows.length > 0 ? uRows[0].custom_document_prompt : null;
+
+            // Start processing (async - don't await the whole thing for the response)
+            console.log(`Manually triggering AI re-analysis for dossier ${dossier_id} with ${docRows.length} files`);
+            processDossierDocuments(dossier_id, docRows, customPrompt, template_id, verkoopsovereenkomst_id);
+
+            res.json({ message: 'AI Analyse is gestart. Het systeem verwerkt nu alle documenten (inclusief afbeeldingen) opnieuw.' });
+        } catch (error) {
+            console.error('reAnalyzeDossier error:', error);
+            res.status(500).json({ error: error.message });
+        }
+    },
+
+    processDossierDocuments
 };
 
 module.exports = dossierController;
