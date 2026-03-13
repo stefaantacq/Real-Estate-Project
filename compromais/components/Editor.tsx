@@ -101,8 +101,18 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
 
     // AI Chat state
     const [chatMessages, setChatMessages] = useState<{role: 'user'|'model', content: string}[]>([
-        { role: 'model', content: "Hallo! Ik ben je AI Copilot. Stel me gerust vragen over deze compromis of de onderliggende documenten." }
+        { role: 'model', content: t.aiWelcomeMessage }
     ]);
+    
+    // Update welcome message if language changes and chat hasn't started
+    useEffect(() => {
+        setChatMessages(prev => {
+            if (prev.length === 1 && prev[0].role === 'model') {
+                return [{ role: 'model', content: t.aiWelcomeMessage }];
+            }
+            return prev;
+        });
+    }, [lang, t.aiWelcomeMessage]);
     const [chatInput, setChatInput] = useState('');
     const [isChatLoading, setIsChatLoading] = useState(false);
     const chatEndRef = useRef<HTMLDivElement>(null);
@@ -121,7 +131,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                 // We mock a minimalist dossier object for the header part
                 setDossier({
                     id: ver.dossier_ui_id || ver.ui_id,
-                    name: "Verkoopovereenkomst",
+                    name: t.defaultDossierName,
                     status: ver.dossier_status,
                     documents: ver.dossier_documents || []
                 } as any);
@@ -338,7 +348,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
             let currentAssistantMessage = "";
             let firstChunkReceived = false;
             
-            await api.streamChatWithAi(newMessages, contextContext, (chunk) => {
+            await api.streamChatWithAi(newMessages, contextContext, lang, (chunk) => {
                 if (!firstChunkReceived) {
                     firstChunkReceived = true;
                     // Hide the bouncing dots immediately when the first word streams in
@@ -360,7 +370,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
             // Fallback in case the stream ended successfully without any chunks
             if (!firstChunkReceived) {
                 setIsChatLoading(false);
-                setChatMessages(prev => [...prev, { role: 'model', content: 'Geen antwoord ontvangen.' }]);
+                setChatMessages(prev => [...prev, { role: 'model', content: t.aiErrorMessage }]);
             }
 
         } catch (error) {
@@ -369,9 +379,9 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                 const newArr = [...prev];
                 const last = newArr[newArr.length - 1];
                 if (last.role === 'model' && !last.content) {
-                    last.content = "Oeps, er ging iets mis bij het ophalen van een antwoord. Controleer de netwerkverbinding of de API instellingen.";
+                    last.content = t.aiErrorMessage;
                 } else {
-                    newArr.push({ role: 'model', content: "Oeps, er ging iets mis bij het ophalen van een antwoord. Controleer de netwerkverbinding of de API instellingen." });
+                    newArr.push({ role: 'model', content: t.aiErrorMessage });
                 }
                 return newArr;
             });
@@ -1421,7 +1431,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                             <div className="flex items-start gap-2 text-slate-400 dark:text-slate-500">
                                                 <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                                                 <p className="text-xs leading-relaxed">
-                                                    Geen brondocument gekoppeld aan deze placeholder. Koppel een document via de AI-analyse om de bronvermelding te activeren.
+                                                    {t.noSourceDocumentLinked}
                                                 </p>
                                             </div>
                                         </div>

@@ -943,7 +943,7 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
 
                                     <h3 className="font-bold text-slate-900 dark:text-white group-hover:text-brand-700 dark:hover:text-brand-400 transition-colors mb-1 break-all">{template.name}</h3>
                                     <ExpandableText
-                                       text={template.description || 'Geen beschrijving beschikbaar.'}
+                                       text={template.description || t.noDescriptionAvailable}
                                        limit={60}
                                        className="text-xs text-slate-500 leading-relaxed mb-4 break-words"
                                     />

@@ -122,7 +122,7 @@ const callGeminiWithRetry = async (contents, maxRetries = 5) => {
 const analyzeDocument = async (text, fieldNames, customPrompt = null, fieldContexts = []) => {
     const contextStr = fieldContexts.length > 0
         ? `\nCONTEXT FOR DATA FIELDS:\n${fieldContexts.map(ctx => 
-            `- Key: "${ctx.naam}" | Dutch Labels: "${ctx.label}" | Sections: "${ctx.sections}"`
+            `- Key: "${ctx.naam}" | Labels: "${ctx.label}" | Sections: "${ctx.sections}"`
           ).join('\n')}`
         : '';
 
@@ -131,8 +131,8 @@ const analyzeDocument = async (text, fieldNames, customPrompt = null, fieldConte
         : '';
 
     const prompt = `
-        You are an expert AI assistant specializing in Belgian Real Estate (Vastgoed).
-        Your task is to extract data from one or more Dutch real estate documents.
+        You are an expert AI assistant specializing in Belgian Real Estate (Vastgoed/Immobilier).
+        Your task is to extract data from one or more Belgian real estate documents (in Dutch, French, or English).
 
         CRITICAL RULES:
         1. NEVER confuse Buyer (Koper) and Seller (Verkoper). They are always distinct parties.
@@ -414,7 +414,8 @@ module.exports = {
     analyzeTemplate,
     
     // Chat with context
-    chatWithContext: async (messages, contextText) => {
+    chatWithContext: async (messages, contextText, language) => {
+        const langStr = language === 'fr' ? 'French' : language === 'en' ? 'English' : 'Dutch';
         const systemPrompt = `You are a helpful AI assistant for a Belgian Real Estate platform.
 You are helping the user with a specific real estate document (compromis/verkoopakte).
 
@@ -426,8 +427,9 @@ ${contextText}
 INSTRUCTIONS:
 1. Answer the user's questions based primarily on the CONTEXT provided above.
 2. If the user asks about differences, inconsistencies, or specific values in the document, look closely at the context.
-3. Keep your answers concise, professional, and in Dutch (unless the user asks in another language).
-4. If you cannot find the answer in the context, politely inform the user.
+3. CRUCIAL: You MUST ALWAYS reply in ${langStr}, regardless of the language the prompt is written in. Do NOT include JSON formatting or curly braces like {}.
+4. Keep your answers concise and professional.
+5. If you cannot find the answer in the context, politely inform the user.
 `;
         
         // Format messages for Gemini API
@@ -460,7 +462,7 @@ INSTRUCTIONS:
                     await new Promise(r => setTimeout(r, delay));
                 }
 
-                const chat = model.startChat({
+                const chat = textModel.startChat({
                     history: historyMessages.slice(0, -1),
                 });
 
@@ -479,7 +481,8 @@ INSTRUCTIONS:
     },
 
     // Chat with context (streaming)
-    streamChatWithContext: async (messages, contextText, onChunk) => {
+    streamChatWithContext: async (messages, contextText, language, onChunk) => {
+        const langStr = language === 'fr' ? 'French' : language === 'en' ? 'English' : 'Dutch';
         const systemPrompt = `You are a helpful AI assistant for a Belgian Real Estate platform.
 You are helping the user with a specific real estate document (compromis/verkoopakte).
 
@@ -491,8 +494,9 @@ ${contextText}
 INSTRUCTIONS:
 1. Answer the user's questions based primarily on the CONTEXT provided above.
 2. If the user asks about differences, inconsistencies, or specific values in the document, look closely at the context.
-3. Keep your answers concise, professional, and in Dutch (unless the user asks in another language).
-4. If you cannot find the answer in the context, politely inform the user.
+3. CRUCIAL: You MUST ALWAYS reply in ${langStr}, regardless of the language the prompt is written in. Do NOT include JSON formatting or curly braces like {}.
+4. Keep your answers concise and professional.
+5. If you cannot find the answer in the context, politely inform the user.
 `;
         
         let historyMessages = messages.map(msg => ({
@@ -520,7 +524,7 @@ INSTRUCTIONS:
                     await new Promise(r => setTimeout(r, delay));
                 }
 
-                const chat = model.startChat({
+                const chat = textModel.startChat({
                     history: historyMessages.slice(0, -1),
                 });
 

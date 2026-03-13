@@ -64,12 +64,12 @@ app.get('/api/ai/status', async (req, res) => {
 // AI Chat Endpoint
 app.post('/api/ai/chat', authMiddleware, async (req, res) => {
     try {
-        const { messages, contextText } = req.body;
+        const { messages, contextText, language } = req.body;
         if (!messages || !Array.isArray(messages)) {
             return res.status(400).json({ error: 'Messages are required and must be an array' });
         }
         
-        const responseText = await aiService.chatWithContext(messages, contextText || '');
+        const responseText = await aiService.chatWithContext(messages, contextText || '', language);
         res.json({ text: responseText });
     } catch (error) {
         console.error('AI Chat Error:', error);
@@ -81,7 +81,7 @@ app.post('/api/ai/chat', authMiddleware, async (req, res) => {
 // AI Chat Stream Endpoint
 app.post('/api/ai/chat-stream', authMiddleware, async (req, res) => {
     try {
-        const { messages, contextText } = req.body;
+        const { messages, contextText, language } = req.body;
         if (!messages || !Array.isArray(messages)) {
             return res.status(400).json({ error: 'Messages are required and must be an array' });
         }
@@ -90,7 +90,7 @@ app.post('/api/ai/chat-stream', authMiddleware, async (req, res) => {
         res.setHeader('Cache-Control', 'no-cache');
         res.flushHeaders();
 
-        await aiService.streamChatWithContext(messages, contextText || '', (chunk) => {
+        await aiService.streamChatWithContext(messages, contextText || '', language, (chunk) => {
              res.write(chunk);
         });
         

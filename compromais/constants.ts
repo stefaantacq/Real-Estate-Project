@@ -278,6 +278,11 @@ export const TRANSLATIONS = {
     compareWordsRemoved: 'woorden verwijderd',
     compareSplitOld: 'Linker kolom = oud',
     compareSplitNew: 'Rechter kolom = nieuw',
+    aiWelcomeMessage: 'Hallo! Ik ben je AI Copilot. Stel me gerust vragen over deze compromis of de onderliggende documenten.',
+    aiErrorMessage: 'Oeps, er ging iets mis bij het ophalen van een antwoord. Controleer de netwerkverbinding of de API instellingen.',
+    defaultDossierName: 'Verkoopovereenkomst',
+    noSourceDocumentLinked: 'Geen brondocument gekoppeld aan deze placeholder. Koppel een document via de AI-analyse om de bronvermelding te activeren.',
+    noDescriptionAvailable: 'Geen beschrijving beschikbaar.',
   },
   [Language.FR]: {
     loginTitle: 'Bienvenue chez compromAIs',
@@ -528,6 +533,11 @@ export const TRANSLATIONS = {
     compareWordsRemoved: 'mots supprimés',
     compareSplitOld: 'Colonne gauche = ancien',
     compareSplitNew: 'Colonne droite = nouveau',
+    aiWelcomeMessage: 'Bonjour ! Je suis votre copilote IA. N\'hésitez pas à me poser des questions sur ce compromis ou les documents sous-jacents.',
+    aiErrorMessage: 'Oups, un problème est survenu lors de la récupération d\'une réponse. Veuillez vérifier votre connexion réseau ou les paramètres de l\'API.',
+    defaultDossierName: 'Compromis de vente',
+    noSourceDocumentLinked: 'Aucun document source lié à cet espace réservé. Liez un document via l\'analyse IA pour activer la référence.',
+    noDescriptionAvailable: 'Aucune description disponible.',
   },
   [Language.EN]: {
     loginTitle: 'Welcome to CompromisAI',
@@ -776,6 +786,11 @@ export const TRANSLATIONS = {
     compareWordsRemoved: 'words removed',
     compareSplitOld: 'Left column = old',
     compareSplitNew: 'Right column = new',
+    aiWelcomeMessage: 'Hello! I am your AI Copilot. Feel free to ask me questions about this compromise or the underlying documents.',
+    aiErrorMessage: 'Oops, something went wrong while retrieving an answer. Please check your network connection or API settings.',
+    defaultDossierName: 'Sales Agreement',
+    noSourceDocumentLinked: 'No source document linked to this placeholder. Link a document via AI analysis to enable source referencing.',
+    noDescriptionAvailable: 'No description available.',
   }
 };
 

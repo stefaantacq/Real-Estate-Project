@@ -238,14 +238,14 @@ export const api = {
         return this.request('/ai/status', { method: 'GET' });
     },
 
-    async chatWithAi(messages: { role: 'user' | 'model', content: string }[], contextText: string) {
+    async chatWithAi(messages: { role: 'user' | 'model', content: string }[], contextText: string, language?: string) {
         return this.request('/ai/chat', {
             method: 'POST',
-            body: JSON.stringify({ messages, contextText })
+            body: JSON.stringify({ messages, contextText, language })
         });
     },
 
-    async streamChatWithAi(messages: { role: 'user' | 'model', content: string }[], contextText: string, onMessage: (chunk: string) => void) {
+    async streamChatWithAi(messages: { role: 'user' | 'model', content: string }[], contextText: string, language: string, onMessage: (chunk: string) => void) {
         const token = localStorage.getItem('auth_token');
         const headers: Record<string, string> = {
             'Content-Type': 'application/json'
@@ -255,7 +255,7 @@ export const api = {
         const response = await fetch(`${API_BASE_URL}/ai/chat-stream`, {
             method: 'POST',
             headers,
-            body: JSON.stringify({ messages, contextText })
+            body: JSON.stringify({ messages, contextText, language })
         });
 
         if (!response.ok) {
