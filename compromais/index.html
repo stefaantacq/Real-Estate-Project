@@ -11,7 +11,6 @@
     />
     <script>
       tailwind.config = {
-        darkMode: "class",
         theme: {
           extend: {
             fontFamily: {
@@ -19,14 +18,14 @@
             },
             colors: {
               brand: {
-                50: "#f0f9ff",
-                100: "#e0f2fe",
-                500: "#0ea5e9",
-                600: "#0284c7", // Primary Blue
-                700: "#0369a1",
-                800: "#075985",
-                900: "#0f172a", // Dark Background
-                950: "#020617",
+                50: "#EFF6FF",
+                100: "#DBEAFE",
+                200: "#BFDBFE",
+                500: "#3B82F6",
+                600: "#2563EB",
+                700: "#1D4ED8",
+                800: "#1E40AF",
+                900: "#1E3A5F",
               },
             },
           },
@@ -34,7 +33,7 @@
       };
     </script>
     <style>
-      /* Custom scrollbar for dark mode integration */
+      /* Custom scrollbar — light theme */
       .scrollbar-hide::-webkit-scrollbar {
         display: none;
       }
@@ -44,38 +43,28 @@
         scrollbar-width: none;
       }
 
-      /* Custom scrollbar */
       ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
+        width: 6px;
+        height: 6px;
       }
 
       ::-webkit-scrollbar-track {
-        background: rgba(0, 0, 0, 0.05);
+        background: #f1f5f9;
         border-radius: 10px;
-      }
-
-      .dark ::-webkit-scrollbar-track {
-        background: rgba(255, 255, 255, 0.05);
       }
 
       ::-webkit-scrollbar-thumb {
-        background: #0ea5e9;
-        /* brand-500 */
+        background: #94a3b8;
         border-radius: 10px;
-        border: 2px solid transparent;
-        background-clip: content-box;
       }
 
       ::-webkit-scrollbar-thumb:hover {
-        background: #0284c7;
-        /* brand-600 */
-        background-clip: content-box;
+        background: #64748b;
       }
 
       * {
         scrollbar-width: thin;
-        scrollbar-color: #0ea5e9 transparent;
+        scrollbar-color: #94a3b8 #f1f5f9;
       }
 
       /* Restore list styles reset by Tailwind */
@@ -97,6 +86,15 @@
 
       li {
         margin-bottom: 0.25rem;
+      }
+
+      /* No-scrollbar utility for version tracks */
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
       }
 
       /* Animation for protected elements */
@@ -126,7 +124,7 @@
   </head>
 
   <body
-    class="bg-gray-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-200"
+    class="bg-white text-slate-900 transition-colors duration-200"
   >
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Clock, CheckCircle, FileText, Archive, ChevronRight, MapPin, LayoutGrid } from 'lucide-react';
+import { Search, Clock, Archive, ChevronRight, MapPin, LayoutGrid } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -22,6 +22,9 @@ import { TRANSLATIONS } from '../constants';
 import { api } from '../services/api';
 import { SortableDossierCard } from './SortableDossierCard';
 import { ContextMenu } from './ContextMenu';
+import { Tabs, TabsList, TabsTrigger } from './ui/Tabs';
+import { Badge } from './ui/Badge';
+import { Input } from './ui/Input';
 
 interface DashboardProps {
   lang: Language;
@@ -66,7 +69,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
       try {
         const data = await api.getDossiers();
         const mappedDossiers = data.map((d: any) => ({
-          id: d.id, // API already returns 'id' as 'ui_id'
+          id: d.id,
           name: d.name,
           address: d.address,
           date: new Date(d.date).toLocaleDateString('nl-BE'),
@@ -182,7 +185,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
         newDossiers[index] = { ...newDossiers[index], status: newStatus };
       }
 
-      // Sync with API
       const orders = newDossiers.map((d, index) => ({
         id: d.id,
         order: index,
@@ -208,80 +210,54 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
     }
   };
 
-  const renderCard = (dossier: Dossier) => (
-    <div
-      key={dossier.id}
-      onClick={() => onOpenDossier(dossier.id)}
-      className="flex flex-col bg-white dark:bg-slate-900 p-5 rounded-2xl border border-gray-200 dark:border-slate-800 hover:border-brand-400 dark:hover:border-brand-500 hover:shadow-lg transition-all cursor-pointer group min-w-[280px] h-full min-h-[120px]"
-    >
-      <div className="flex justify-between items-start mb-4">
-        <div className="flex items-center min-w-0 flex-1">
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white truncate">{dossier.name}</h3>
-        </div>
-      </div>
-
-      <div className="space-y-1 mt-auto">
-        <div className="flex items-center text-xs text-slate-500 dark:text-slate-400 truncate">
-          <MapPin className="w-3 h-3 mr-1" />
-          {dossier.address}
-        </div>
-        <div className="flex items-center justify-between text-xs text-slate-400">
-          <span className="flex items-center"><Clock className="w-3 h-3 mr-1" /> {dossier.date}</span>
-          <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-500 transition-colors" />
-        </div>
-      </div>
+  const renderSectionHeader = (title: string, count: number) => (
+    <div className="flex items-center justify-between mb-5">
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">{title}</h2>
+      <Badge variant="secondary" className="text-[10px]">{count}</Badge>
     </div>
   );
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-500">
+    <div className="space-y-8">
 
       {/* Header Area */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        {/* View Switcher */}
-        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-fit">
-          <button
-            onClick={() => setSortMode('manual')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${sortMode === 'manual'
-              ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-sm'
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-              }`}
-          >
-            <LayoutGrid className="w-4 h-4" />
-            {t.myDivision}
-          </button>
-          <button
-            onClick={() => setSortMode('recent')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${sortMode === 'recent'
-              ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-sm'
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-              }`}
-          >
-            <Clock className="w-4 h-4" />
-            {t.recent}
-          </button>
-          <button
-            onClick={() => setSortMode('archived')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${sortMode === 'archived'
-              ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-sm'
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-              }`}
-          >
-            <Archive className="w-4 h-4" />
-            {t.archive}
-          </button>
-        </div>
+        {/* Tabs */}
+        <Tabs>
+          <TabsList>
+            <TabsTrigger
+              active={sortMode === 'manual'}
+              onClick={() => setSortMode('manual')}
+            >
+              <LayoutGrid className="w-4 h-4" />
+              {t.myDivision}
+            </TabsTrigger>
+            <TabsTrigger
+              active={sortMode === 'recent'}
+              onClick={() => setSortMode('recent')}
+            >
+              <Clock className="w-4 h-4" />
+              {t.recent}
+            </TabsTrigger>
+            <TabsTrigger
+              active={sortMode === 'archived'}
+              onClick={() => setSortMode('archived')}
+            >
+              <Archive className="w-4 h-4" />
+              {t.archive}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
 
-        {/* Top Right Search */}
-        <div className="relative w-full md:w-80">
-          <input
-            type="text"
+        {/* Search */}
+        <div className="w-full md:w-80">
+          <Input
+            icon={<Search className="w-4 h-4" />}
             placeholder={t.searchPlaceholder}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-full pl-10 pr-4 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none shadow-sm"
+            className="rounded-full"
           />
-          <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
         </div>
       </div>
 
@@ -295,13 +271,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
           <>
             {/* Section 1: Concept */}
             <div>
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6 pl-1 flex items-center justify-between">
-                <span>{t.draft}</span>
-                <span className="text-xs font-normal text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">{conceptDossiers.length}</span>
-              </h2>
+              {renderSectionHeader(t.draft, conceptDossiers.length)}
 
               <SectionContainer id="concept">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   <SortableContext
                     items={conceptDossiers.map(d => d.id)}
                     strategy={rectSortingStrategy}
@@ -316,21 +289,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
                         onContextMenu={handleContextMenu}
                       />
                     )) : (
-                      <div className="col-span-full py-8 text-center text-slate-400 border-2 border-dashed border-gray-200 dark:border-slate-800 rounded-xl">
+                      <div className="col-span-full py-8 text-center text-sm text-slate-400 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">
                         {t.dragToConcept}
                       </div>
                     )}
                   </SortableContext>
 
-                  {/* Quick Add Card Placeholder */}
+                  {/* Quick Add Card */}
                   <div
                     onClick={onNewDossier}
-                    className="flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-dashed border-gray-200 dark:border-slate-800 hover:border-brand-400 dark:hover:border-brand-500 hover:bg-gray-50 dark:hover:bg-slate-900/50 transition-all cursor-pointer h-full min-h-[120px] group"
+                    className="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-dashed border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-150 cursor-pointer h-full min-h-[120px] group"
                   >
-                    <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-slate-800 group-hover:bg-brand-50 dark:group-hover:bg-brand-900/30 flex items-center justify-center text-slate-400 group-hover:text-brand-600 transition-colors mb-2">
+                    <div className="w-10 h-10 rounded-full bg-slate-100 group-hover:bg-blue-100 flex items-center justify-center text-slate-400 group-hover:text-blue-500 transition-all duration-150 mb-2">
                       <span className="text-xl font-light">+</span>
                     </div>
-                    <span className="text-xs font-medium text-slate-500 group-hover:text-brand-600 transition-colors">{t.newCompromis}</span>
+                    <span className="text-xs font-medium text-slate-400 group-hover:text-blue-500 transition-colors">{t.newCompromis}</span>
                   </div>
                 </div>
               </SectionContainer>
@@ -338,12 +311,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
 
             {/* Section 2: In Behandeling */}
             <div>
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6 pl-1 flex items-center justify-between">
-                <span>{t.incomplete}</span>
-                <span className="text-xs font-normal text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">{inBehandelingDossiers.length}</span>
-              </h2>
+              {renderSectionHeader(t.incomplete, inBehandelingDossiers.length)}
               <SectionContainer id="inBehandeling">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   <SortableContext
                     items={inBehandelingDossiers.map(d => d.id)}
                     strategy={rectSortingStrategy}
@@ -358,7 +328,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
                         onContextMenu={handleContextMenu}
                       />
                     )) : (
-                      <div className="col-span-full py-8 text-center text-slate-400 border-2 border-dashed border-gray-200 dark:border-slate-800 rounded-xl">
+                      <div className="col-span-full py-8 text-center text-sm text-slate-400 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 min-h-24">
                         {t.dragToActive}
                       </div>
                     )}
@@ -369,12 +339,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
 
             {/* Section 3: Archive */}
             <div>
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6 pl-1 flex items-center justify-between">
-                <span>{t.archive}</span>
-                <span className="text-xs font-normal text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">{archivedDossiers.length}</span>
-              </h2>
+              {renderSectionHeader(t.archive, archivedDossiers.length)}
               <SectionContainer id="archief">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   <SortableContext
                     items={archivedDossiers.map(d => d.id)}
                     strategy={rectSortingStrategy}
@@ -389,7 +356,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
                         onContextMenu={handleContextMenu}
                       />
                     )) : (
-                      <div className="col-span-full py-8 text-center text-slate-400 border-2 border-dashed border-gray-200 dark:border-slate-800 rounded-xl">
+                      <div className="col-span-full py-8 text-center text-sm text-slate-400 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">
                         {t.dragToArchive}
                       </div>
                     )}
@@ -399,15 +366,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
             </div>
           </>
         ) : sortMode === 'recent' ? (
-          /* Recent view: All dossiers sorted by last opened */
           <div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6 pl-1 flex items-center justify-between">
-              <span>{t.recentlyOpened}</span>
-              <span className="text-xs font-normal text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
-                {dossiers.length}
-              </span>
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {renderSectionHeader(t.recentlyOpened, dossiers.length)}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {[...dossiers]
                 .sort((a, b) => {
                   const dateA = a.lastOpened ? new Date(a.lastOpened).getTime() : 0;
@@ -426,15 +387,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
             </div>
           </div>
         ) : (
-          /* Archived view: Only archived dossiers */
           <div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6 pl-1 flex items-center justify-between">
-              <span>{t.archived}</span>
-              <span className="text-xs font-normal text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
-                {dossiers.filter(d => d.status === DossierStatus.ARCHIVED).length}
-              </span>
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {renderSectionHeader(t.archived, dossiers.filter(d => d.status === DossierStatus.ARCHIVED).length)}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {dossiers
                 .filter(d => d.status === DossierStatus.ARCHIVED)
                 .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
@@ -448,7 +403,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang, onNewDossier, onOpen
                   />
                 ))}
               {dossiers.filter(d => d.status === DossierStatus.ARCHIVED).length === 0 && (
-                <div className="col-span-full py-12 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-gray-200 dark:border-slate-800">
+                <div className="col-span-full py-12 text-center text-sm text-slate-400 bg-white rounded-xl border border-dashed border-slate-200">
                   {t.noArchivedFound}
                 </div>
               )}

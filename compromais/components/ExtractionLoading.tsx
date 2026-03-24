@@ -44,15 +44,15 @@ export const ExtractionLoading: React.FC<ExtractionLoadingProps> = ({ onComplete
     }, [step, steps.length, onComplete]);
 
     return (
-        <div className="fixed inset-0 bg-white/90 dark:bg-slate-950/90 z-50 flex flex-col items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-300">
-            <div className="max-w-md w-full bg-white dark:bg-slate-900 rounded-2xl p-8 shadow-2xl border border-gray-100 dark:border-slate-800 text-center">
+        <div className="fixed inset-0 bg-white/90 z-50 flex flex-col items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-300">
+            <div className="max-w-md w-full bg-white rounded-2xl p-8 shadow-2xl border border-gray-100 text-center">
 
-                <div className="w-20 h-20 bg-brand-50 dark:bg-brand-900/30 rounded-full flex items-center justify-center mx-auto mb-6 relative">
-                    <BrainCircuit className="w-10 h-10 text-brand-600 animate-pulse" />
-                    <div className="absolute inset-0 border-4 border-brand-200 dark:border-brand-800 rounded-full animate-[spin_3s_linear_infinite] border-t-transparent"></div>
+                <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6 relative">
+                    <BrainCircuit className="w-10 h-10 text-blue-600 animate-pulse" />
+                    <div className="absolute inset-0 border-4 border-blue-200 rounded-full animate-[spin_3s_linear_infinite] border-t-transparent"></div>
                 </div>
 
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-8">
+                <h2 className="text-2xl font-bold text-slate-900 mb-8">
                     {t.aiWorking}
                 </h2>
 
@@ -67,14 +67,14 @@ export const ExtractionLoading: React.FC<ExtractionLoadingProps> = ({ onComplete
                             <div
                                 key={index}
                                 className={`flex items-center p-3 rounded-lg transition-all duration-500
-                    ${isActive ? 'bg-brand-50 dark:bg-slate-800 border-l-4 border-brand-500 shadow-sm scale-105' : 'border-l-4 border-transparent'}
+                    ${isActive ? 'bg-blue-50 border-l-4 border-blue-500 shadow-sm scale-105' : 'border-l-4 border-transparent'}
                     ${isPending ? 'opacity-40' : 'opacity-100'}
                 `}
                             >
-                                <div className={`mr-4 transition-colors ${isActive || isCompleted ? 'text-brand-600' : 'text-slate-300'}`}>
+                                <div className={`mr-4 transition-colors ${isActive || isCompleted ? 'text-blue-600' : 'text-slate-300'}`}>
                                     {isCompleted ? <CheckCircle className="w-5 h-5" /> : <Icon className={`w-5 h-5 ${isActive ? 'animate-bounce' : ''}`} />}
                                 </div>
-                                <span className={`font-medium ${isActive ? 'text-slate-900 dark:text-white' : 'text-slate-500'}`}>
+                                <span className={`font-medium ${isActive ? 'text-slate-900' : 'text-slate-500'}`}>
                                     {s.text}
                                 </span>
                             </div>

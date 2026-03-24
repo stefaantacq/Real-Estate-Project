@@ -87,26 +87,42 @@ const extractTextFromImage = async (filePath, mimeType) => {
 };
 
 /**
- * Helper to call Gemini with exponential backoff retry logic.
+ * Helper to call Gemini with exponential backoff retry logic and per-call timeout.
  */
-const callGeminiWithRetry = async (contents, maxRetries = 5) => {
+const GEMINI_CALL_TIMEOUT_MS = 15000; // 15 seconds per call
+
+const withTimeout = (promise, ms) => {
+    let timer;
+    return Promise.race([
+        promise,
+        new Promise((_, reject) => {
+            timer = setTimeout(() => reject(new Error(`Gemini call timed out after ${ms}ms`)), ms);
+        })
+    ]).finally(() => clearTimeout(timer));
+};
+
+const callGeminiWithRetry = async (contents, maxRetries = 3) => {
     let lastError;
-    // Allow both string prompts and multimodal contents
     const input = typeof contents === 'string' ? contents : contents; 
     
     for (let i = 0; i <= maxRetries; i++) {
         try {
             if (i > 0) {
-                const delay = Math.pow(2, i + 2) * 1000 + Math.random() * 1000; // Exponential backoff
+                const delay = Math.pow(2, i + 1) * 1000 + Math.random() * 1000;
                 console.log(`Retry ${i}/${maxRetries} for Gemini call. Waiting ${Math.round(delay)}ms...`);
                 await new Promise(r => setTimeout(r, delay));
             }
-            const result = await model.generateContent(input);
+            const result = await withTimeout(model.generateContent(input), GEMINI_CALL_TIMEOUT_MS);
             return result;
         } catch (error) {
             lastError = error;
             const isRateLimit = error.message?.includes('429') || error.status === 429 || error.message?.includes('Resource exhausted');
+            const isTimeout = error.message?.includes('timed out');
             
+            if (isTimeout && i < maxRetries) {
+                console.warn(`Gemini call timed out. Retrying... (${i + 1}/${maxRetries})`);
+                continue;
+            }
             if (!isRateLimit || i === maxRetries) {
                 throw error;
             }
@@ -114,6 +130,57 @@ const callGeminiWithRetry = async (contents, maxRetries = 5) => {
         }
     }
     throw lastError;
+};
+
+/**
+ * Validates extracted AI results: rejects values that look like placeholder names.
+ * Returns a cleaned copy of the parsed data.
+ */
+const validateExtractedValues = (parsed, fieldNames) => {
+    const normalize = (s) => (s || '').toLowerCase().replace(/[\.\_\-\s\[\]\(\):]+/g, '').trim();
+    const fieldNameSet = new Set(fieldNames.map(normalize));
+    
+    for (const [key, val] of Object.entries(parsed)) {
+        if (!val || typeof val !== 'object' || !val.waarde) continue;
+        const rawValue = val.waarde.toString().trim();
+        if (!rawValue) continue;
+        
+        const normValue = normalize(rawValue);
+        const normKey = normalize(key);
+        
+        // Reject if value matches or contains its own key name
+        if (normValue === normKey || normValue.includes(normKey) || normKey.includes(normValue)) {
+            console.warn(`[VALIDATION] Rejected value for "${key}": "${rawValue}" (matches key name)`);
+            parsed[key].waarde = '';
+            parsed[key].bron_text = '';
+            continue;
+        }
+        
+        // Reject if value matches ANY other placeholder key name
+        if (fieldNameSet.has(normValue)) {
+            console.warn(`[VALIDATION] Rejected value for "${key}": "${rawValue}" (matches another placeholder key)`);
+            parsed[key].waarde = '';
+            parsed[key].bron_text = '';
+            continue;
+        }
+        
+        // Reject if value contains dotted lines or placeholder markers
+        if (/^[\.]{3,}/.test(rawValue) || /\[placeholder:/.test(rawValue) || /^_{3,}$/.test(rawValue)) {
+            console.warn(`[VALIDATION] Rejected value for "${key}": "${rawValue}" (contains placeholder pattern)`);
+            parsed[key].waarde = '';
+            parsed[key].bron_text = '';
+            continue;
+        }
+        
+        // Reject if value looks like a template variable (e.g. "SELLER_NAME", "......naam......")
+        if (/^\.{2,}.*\.{2,}$/.test(rawValue) || /^[A-Z_]{4,}$/.test(rawValue)) {
+            console.warn(`[VALIDATION] Rejected value for "${key}": "${rawValue}" (looks like template variable)`);
+            parsed[key].waarde = '';
+            parsed[key].bron_text = '';
+            continue;
+        }
+    }
+    return parsed;
 };
 
 /**
@@ -130,36 +197,45 @@ const analyzeDocument = async (text, fieldNames, customPrompt = null, fieldConte
         ? `\nADDITIONAL USER INSTRUCTION: ${customPrompt}\n`
         : '';
 
-    const prompt = `
-        You are an expert AI assistant specializing in Belgian Real Estate (Vastgoed/Immobilier).
-        Your task is to extract data from one or more Belgian real estate documents (in Dutch, French, or English).
+    const prompt = `You are an expert AI assistant specializing in Belgian Real Estate (Vastgoed/Immobilier).
+Your task is to extract REAL DATA VALUES from uploaded Belgian real estate documents (in Dutch, French, or English).
 
-        CRITICAL RULES:
-        1. NEVER confuse Buyer (Koper) and Seller (Verkoper). They are always distinct parties.
-           - The Seller is the person/entity transferring ownership.
-           - The Buyer is the person/entity acquiring ownership.
-           - A "lasthebber" or "gevolmachtigde" acts ON BEHALF of another party — do not confuse them with that party.
-        2. Extract values EXACTLY as they appear in the source. Do not reformat dates, names, or numbers unless explicitly asked.
-        3. If the same field could match multiple values (e.g. two addresses), always prefer the one that matches the role (Koper/Verkoper) described in the field key/label.
-        4. If a value is NOT present in the documents, return "" for waarde. NEVER invent or infer values.
-        5. If a value appears in multiple documents, prefer the most official source (e.g. identity card > WhatsApp message).
-        6. For addresses: always include street, number, bus (if any), postcode, and city as one complete string.
-        7. For names: always include first name AND last name in full.
-        8. All keys must be present in the output JSON, even if the value is "".
+CRITICAL RULES:
+1. NEVER confuse Buyer (Koper) and Seller (Verkoper). They are always distinct parties.
+   - The Seller is the person/entity transferring ownership.
+   - The Buyer is the person/entity acquiring ownership.
+   - A "lasthebber" or "gevolmachtigde" acts ON BEHALF of another party — do not confuse them with that party.
+2. Extract values EXACTLY as they appear in the source documents. Do not reformat dates, names, or numbers.
+3. If the same field could match multiple values (e.g. two addresses), prefer the one matching the role (Koper/Verkoper) described in the field key/label.
+4. If a value is NOT present in the documents, return "" for waarde. NEVER invent or infer values.
+5. If a value appears in multiple documents, prefer the most official source.
+6. For addresses: include street, number, bus (if any), postcode, and city as one complete string.
+7. For names: include first name AND last name in full.
+8. All keys must be present in the output JSON, even if the value is "".
 
-        OUTPUT FORMAT:
-        Return ONLY a valid JSON object. No markdown, no explanation, no preamble.
-        Each key maps to an object with:
-        - "waarde": extracted value as string ("" if not found)
-        - "bron_text": the complete, exact surrounding context/paragraph (at least 20-50 words if possible) from the source document that proves this value ("" if not found). We need this full paragraph so the user can read the context.
-        - "pagina_nummer": page number as integer (null if not applicable)
+CRITICAL — WHAT TO EXTRACT:
+- You MUST extract the ACTUAL DATA from the source documents (real names, real dates, real addresses, real amounts).
+- Example: if the key is "naam_verkoper", you must find the seller's actual name in the documents (e.g. "Jan Peeters").
+- NEVER return the key name itself, a placeholder pattern, or a template variable as the value.
 
-        CONTEXT FOR DATA FIELDS:
-        ${contextStr}
-        ${userInstruction}
+FORBIDDEN VALUES (never return these as waarde):
+- The placeholder key name itself (e.g. "naam_verkoper" for key naam_verkoper) ❌
+- Dotted lines like "......" or "............" ❌
+- Template variables like "SELLER_NAME", "BUYER_ADDRESS" ❌
+- Bracketed placeholders like "[naam]" or "[placeholder:xyz]" ❌
+- Underscore patterns like "__________" ❌
+If you cannot find the real value in the documents, return "" — never guess or echo the key name.
 
-        KEYS TO EXTRACT: ${fieldNames.join(', ')}
-    `;
+OUTPUT FORMAT:
+Return ONLY a valid JSON object. No markdown, no explanation.
+Each key maps to an object with:
+- "waarde": extracted real value as string ("" if not found)
+- "bron_text": the surrounding context/paragraph (20-50 words) from the source document proving this value ("" if not found)
+- "pagina_nummer": page number as integer (null if not applicable)
+${contextStr}
+${userInstruction}
+KEYS TO EXTRACT: ${fieldNames.join(', ')}
+`;
 
     try {
         console.log(`Sending dynamic prompt to Gemini (JSON mode)...`);
@@ -202,10 +278,12 @@ const analyzeDocument = async (text, fieldNames, customPrompt = null, fieldConte
         if (firstBrace !== -1 && lastBrace !== -1) {
             jsonText = jsonText.substring(firstBrace, lastBrace + 1);
         }
-        const parsed = JSON.parse(jsonText);
-        // Debug: Log if coordinates are present in any of the keys
-        const keysWithCoords = Object.keys(parsed).filter(k => parsed[k].coords);
-        console.log(`AI extracted ${Object.keys(parsed).length} keys. Found coords for: ${keysWithCoords.join(', ') || 'NONE'}`);
+        let parsed = JSON.parse(jsonText);
+        // Validate: reject values that look like placeholder names
+        parsed = validateExtractedValues(parsed, fieldNames);
+        const keysWithCoords = Object.keys(parsed).filter(k => parsed[k]?.coords);
+        const keysWithValues = Object.keys(parsed).filter(k => parsed[k]?.waarde && parsed[k].waarde.toString().trim());
+        console.log(`AI extracted ${Object.keys(parsed).length} keys, ${keysWithValues.length} with values. Coords for: ${keysWithCoords.join(', ') || 'NONE'}`);
         return parsed;
     } catch (error) {
         console.error('Error analyzing document with Gemini:', error);

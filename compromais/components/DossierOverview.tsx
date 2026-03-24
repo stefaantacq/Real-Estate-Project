@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Calendar, MapPin, FileText, Clock, GitCompare, Archive, ExternalLink, RefreshCw, File, Trash2, X, Home, Building2, Edit2, Bookmark, BookmarkCheck } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, FileText, Clock, GitCompare, Archive, ExternalLink, RefreshCw, File, Trash2, X, Home, Building2, Edit2, Bookmark, BookmarkCheck, ChevronDown, ChevronRight } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { Language, Dossier, DossierStatus } from '../types';
 import { TRANSLATIONS } from '../constants';
@@ -47,6 +47,7 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
    const [tempAddress, setTempAddress] = React.useState('');
    const [isScanning, setIsScanning] = React.useState(false);
    const [scanProgress, setScanProgress] = React.useState(0);
+   const [expandedTimelineGroups, setExpandedTimelineGroups] = React.useState<Set<string>>(new Set());
 
    // Templates state for "Add Agreement"
    const [templates, setTemplates] = React.useState<any[]>([]);
@@ -476,7 +477,7 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
    };
 
    if (!dossier) return <div className="flex items-center justify-center min-h-screen">
-      <RefreshCw className="w-8 h-8 animate-spin text-brand-500" />
+      <RefreshCw className="w-8 h-8 animate-spin text-blue-500" />
    </div>;
 
    return (
@@ -493,27 +494,27 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
          {/* Context Menu */}
          {contextMenu && (
             <div
-               className="fixed bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-gray-200 dark:border-slate-700 py-1 z-[200] min-w-[160px]"
+               className="fixed bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-[200] min-w-[160px]"
                style={{ top: contextMenu.y, left: contextMenu.x }}
                onClick={(e) => e.stopPropagation()}
             >
                <button
                   onClick={handleContextMenuRename}
-                  className="w-full px-4 py-2 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2"
+                  className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-gray-100 flex items-center gap-2"
                >
                   <Edit2 className="w-4 h-4" />
                   {t.renameVersion}
                </button>
                <button
                   onClick={handleContextMenuBookmark}
-                  className="w-full px-4 py-2 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2 border-b border-gray-100 dark:border-slate-700 pb-2 mb-1"
+                  className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-gray-100 flex items-center gap-2 border-b border-gray-100 pb-2 mb-1"
                >
                   <Bookmark className="w-4 h-4 text-slate-400" />
                   {(t as any).toggleBookmark || 'Bookmark'}
                </button>
                <button
                   onClick={handleContextMenuDelete}
-                  className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
+                  className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
                >
                   <Trash2 className="w-4 h-4" />
                   {t.deleteVersion}
@@ -525,18 +526,18 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
          {isRenameModalOpen && (
             <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setIsRenameModalOpen(false)}>
                <div
-                  className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-800 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
+                  className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
                   onClick={e => e.stopPropagation()}
                >
-                  <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
-                     <h3 className="text-xl font-bold text-slate-900 dark:text-white">{t.versionRenamePopupTitle}</h3>
-                     <button onClick={() => setIsRenameModalOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                  <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+                     <h3 className="text-xl font-bold text-slate-900">{t.versionRenamePopupTitle}</h3>
+                     <button onClick={() => setIsRenameModalOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 transition-colors">
                         <X className="w-5 h-5" />
                      </button>
                   </div>
                   <div className="p-6 space-y-4">
                      <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
                            {t.versionRenameNewName}
                         </label>
                         <input
@@ -545,22 +546,22 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                            onChange={(e) => setNewName(e.target.value)}
                            onKeyDown={(e) => e.key === 'Enter' && performRename()}
                            autoFocus
-                           className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none transition-all"
+                           className="w-full px-4 py-2 bg-slate-50 border border-gray-200 rounded-xl text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                            placeholder={t.versionRenamePlaceholder}
                         />
                      </div>
                   </div>
-                  <div className="p-6 bg-slate-50 dark:bg-slate-800/50 flex items-center justify-end gap-3">
+                  <div className="p-6 bg-slate-50 flex items-center justify-end gap-3">
                      <button
                         onClick={() => setIsRenameModalOpen(false)}
-                        className="px-4 py-2 text-slate-600 dark:text-slate-400 font-medium hover:text-slate-900 dark:hover:text-white transition-colors"
+                        className="px-4 py-2 text-slate-600 font-medium hover:text-slate-900 transition-colors"
                      >
                         {t.cancel}
                      </button>
                      <button
                         onClick={performRename}
                         disabled={!newName.trim()}
-                        className="px-6 py-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg shadow-brand-500/20 transition-all flex items-center gap-2"
+                        className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 transition-all flex items-center gap-2"
                      >
                         {t.save}
                      </button>
@@ -572,7 +573,7 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
          {/* Header / Nav */}
          <div className="mb-8 flex items-center justify-between">
             <div className="flex items-center flex-1">
-               <button onClick={onBack} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-500 mr-4">
+               <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-slate-500 mr-4">
                   <ArrowLeft className="w-6 h-6" />
                </button>
                <div className="flex-1">
@@ -585,12 +586,12 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                            onChange={(e) => setTempName(e.target.value)}
                            onKeyDown={(e) => e.key === 'Enter' && toggleEditName()}
                            onBlur={toggleEditName}
-                           className="text-3xl font-bold bg-white dark:bg-slate-800 border-2 border-brand-500 rounded-lg px-2 py-1 outline-none text-slate-900 dark:text-white w-full max-w-lg"
+                           className="text-3xl font-bold bg-white border-2 border-blue-500 rounded-lg px-2 py-1 outline-none text-slate-900 w-full max-w-lg"
                         />
                      </div>
                   ) : (
                      <h1
-                        className={`text-3xl font-bold text-slate-900 dark:text-white ${dossier.status === DossierStatus.ARCHIVED ? '' : 'cursor-pointer hover:text-brand-600 transition-colors'}`}
+                        className={`text-3xl font-bold text-slate-900 ${dossier.status === DossierStatus.ARCHIVED ? '' : 'cursor-pointer hover:text-blue-600 transition-colors'}`}
                         onClick={toggleEditName}
                      >
                         {dossier.name}
@@ -607,11 +608,11 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                            onChange={(e) => setTempAddress(e.target.value)}
                            onKeyDown={(e) => e.key === 'Enter' && toggleEditAddress()}
                            onBlur={toggleEditAddress}
-                           className="bg-white dark:bg-slate-800 border-2 border-brand-500 rounded px-1 outline-none text-slate-900 dark:text-white w-full max-w-md"
+                           className="bg-white border-2 border-blue-500 rounded px-1 outline-none text-slate-900 w-full max-w-md"
                         />
                      ) : (
                         <span
-                           className={dossier.status === DossierStatus.ARCHIVED ? '' : 'cursor-pointer hover:text-brand-600 transition-colors'}
+                           className={dossier.status === DossierStatus.ARCHIVED ? '' : 'cursor-pointer hover:text-blue-600 transition-colors'}
                            onClick={toggleEditAddress}
                         >
                            {dossier.address}
@@ -622,15 +623,15 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
             </div>
 
             <div className="flex space-x-3 shrink-0">
-               <button onClick={() => onCompare(dossier.id)} className="flex items-center px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors shadow-sm">
+               <button onClick={() => onCompare(dossier.id)} className="flex items-center px-4 py-2 bg-white border border-gray-200 rounded-lg text-slate-700 hover:bg-gray-50 transition-colors shadow-sm">
                   <GitCompare className="w-4 h-4 mr-2" />
                   {t.compare}
                </button>
-               <button onClick={handleArchive} className="flex items-center px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors shadow-sm">
+               <button onClick={handleArchive} className="flex items-center px-4 py-2 bg-white border border-gray-200 rounded-lg text-slate-700 hover:bg-gray-50 transition-colors shadow-sm">
                   {dossier.status === DossierStatus.ARCHIVED ? <RefreshCw className="w-4 h-4 mr-2" /> : <Archive className="w-4 h-4 mr-2" />}
                   {dossier.status === DossierStatus.ARCHIVED ? t.unarchiveDossier : t.archiveDossier}
                </button>
-               <button onClick={handleDeleteClick} className="p-2 bg-white dark:bg-slate-800 border border-red-100 dark:border-red-900/30 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shadow-sm" title={t.deleteDossier}>
+               <button onClick={handleDeleteClick} className="p-2 bg-white border border-red-100 rounded-lg text-red-600 hover:bg-red-50 transition-colors shadow-sm" title={t.deleteDossier}>
                   <Trash2 className="w-5 h-5" />
                </button>
             </div>
@@ -642,21 +643,21 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                {/* Agreement Tracks */}
                <div className="space-y-4">
                   {dossier.agreements && dossier.agreements.length > 0 ? dossier.agreements.map((agg) => (
-                     <div key={agg.id} className="bg-white dark:bg-slate-900 p-3 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm relative overflow-hidden group">
+                     <div key={agg.id} className="bg-white p-3 rounded-2xl border border-gray-200 shadow-sm relative overflow-hidden group">
                         <div className="flex items-center justify-between mb-3">
                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 bg-brand-50 dark:bg-brand-900/30 rounded-lg flex items-center justify-center">
-                                 <FileText className="w-4 h-4 text-brand-600 dark:text-brand-400" />
+                              <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+                                 <FileText className="w-4 h-4 text-blue-600" />
                               </div>
                               <div>
-                                 <h3 className="font-bold text-slate-900 dark:text-white leading-tight">{agg.templateName || t.customAgreement}</h3>
+                                 <h3 className="font-bold text-slate-900 leading-tight">{agg.templateName || t.customAgreement}</h3>
                               </div>
                            </div>
                            {/* Delete Agreement Button */}
                            {dossier.status !== DossierStatus.ARCHIVED && (
                               <button
                                  onClick={(e) => handleDeleteAgreementClick(e, agg.id)}
-                                 className="opacity-0 group-hover:opacity-100 p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                                 className="opacity-0 group-hover:opacity-100 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all"
                                  title={t.deleteAgreement}
                               >
                                  <Trash2 className="w-4 h-4" />
@@ -684,13 +685,13 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                                   >
                                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border-2 mb-2 transition-colors relative
                                          ${ver.isCurrent
-                                           ? 'bg-brand-50 border-brand-500 text-brand-600 dark:bg-brand-900/20 shadow-md'
-                                           : 'bg-white border-slate-200 text-slate-400 group-hover:border-brand-400 group-hover:text-brand-500 dark:bg-slate-800 dark:border-slate-700 dark:group-hover:border-brand-500'}
+                                           ? 'bg-blue-50 border-blue-500 text-blue-600 shadow-md'
+                                           : 'bg-white border-slate-200 text-slate-400 group-hover:border-blue-400 group-hover:text-blue-500'}
                                       `}>
                                         {/* Bookmark Icon */}
                                         {ver.isBookmarked && (
                                            <div 
-                                              className="absolute -top-2 -left-2 p-1 rounded-full z-10 transition-all text-yellow-500 bg-white dark:bg-slate-800 opacity-100 shadow-sm border border-yellow-200 dark:border-yellow-700/50"
+                                              className="absolute -top-2 -left-2 p-1 rounded-full z-10 transition-all text-yellow-500 bg-white opacity-100 shadow-sm border border-yellow-200"
                                               title="Bookmarked"
                                            >
                                               <BookmarkCheck className="w-3.5 h-3.5 fill-current" />
@@ -698,11 +699,11 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                                         )}
                                         <span className="font-bold text-sm">v{ver.number}</span>
                                      </div>
-                                     <span className={`text-[10px] uppercase tracking-tighter font-bold transition-colors ${ver.isCurrent ? "text-brand-500" : "text-slate-400 group-hover:text-brand-500"}`}>{ver.source}</span>
+                                     <span className={`text-[10px] uppercase tracking-tighter font-bold transition-colors ${ver.isCurrent ? "text-blue-500" : "text-slate-400 group-hover:text-blue-500"}`}>{ver.source}</span>
                                   </button>
                                  {
                                     idx < agg.versions.length - 1 && (
-                                       <div className="w-8 h-[2px] bg-slate-100 dark:bg-slate-800 shrink-0 mt-[-15px]"></div>
+                                       <div className="w-8 h-[2px] bg-slate-100 shrink-0 mt-[-15px]"></div>
                                     )
                                  }
                               </React.Fragment>
@@ -711,10 +712,10 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                            {/* Add Version Button (+ in the track) */}
                            {dossier.status !== DossierStatus.ARCHIVED && (
                               <>
-                                 <div className="w-8 h-[2px] bg-slate-100 dark:bg-slate-800 shrink-0 mt-[-15px]"></div>
+                                 <div className="w-8 h-[2px] bg-slate-100 shrink-0 mt-[-15px]"></div>
                                  <button
                                     onClick={() => handleAddVersionClick(agg.id)}
-                                    className="w-12 h-12 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-300 hover:border-brand-500 hover:text-brand-500 transition-all shrink-0 mb-[18px]"
+                                    className="w-12 h-12 rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center text-slate-300 hover:border-blue-500 hover:text-blue-500 transition-all shrink-0 mb-[18px]"
                                     title={t.addVersionTooltip}
                                  >
                                     <RefreshCw className="w-5 h-5" />
@@ -724,7 +725,7 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                         </div>
                      </div>
                   )) : (
-                     <div className="bg-white dark:bg-slate-900 p-12 rounded-2xl border-2 border-dashed border-gray-100 dark:border-slate-800 text-center">
+                     <div className="bg-white p-12 rounded-2xl border-2 border-dashed border-gray-100 text-center">
                         <p className="text-slate-400 italic">{t.noAgreementsFound}</p>
                      </div>
                   )}
@@ -733,9 +734,9 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                   {dossier.status !== DossierStatus.ARCHIVED && (
                      <button
                         onClick={handleAddAgreement}
-                        className="w-full py-4 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-slate-400 hover:border-brand-500 hover:text-brand-500 hover:bg-brand-50/50 dark:hover:bg-brand-900/10 transition-all group"
+                        className="w-full py-4 rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400 hover:border-blue-500 hover:text-blue-500 hover:bg-blue-50/50 transition-all group"
                      >
-                        <div className="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center mb-2 group-hover:bg-brand-100 dark:group-hover:bg-brand-900/30 transition-all">
+                        <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center mb-2 group-hover:bg-blue-100 transition-all">
                            <FileText className="w-5 h-5" />
                         </div>
                         <span className="text-sm font-bold">{t.startNewAgreement}</span>
@@ -744,24 +745,138 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                </div>
 
                {/* Timeline */}
-               <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-gray-200 dark:border-slate-800">
+               <div className="bg-white p-6 rounded-2xl border border-gray-200">
                   <h3 className="font-bold text-lg mb-6 flex items-center">
                      <Clock className="w-5 h-5 mr-2 text-slate-400" />
                      {t.timeline}
                   </h3>
 
-                  <div className="relative border-l-2 border-gray-100 dark:border-slate-800 ml-3 space-y-8">
-                     {dossier.timeline.length > 0 ? dossier.timeline.map((event) => (
-                        <div key={event.id} className="relative pl-8">
-                           <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-brand-500 border-4 border-white dark:border-slate-900"></div>
-                           <div>
-                              <span className="text-xs font-semibold text-brand-600 dark:text-brand-400 mb-1 block">{event.date}</span>
-                              <h4 className="text-sm font-bold text-slate-900 dark:text-white">{event.title}</h4>
-                              <p className="text-sm text-slate-500 mt-1">{event.description} <span className="text-slate-300 mx-1">•</span> {event.user}</p>
-                           </div>
-                        </div>
-                     )) : (
-                        <div className="pl-8 text-slate-500 text-sm">{t.noActivitiesYet}</div>
+                  <div className="relative border-l-2 border-slate-200 ml-3 space-y-0">
+                     {dossier.timeline.length > 0 ? (() => {
+                        // Group timeline events: consecutive AI events form a collapsible group
+                        type GroupedEvent = { type: 'single', event: typeof dossier.timeline[0] } | { type: 'ai-group', parent: typeof dossier.timeline[0], children: typeof dossier.timeline };
+                        const grouped: GroupedEvent[] = [];
+                        let currentAIGroup: typeof dossier.timeline = [];
+
+                        const isAISubEvent = (e: typeof dossier.timeline[0]) => 
+                           e.title.startsWith('AI:') || e.title.startsWith('AI Analyse:') || e.title === 'AI Analyse Gestart';
+                        const isAICompletion = (e: typeof dossier.timeline[0]) => 
+                           e.title === 'AI Analyse Voltooid' || e.title === 'AI Analyse Fout';
+
+                        const flushGroup = () => {
+                           if (currentAIGroup.length > 0) {
+                              // The last item might be the completion event
+                              const completionIdx = currentAIGroup.findIndex(e => isAICompletion(e));
+                              const parent = completionIdx !== -1 ? currentAIGroup[completionIdx] : currentAIGroup[currentAIGroup.length - 1];
+                              const children = currentAIGroup.filter(e => e !== parent);
+                              grouped.push({ type: 'ai-group', parent, children });
+                              currentAIGroup = [];
+                           }
+                        };
+
+                        for (const event of dossier.timeline) {
+                           if (isAISubEvent(event) || isAICompletion(event)) {
+                              currentAIGroup.push(event);
+                              if (isAICompletion(event)) flushGroup();
+                           } else {
+                              flushGroup();
+                              grouped.push({ type: 'single', event });
+                           }
+                        }
+                        flushGroup();
+
+                        // Color helper
+                        const getDotColor = (title: string) => {
+                           if (title.includes('AI') || title.includes('Analyse')) return 'bg-blue-500';
+                           if (title.includes('Status') || title.includes('Voltooid') || title.includes('Aangemaakt')) return 'bg-green-500';
+                           if (title.includes('Opgeslagen') || title.includes('Versie') || title.includes('Save')) return 'bg-slate-400';
+                           if (title.includes('Upload') || title.includes('Document')) return 'bg-gray-400';
+                           return 'bg-slate-400';
+                        };
+
+                        return grouped.map((item, groupIdx) => {
+                           if (item.type === 'single') {
+                              const event = item.event;
+                              return (
+                                 <div key={event.id} className="relative pl-7 py-3">
+                                    <div className={`absolute -left-[5px] top-4 w-2.5 h-2.5 rounded-full ${getDotColor(event.title)} ring-4 ring-white`} />
+                                    <div className="flex items-start justify-between gap-2">
+                                       <div className="min-w-0">
+                                          <h4 className="text-sm font-semibold text-slate-800 leading-tight">{event.title}</h4>
+                                          <p className="text-xs text-slate-500 mt-0.5">{event.description}</p>
+                                       </div>
+                                       <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                                          <span className="text-[10px] text-slate-400 whitespace-nowrap">{event.date}</span>
+                                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border border-slate-200 text-slate-500 bg-white">
+                                             {event.user}
+                                          </span>
+                                       </div>
+                                    </div>
+                                 </div>
+                              );
+                           } else {
+                              // AI group — collapsible
+                              const { parent, children } = item;
+                              const groupId = parent.id;
+                              const isExpanded = expandedTimelineGroups.has(groupId);
+                              const hasError = parent.title === 'AI Analyse Fout';
+
+                              return (
+                                 <div key={groupId} className="relative pl-7 py-3">
+                                    <div className={`absolute -left-[5px] top-4 w-2.5 h-2.5 rounded-full ${hasError ? 'bg-red-500' : 'bg-blue-500'} ring-4 ring-white`} />
+                                    <div>
+                                       <div className="flex items-start justify-between gap-2">
+                                          <div className="min-w-0 flex-1">
+                                             <button 
+                                                onClick={() => {
+                                                   setExpandedTimelineGroups(prev => {
+                                                      const next = new Set(prev);
+                                                      if (next.has(groupId)) next.delete(groupId); else next.add(groupId);
+                                                      return next;
+                                                   });
+                                                }}
+                                                className="flex items-center gap-1.5 group text-left"
+                                             >
+                                                <span className={`transition-transform duration-150 ${isExpanded ? 'rotate-0' : '-rotate-90'}`}>
+                                                   <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                                                </span>
+                                                <h4 className="text-sm font-semibold text-slate-800 leading-tight group-hover:text-blue-600 transition-colors">
+                                                   {parent.title}
+                                                </h4>
+                                                {children.length > 0 && (
+                                                   <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full">
+                                                      {children.length} doc{children.length !== 1 ? 's' : ''}
+                                                   </span>
+                                                )}
+                                             </button>
+                                             <p className="text-xs text-slate-500 mt-0.5 ml-5">{parent.description}</p>
+                                          </div>
+                                          <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                                             <span className="text-[10px] text-slate-400 whitespace-nowrap">{parent.date}</span>
+                                             <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border border-blue-200 text-blue-600 bg-blue-50">
+                                                AI Assistent
+                                             </span>
+                                          </div>
+                                       </div>
+                                       {/* Expandable children */}
+                                       {isExpanded && children.length > 0 && (
+                                          <div className="ml-5 mt-2 space-y-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                                             {children.map(child => (
+                                                <div key={child.id} className="flex items-center gap-2 text-xs text-slate-500 py-1">
+                                                   <span className="text-slate-300">–</span>
+                                                   <span className="truncate">{child.title.replace(/^AI[:\s]+/i, '')}</span>
+                                                   {child.description && <span className="text-slate-300 flex-shrink-0">• {child.description}</span>}
+                                                </div>
+                                             ))}
+                                          </div>
+                                       )}
+                                    </div>
+                                 </div>
+                              );
+                           }
+                        });
+                     })() : (
+                        <div className="pl-7 py-3 text-slate-500 text-sm">{t.noActivitiesYet}</div>
                      )}
                   </div>
                </div>
@@ -769,26 +884,26 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
 
             {/* Sidebar: Metadata & Source Docs */}
             <div className="space-y-6">
-               <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-gray-200 dark:border-slate-800">
+               <div className="bg-white p-6 rounded-2xl border border-gray-200">
                   <h3 className="font-bold text-sm uppercase tracking-wider text-slate-500 mb-4">{t.details}</h3>
                   <div className="space-y-4">
                      <div>
                         <label className="text-xs text-slate-400 block mb-1">{t.creationDate}</label>
-                        <div className="flex items-center text-sm font-medium text-slate-900 dark:text-white">
+                        <div className="flex items-center text-sm font-medium text-slate-900">
                            <Calendar className="w-4 h-4 mr-2 text-slate-400" />
                            {dossier.creationDate}
                         </div>
                      </div>
                      <div>
                         <label className="text-xs text-slate-400 block mb-1">Status</label>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                            {dossier.status}
                         </span>
                      </div>
                   </div>
                </div>
 
-               <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-gray-200 dark:border-slate-800">
+               <div className="bg-white p-6 rounded-2xl border border-gray-200">
                   <h3 className="font-bold text-sm uppercase tracking-wider text-slate-500 mb-4">{t.documents}</h3>
                   <div className="space-y-3">
                      {(dossier as any).documents && (dossier as any).documents.length > 0 ? (dossier as any).documents.map((doc: any, i: number) => (
@@ -797,13 +912,13 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                            onClick={() => openDocument(doc)}
                            className={`flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer group
                                ${selectedDocument?.name === doc.name && splitScreen
-                                 ? 'bg-brand-50 border-brand-200 dark:bg-brand-900/20 dark:border-brand-800'
-                                 : 'bg-gray-50 dark:bg-slate-800/50 border-transparent hover:bg-gray-100 dark:hover:bg-slate-800'}`}
+                                 ? 'bg-blue-50 border-blue-200'
+                                 : 'bg-gray-50 border-transparent hover:bg-gray-100'}`}
                         >
                            <div className="flex items-center overflow-hidden">
-                              <File className={`w-4 h-4 mr-3 flex-shrink-0 ${selectedDocument?.name === doc.name && splitScreen ? 'text-brand-600' : 'text-brand-500'}`} />
+                              <File className={`w-4 h-4 mr-3 flex-shrink-0 ${selectedDocument?.name === doc.name && splitScreen ? 'text-blue-600' : 'text-blue-500'}`} />
                               <div className="flex flex-col overflow-hidden">
-                                 <span className={`text-sm truncate ${selectedDocument?.name === doc.name && splitScreen ? 'text-brand-700 dark:text-brand-400 font-bold' : 'text-slate-700 dark:text-slate-300'}`}>{doc.name}</span>
+                                 <span className={`text-sm truncate ${selectedDocument?.name === doc.name && splitScreen ? 'text-blue-700 font-bold' : 'text-slate-700'}`}>{doc.name}</span>
                                  {doc.category && <span className="text-[10px] text-slate-400 uppercase tracking-tighter">{doc.category}</span>}
                               </div>
                            </div>
@@ -821,10 +936,10 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                                  }
                                  if (relativeUrl) window.open(relativeUrl, '_blank');
                               }}
-                              className="p-1 bg-transparent hover:bg-gray-200 dark:hover:bg-slate-700 rounded transition-colors z-10"
+                              className="p-1 bg-transparent hover:bg-gray-200 rounded transition-colors z-10"
                               title={t.openInBrowser || "Open in nieuw tabblad"}
                            >
-                              <ExternalLink className={`w-4 h-4 transition-opacity ${selectedDocument?.name === doc.name && splitScreen ? 'opacity-100 text-brand-500' : 'opacity-0 group-hover:opacity-100 text-slate-400 hover:text-brand-600'}`} />
+                              <ExternalLink className={`w-4 h-4 transition-opacity ${selectedDocument?.name === doc.name && splitScreen ? 'opacity-100 text-blue-500' : 'opacity-0 group-hover:opacity-100 text-slate-400 hover:text-blue-600'}`} />
                            </button>
                         </div>
                      )) : (
@@ -841,13 +956,13 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
          {
             isAddVersionModalOpen && (
                <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-                  <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-800 overflow-hidden flex flex-col relative">
-                     <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
+                  <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col relative">
+                     <div className="p-6 border-b border-gray-100 flex items-center justify-between">
                         <div>
-                           <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t.addVersionModalTitle}</h2>
+                           <h2 className="text-xl font-bold text-slate-900">{t.addVersionModalTitle}</h2>
                            <p className="text-sm text-slate-500">{t.addVersionModalSub}</p>
                         </div>
-                        <button onClick={() => setIsAddVersionModalOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+                        <button onClick={() => setIsAddVersionModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
                            <X className="w-6 h-6 text-slate-400" />
                         </button>
                      </div>
@@ -855,36 +970,36 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                      <div className="p-6 grid grid-cols-1 gap-4">
                         <div
                            onClick={handleFileUploadClick}
-                           className="flex items-center p-6 rounded-xl border border-gray-100 dark:border-slate-800 hover:border-brand-500 hover:bg-brand-50/50 dark:hover:bg-brand-900/10 cursor-pointer transition-all group"
+                           className="flex items-center p-6 rounded-xl border border-gray-100 hover:border-blue-500 hover:bg-blue-50/50 cursor-pointer transition-all group"
                         >
-                           <div className="w-12 h-12 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-brand-100 group-hover:text-brand-600 transition-all mr-4">
+                           <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-blue-100 group-hover:text-blue-600 transition-all mr-4">
                               <File className="w-6 h-6" />
                            </div>
                            <div className="flex-1">
-                              <h3 className="font-bold text-slate-900 dark:text-white group-hover:text-brand-700 transition-colors">{t.uploadFile}</h3>
+                              <h3 className="font-bold text-slate-900 group-hover:text-blue-700 transition-colors">{t.uploadFile}</h3>
                               <p className="text-sm text-slate-500 leading-tight">{t.uploadFileDesc}</p>
                            </div>
-                           <ArrowLeft className="w-5 h-5 text-slate-300 group-hover:text-brand-500 rotate-180 transition-all" />
+                           <ArrowLeft className="w-5 h-5 text-slate-300 group-hover:text-blue-500 rotate-180 transition-all" />
                         </div>
 
                         <div
                            onClick={handleDuplicateVersion}
-                           className="flex items-center p-6 rounded-xl border border-gray-100 dark:border-slate-800 hover:border-brand-500 hover:bg-brand-50/50 dark:hover:bg-brand-900/10 cursor-pointer transition-all group"
+                           className="flex items-center p-6 rounded-xl border border-gray-100 hover:border-blue-500 hover:bg-blue-50/50 cursor-pointer transition-all group"
                         >
-                           <div className="w-12 h-12 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-brand-100 group-hover:text-brand-600 transition-all mr-4">
+                           <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-blue-100 group-hover:text-blue-600 transition-all mr-4">
                               <RefreshCw className="w-6 h-6" />
                            </div>
                            <div className="flex-1">
-                              <h3 className="font-bold text-slate-900 dark:text-white group-hover:text-brand-700 transition-colors">{t.copyCurrentVersion}</h3>
+                              <h3 className="font-bold text-slate-900 group-hover:text-blue-700 transition-colors">{t.copyCurrentVersion}</h3>
                               <p className="text-sm text-slate-500 leading-tight">{t.copyVersionDesc}</p>
                            </div>
-                           <ArrowLeft className="w-5 h-5 text-slate-300 group-hover:text-brand-500 rotate-180 transition-all" />
+                           <ArrowLeft className="w-5 h-5 text-slate-300 group-hover:text-blue-500 rotate-180 transition-all" />
                         </div>
                      </div>
 
                      {isCreatingVersion && (
-                        <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-[1px] flex items-center justify-center">
-                           <RefreshCw className="w-8 h-8 animate-spin text-brand-600" />
+                        <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] flex items-center justify-center">
+                           <RefreshCw className="w-8 h-8 animate-spin text-blue-600" />
                         </div>
                      )}
                   </div>
@@ -896,24 +1011,24 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
          {
             isTemplateModalOpen && (
                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-                  <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh] relative">
-                     <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
+                  <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col max-h-[90vh] relative">
+                     <div className="p-6 border-b border-gray-100 flex items-center justify-between">
                         <div>
-                           <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t.startNewAgreementTitle}</h2>
+                           <h2 className="text-xl font-bold text-slate-900">{t.startNewAgreementTitle}</h2>
                            <p className="text-sm text-slate-500">{t.chooseTemplateStart}</p>
                         </div>
-                        <button onClick={() => setIsTemplateModalOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+                        <button onClick={() => setIsTemplateModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
                            <X className="w-6 h-6 text-slate-400" />
                         </button>
                      </div>
                      <div className="flex-1 overflow-y-auto p-6 space-y-6">
                         <div>
-                           <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                           <label className="block text-sm font-medium text-slate-700 mb-2">
                               {t.remarks} <span className="text-slate-400 font-normal">({t.optional})</span>
                            </label>
                            <textarea
                               rows={3}
-                              className="w-full bg-gray-50 dark:bg-slate-950 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none text-sm resize-none"
+                              className="w-full bg-gray-50 border border-gray-300 rounded-lg px-4 py-3 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none text-sm resize-none"
                               placeholder={t.remarksPlaceholder}
                               value={agreementRemarks}
                               onChange={(e) => setAgreementRemarks(e.target.value)}
@@ -929,19 +1044,19 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                                  <div
                                     key={template.id}
                                     onClick={() => handleSelectTemplate(template.id)}
-                                    className="relative flex flex-col p-6 rounded-xl border border-gray-200 dark:border-slate-800 hover:border-brand-500 hover:bg-brand-50/50 dark:hover:bg-brand-900/10 cursor-pointer transition-all group"
+                                    className="relative flex flex-col p-6 rounded-xl border border-gray-200 hover:border-blue-500 hover:bg-blue-50/50 cursor-pointer transition-all group"
                                  >
                                     {isAiSuggested && (
-                                       <div className="absolute top-0 right-0 bg-brand-500 text-white text-[10px] px-2 py-1 rounded-bl-lg rounded-tr-lg font-bold tracking-wide">
+                                       <div className="absolute top-0 right-0 bg-blue-500 text-white text-[10px] px-2 py-1 rounded-bl-lg rounded-tr-lg font-bold tracking-wide">
                                           AANBEVOLEN
                                        </div>
                                     )}
 
-                                    <div className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center text-slate-500 group-hover:bg-brand-100 group-hover:text-brand-600 transition-colors mb-4">
+                                    <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors mb-4">
                                        {isApartment ? <Building2 className="w-5 h-5" /> : <Home className="w-5 h-5" />}
                                     </div>
 
-                                    <h3 className="font-bold text-slate-900 dark:text-white group-hover:text-brand-700 dark:hover:text-brand-400 transition-colors mb-1 break-all">{template.name}</h3>
+                                    <h3 className="font-bold text-slate-900 group-hover:text-blue-700 transition-colors mb-1 break-all">{template.name}</h3>
                                     <ExpandableText
                                        text={template.description || t.noDescriptionAvailable}
                                        limit={60}
@@ -949,7 +1064,7 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                                     />
 
                                     <div className="mt-auto flex items-center justify-end">
-                                       <ArrowLeft className="w-4 h-4 text-slate-300 group-hover:text-brand-500 rotate-180 transition-all" />
+                                       <ArrowLeft className="w-4 h-4 text-slate-300 group-hover:text-blue-500 rotate-180 transition-all" />
                                     </div>
                                  </div>
                               );
@@ -957,8 +1072,8 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                         </div>
                      </div>
                      {isCreatingAgreement && (
-                        <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-[1px] flex items-center justify-center">
-                           <RefreshCw className="w-8 h-8 animate-spin text-brand-600" />
+                        <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] flex items-center justify-center">
+                           <RefreshCw className="w-8 h-8 animate-spin text-blue-600" />
                         </div>
                      )}
                   </div>
@@ -976,36 +1091,36 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
          />
 
          {/* Premium Side Drawer Viewer */}
-         <div className={`fixed inset-y-0 right-0 w-[45%] bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-l border-gray-200 dark:border-slate-800 shadow-2xl z-[100] transform transition-transform duration-500 ease-in-out flex flex-col ${splitScreen ? 'translate-x-0' : 'translate-x-full'}`}>
-            <div className="h-16 flex items-center justify-between px-6 bg-white/50 dark:bg-slate-900/50 border-b border-gray-200 dark:border-slate-800 shrink-0">
+         <div className={`fixed inset-y-0 right-0 w-[45%] bg-white/80 backdrop-blur-xl border-l border-gray-200 shadow-2xl z-[100] transform transition-transform duration-500 ease-in-out flex flex-col ${splitScreen ? 'translate-x-0' : 'translate-x-full'}`}>
+            <div className="h-16 flex items-center justify-between px-6 bg-white/50 border-b border-gray-200 shrink-0">
                <div className="flex items-center">
-                  <div className="w-8 h-8 rounded-lg bg-brand-50 dark:bg-brand-900/50 flex items-center justify-center mr-3">
-                     <FileText className="w-4 h-4 text-brand-600 dark:text-brand-400" />
+                  <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center mr-3">
+                     <FileText className="w-4 h-4 text-blue-600" />
                   </div>
                   <div>
-                     <span className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 block leading-none mb-1">{t.documentPreview}</span>
-                     <span className="text-sm font-bold text-slate-900 dark:text-white">{selectedDocument?.name}</span>
+                     <span className="text-xs font-bold uppercase tracking-widest text-slate-400 block leading-none mb-1">{t.documentPreview}</span>
+                     <span className="text-sm font-bold text-slate-900">{selectedDocument?.name}</span>
                   </div>
                </div>
                <div className="flex items-center gap-2">
                   <button
                      onClick={() => selectedDocument?.path && window.open(selectedDocument.path, '_blank')}
-                     className="p-2 text-slate-500 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-slate-800 rounded-lg transition-all"
+                     className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
                      title={t.openInBrowser}
                   >
                      <ExternalLink className="w-5 h-5" />
                   </button>
                   <button
                      onClick={() => setSplitScreen(false)}
-                     className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                     className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                   >
                      <X className="w-6 h-6" />
                   </button>
                </div>
             </div>
 
-            <div className="flex-1 p-8 overflow-y-auto bg-slate-50/50 dark:bg-slate-950/50">
-               <div className="max-w-4xl mx-auto w-full h-full bg-white dark:bg-slate-900 shadow-2xl border border-gray-200 dark:border-slate-800 rounded-sm overflow-hidden relative group">
+            <div className="flex-1 p-8 overflow-y-auto bg-slate-50/50">
+               <div className="max-w-4xl mx-auto w-full h-full bg-white shadow-2xl border border-gray-200 rounded-sm overflow-hidden relative group">
                   {selectedDocument?.path ? (
                       <div className="w-full h-full overflow-y-auto bg-slate-200 flex flex-col items-center py-6">
                          {/\.(jpg|jpeg|png|gif|webp)(\.pdf)?($|\?|#)/i.test(selectedDocument.path || '') ? (

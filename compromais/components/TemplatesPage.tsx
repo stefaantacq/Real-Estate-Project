@@ -201,8 +201,9 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
 
             foundIds.forEach(id => {
                 if (!existingIds.has(id)) {
-                    // Try to find definition in SUPPORTED_PLACEHOLDERS
-                    const supported = SUPPORTED_PLACEHOLDERS.find(sp => sp.id === id);
+                    // Try to find definition in SUPPORTED_PLACEHOLDERS (case insensitive)
+                    const lowerId = id.toLowerCase();
+                    const supported = SUPPORTED_PLACEHOLDERS.find(sp => sp.id.toLowerCase() === lowerId);
                     if (supported) {
                         validPlaceholders.push({
                             id: supported.id,
@@ -388,7 +389,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
     const renderPlaceholder = (p: PlaceholderSuggestion) => (
         <span
             key={p.id}
-            className="inline-flex items-center px-2 py-1 rounded-md bg-brand-50 dark:bg-brand-900/40 text-brand-700 dark:text-brand-200 border border-brand-200 dark:border-brand-700 text-xs font-bold mx-1 cursor-help align-middle transition-all hover:scale-[1.02] shadow-sm"
+            className="inline-flex items-center px-2 py-1 rounded-md bg-blue-50 text-blue-700 border border-blue-200 text-xs font-bold mx-1 cursor-help align-middle transition-all hover:scale-[1.02] shadow-sm"
             title={`${p.label}`}
         >
             {p.label}
@@ -401,14 +402,14 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900 dark:text-white">{t.templates}</h1>
-                    <p className="text-slate-500 dark:text-slate-400 mt-1">
+                    <h1 className="text-3xl font-bold text-slate-900">{t.templates}</h1>
+                    <p className="text-slate-500 mt-1">
                         {t.manageTemplatesDesc}
                     </p>
                 </div>
                 <button
                     onClick={handleAddNew}
-                    className="flex items-center px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm self-start md:self-auto"
+                    className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm self-start md:self-auto"
                 >
                     <Plus className="w-4 h-4 mr-2" />
                     {t.newTemplateBtn}
@@ -416,29 +417,29 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
             </div>
 
             {/* Filters & Search */}
-            <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white dark:bg-slate-900 p-2 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm">
-                <div className="flex bg-gray-100 dark:bg-slate-800 p-1 rounded-lg w-full md:w-auto">
+            <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-2 rounded-xl border border-gray-100 shadow-sm">
+                <div className="flex bg-gray-100 p-1 rounded-lg w-full md:w-auto">
                     <button
                         onClick={() => setActiveTab('all')}
-                        className={`flex-1 md:flex-none px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'all' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                        className={`flex-1 md:flex-none px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                     >
                         {t.tabAll}
                     </button>
                     <button
                         onClick={() => setActiveTab('cib')}
-                        className={`flex-1 md:flex-none px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'cib' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                        className={`flex-1 md:flex-none px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'cib' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                     >
                         {t.tabCib}
                     </button>
                     <button
                         onClick={() => setActiveTab('custom')}
-                        className={`flex-1 md:flex-none px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'custom' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                        className={`flex-1 md:flex-none px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'custom' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                     >
                         {t.tabCustom}
                     </button>
                     <button
                         onClick={() => setActiveTab('archived')}
-                        className={`flex-1 md:flex-none px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'archived' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                        className={`flex-1 md:flex-none px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'archived' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                     >
                         {t.tabArchived}
                     </button>
@@ -449,7 +450,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                     <input
                         type="text"
                         placeholder={t.searchTemplatesPlaceholder}
-                        className="w-full bg-gray-50 dark:bg-slate-950 border-none rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-brand-500 transition-all"
+                        className="w-full bg-gray-50 border-none rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 transition-all"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -461,41 +462,41 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                     <div
                         key={template.id}
                         onClick={() => handleOpenPreview(template)}
-                        className="group bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 overflow-hidden shadow-sm transition-all hover:shadow-xl hover:-translate-y-1 relative cursor-pointer"
+                        className="group bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm transition-all hover:shadow-xl hover:-translate-y-1 relative cursor-pointer"
                     >
                         {/* Template Status / Badge */}
                         <div className="absolute top-3 right-3 flex gap-2">
                             {template.source === 'CIB' ? (
-                                <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[10px] font-bold rounded-full uppercase tracking-wider border border-blue-100 dark:border-blue-800">
+                                <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-full uppercase tracking-wider border border-blue-100">
                                     {t.cibOfficialBadge}
                                 </span>
                             ) : (
-                                <span className="px-2 py-0.5 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-[10px] font-bold rounded-full uppercase tracking-wider border border-purple-100 dark:border-purple-800">
+                                <span className="px-2 py-0.5 bg-purple-50 text-purple-600 text-[10px] font-bold rounded-full uppercase tracking-wider border border-purple-100">
                                     {t.customTemplateBadge}
                                 </span>
                             )}
                             {template.isArchived && (
-                                <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-[10px] font-bold rounded-full uppercase tracking-wider border border-gray-200 dark:border-gray-700">
+                                <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] font-bold rounded-full uppercase tracking-wider border border-gray-200">
                                     {t.tabArchived}
                                 </span>
                             )}
                         </div>
 
                         <div className="p-6">
-                            <div className="w-12 h-12 bg-gray-50 dark:bg-slate-800 rounded-xl flex items-center justify-center text-slate-400 dark:text-slate-500 mb-4 group-hover:bg-brand-50 dark:group-hover:bg-brand-900/20 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">
+                            <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center text-slate-400 mb-4 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
                                 <LayoutIcon className="w-6 h-6" />
                             </div>
 
-                            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2 break-all">{template.name}</h3>
+                            <h3 className="text-lg font-bold text-slate-900 mb-2 break-all">{template.name}</h3>
                             <ExpandableText
                                 text={template.description}
                                 limit={80}
-                                className="text-sm text-slate-500 dark:text-slate-400 mb-6 break-words"
+                                className="text-sm text-slate-500 mb-6 break-words"
                             />
 
-                            <div className="flex items-center justify-between pt-4 border-t border-gray-50 dark:border-slate-800">
+                            <div className="flex items-center justify-between pt-4 border-t border-gray-50">
                                 <div className="flex items-center text-xs text-slate-400">
-                                    <span className="px-2 py-1 bg-gray-100 dark:bg-slate-800 rounded text-slate-600 dark:text-slate-300 mr-2">
+                                    <span className="px-2 py-1 bg-gray-100 rounded text-slate-600 mr-2">
                                         {template.type}
                                     </span>
                                 </div>
@@ -505,7 +506,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                         <>
                                             <button
                                                 onClick={() => setTemplateToDelete(template)}
-                                                className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-colors"
+                                                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                                 title={t.deleteAction}
                                             >
                                                 <Trash2 className="w-4 h-4" />
@@ -529,19 +530,19 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                         </div>
 
                         {/* Hover Action Overlay */}
-                        <div className="absolute inset-0 bg-brand-600/5 dark:bg-brand-400/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                        <div className="absolute inset-0 bg-blue-600/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
                     </div>
                 ))}
 
                 {/* Add Template Card */}
                 <button
                     onClick={handleAddNew}
-                    className="flex flex-col items-center justify-center p-6 bg-gray-50 dark:bg-slate-900/50 rounded-2xl border-2 border-dashed border-gray-200 dark:border-slate-800 hover:border-brand-300 dark:hover:border-brand-700 hover:bg-white dark:hover:bg-slate-900 transition-all group min-h-[220px]"
+                    className="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 hover:border-blue-300 hover:bg-white transition-all group min-h-[220px]"
                 >
-                    <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-400 group-hover:bg-brand-600 group-hover:text-white transition-all shadow-sm mb-4">
+                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm mb-4">
                         <Plus className="w-6 h-6" />
                     </div>
-                    <span className="text-sm font-bold text-slate-500 group-hover:text-brand-600 transition-colors uppercase tracking-widest">
+                    <span className="text-sm font-bold text-slate-500 group-hover:text-blue-600 transition-colors uppercase tracking-widest">
                         {t.addTemplateCard}
                     </span>
                 </button>
@@ -550,20 +551,20 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
             {/* Preview Modal */}
             {previewTemplate && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-                    <div className="bg-white dark:bg-slate-900 w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
+                    <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
                         {/* Modal Header */}
-                        <div className="px-6 py-4 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between bg-gray-50/50 dark:bg-slate-900/50">
+                        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                             <div className="flex-1 mr-4">
                                 {isEditingInPreview ? (
                                     <div className="flex flex-col gap-2">
                                         <div className="flex items-center gap-2">
-                                            <FileText className="w-5 h-5 text-brand-600 shrink-0" />
+                                            <FileText className="w-5 h-5 text-blue-600 shrink-0" />
                                             <div className="flex-1">
                                                 <input
                                                     type="text"
                                                     value={previewTemplate.name}
                                                     onChange={(e) => setPreviewTemplate({ ...previewTemplate, name: e.target.value })}
-                                                    className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded px-2 py-1 text-sm font-bold w-full focus:ring-1 focus:ring-brand-500 outline-none"
+                                                    className="bg-white border border-gray-200 rounded px-2 py-1 text-sm font-bold w-full focus:ring-1 focus:ring-blue-500 outline-none"
                                                     placeholder={t.templateNamePlaceholder}
                                                 />
                                             </div>
@@ -571,7 +572,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                         <textarea
                                             value={previewTemplate.description}
                                             onChange={(e) => setPreviewTemplate({ ...previewTemplate, description: e.target.value })}
-                                            className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded px-2 py-1 text-xs w-full focus:ring-2 focus:ring-brand-500 outline-none resize-none transition-all duration-200 max-h-48 overflow-y-auto shadow-inner"
+                                            className="bg-white border border-gray-200 rounded px-2 py-1 text-xs w-full focus:ring-2 focus:ring-blue-500 outline-none resize-none transition-all duration-200 max-h-48 overflow-y-auto shadow-inner"
                                             placeholder={t.descriptionPlaceholder}
                                             rows={2}
                                             onFocus={(e) => {
@@ -593,8 +594,8 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                     </div>
                                 ) : (
                                     <>
-                                        <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center">
-                                            <FileText className="w-5 h-5 mr-2 text-brand-600" />
+                                        <h2 className="text-xl font-bold text-slate-900 flex items-center">
+                                            <FileText className="w-5 h-5 mr-2 text-blue-600" />
                                             {previewTemplate.name}
                                         </h2>
                                         <ExpandableText
@@ -620,13 +621,13 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                         ) : (
                                             <button
                                                 onClick={handleEditToggle}
-                                                className="flex items-center px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm font-bold shadow-sm transition-all"
+                                                className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold shadow-sm transition-all"
                                             >
                                                 <Edit2 className="w-4 h-4 mr-2" />
                                                 {t.editBtn}
                                             </button>
                                         )}
-                                        <div className="w-px h-6 bg-gray-200 dark:bg-slate-700 mx-1"></div>
+                                        <div className="w-px h-6 bg-gray-200 mx-1"></div>
                                         <button
                                             onClick={() => handleArchive(previewTemplate, !previewTemplate.isArchived)}
                                             className={`p-2 rounded-lg transition-colors ${previewTemplate.isArchived
@@ -640,7 +641,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                 )}
                                 <button
                                     onClick={() => setPreviewTemplate(null)}
-                                    className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
+                                    className="p-2 hover:bg-gray-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
                                     title={t.closeBtn}
                                 >
                                     <X className="w-6 h-6" />
@@ -648,21 +649,21 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                             </div>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-8 bg-slate-100 dark:bg-slate-950/50">
+                        <div className="flex-1 overflow-y-auto p-8 bg-slate-100">
                             {isPreviewLoading ? (
                                 <div className="flex flex-col items-center justify-center py-20 pointer-events-none">
-                                    <RefreshCw className="w-10 h-10 text-brand-500 animate-spin mb-4" />
-                                    <p className="text-slate-500 dark:text-slate-400 font-medium font-sans">{t.documentLoading}</p>
+                                    <RefreshCw className="w-10 h-10 text-blue-500 animate-spin mb-4" />
+                                    <p className="text-slate-500 font-medium font-sans">{t.documentLoading}</p>
                                 </div>
                             ) : (
-                                <div className="max-w-[800px] mx-auto bg-white dark:bg-slate-900 shadow-lg border border-gray-200 dark:border-slate-800 p-12 text-slate-800 dark:text-slate-200 font-serif leading-relaxed min-h-screen">
-                                    <div className="text-center border-b-2 border-slate-900 dark:border-slate-100 pb-4 mb-12">
+                                <div className="max-w-[800px] mx-auto bg-white shadow-lg border border-gray-200 p-12 text-slate-800 font-serif leading-relaxed min-h-screen">
+                                    <div className="text-center border-b-2 border-slate-900 pb-4 mb-12">
                                         {isEditingInPreview ? (
                                             <div className="flex flex-col gap-1">
                                                 <input
                                                     value={previewTemplate.title || ''}
                                                     onChange={(e) => setPreviewTemplate({ ...previewTemplate, title: e.target.value })}
-                                                    className="text-2xl font-bold uppercase tracking-tight text-center w-full bg-slate-50 dark:bg-slate-800/50 border-none focus:ring-2 focus:ring-brand-500 rounded py-2 outline-none transition-all"
+                                                    className="text-2xl font-bold uppercase tracking-tight text-center w-full bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 rounded py-2 outline-none transition-all"
                                                     placeholder={t.templateTitlePlaceholder}
                                                 />
                                             </div>
@@ -689,10 +690,10 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                                         <input
                                                             value={section.title}
                                                             onChange={(e) => handleUpdateSectionTitle(section.id, e.target.value)}
-                                                            className="font-bold text-base uppercase border-b border-gray-100 dark:border-slate-800 pb-1 w-full bg-transparent outline-none focus:border-brand-500 transition-colors"
+                                                            className="font-bold text-base uppercase border-b border-gray-100 pb-1 w-full bg-transparent outline-none focus:border-blue-500 transition-colors"
                                                         />
                                                     ) : (
-                                                        <h3 className="font-bold text-base uppercase border-b border-gray-100 dark:border-slate-800 pb-1">{section.title}</h3>
+                                                        <h3 className="font-bold text-base uppercase border-b border-gray-100 pb-1">{section.title}</h3>
                                                     )}
 
                                                     {isEditingInPreview ? (
@@ -700,13 +701,13 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                                             <AutoResizeTextarea
                                                                 value={section.content}
                                                                 onChange={(val, target) => handleSectionContentChange(section.id, val, target)}
-                                                                className="w-full p-0 font-serif text-sm bg-transparent border-none focus:ring-0 outline-none transition-all text-justify leading-relaxed text-slate-800 dark:text-slate-200 antialiased"
+                                                                className="w-full p-0 font-serif text-sm bg-transparent border-none focus:ring-0 outline-none transition-all text-justify leading-relaxed text-slate-800 antialiased"
                                                                 placeholder={t.sectionContentPlaceholder}
                                                             />
 
                                                             {suggestionState.active && suggestionState.sectionId === section.id && (
-                                                                <div className="absolute z-50 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg shadow-xl mt-1 w-64 max-h-48 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200">
-                                                                    <div className="p-2 border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50">
+                                                                <div className="absolute z-50 bg-white border border-gray-200 rounded-lg shadow-xl mt-1 w-64 max-h-48 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200">
+                                                                    <div className="p-2 border-b border-gray-100 bg-gray-50">
                                                                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.choosePlaceholder}</span>
                                                                     </div>
                                                                     {SUPPORTED_PLACEHOLDERS
@@ -715,9 +716,9 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                                                             <button
                                                                                 key={p.id}
                                                                                 onClick={() => handleSelectPlaceholder(p.id)}
-                                                                                className="w-full text-left px-4 py-2 text-xs hover:bg-brand-50 dark:hover:bg-brand-900/20 text-slate-700 dark:text-slate-300 flex flex-col border-b border-gray-50 dark:border-slate-700/50 last:border-0"
+                                                                                className="w-full text-left px-4 py-2 text-xs hover:bg-blue-50 text-slate-700 flex flex-col border-b border-gray-50 last:border-0"
                                                                             >
-                                                                                <span className="font-bold text-brand-600">{p.label}</span>
+                                                                                <span className="font-bold text-blue-600">{p.label}</span>
                                                                                 <span className="text-[10px] text-slate-400 opacity-70">placeholder:{p.id}</span>
                                                                             </button>
                                                                         ))}
@@ -728,12 +729,12 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                                             )}
                                                         </div>
                                                     ) : (
-                                                        <div className="font-serif text-sm leading-relaxed text-justify whitespace-pre-wrap text-slate-800 dark:text-slate-200 antialiased" style={{ textAlign: 'justify' }}>
+                                                        <div className="font-serif text-sm leading-relaxed text-justify whitespace-pre-wrap text-slate-800 antialiased" style={{ textAlign: 'justify' }}>
                                                             {(section.content || '').split(/(\[placeholder:[a-zA-Z0-9_]+\])/g).map((part, i) => {
                                                                 const match = part.match(/\[placeholder:([a-zA-Z0-9_]+)\]/);
                                                                 if (match) {
                                                                     const placeholderId = match[1];
-                                                                    const p = section.placeholders?.find(ph => ph.id === placeholderId);
+                                                                    const p = section.placeholders?.find(ph => ph.id.toLowerCase() === placeholderId.toLowerCase());
                                                                     
                                                                     // Use the placeholder definition if found, otherwise render a fallback badge
                                                                     if (p) return renderPlaceholder(p);
@@ -743,7 +744,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                                                     return (
                                                                         <span
                                                                             key={`${section.id}-fallback-${i}`}
-                                                                            className="inline-flex items-center px-2 py-1 rounded-md bg-brand-50/50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 border border-brand-100 dark:border-brand-800 text-[10px] font-bold mx-1 align-middle opacity-80"
+                                                                            className="inline-flex items-center px-2 py-1 rounded-md bg-blue-50/50 text-blue-600 border border-blue-100 text-[10px] font-bold mx-1 align-middle opacity-80"
                                                                             title={`Placeholder: ${placeholderId}`}
                                                                         >
                                                                             {fallbackLabel}
@@ -767,7 +768,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                         {isEditingInPreview && (
                                             <button
                                                 onClick={handleAddSection}
-                                                className="w-full py-4 border-2 border-dashed border-gray-300 dark:border-slate-700 rounded-xl text-slate-400 hover:border-brand-500 hover:text-brand-500 transition-all flex items-center justify-center font-bold"
+                                                className="w-full py-4 border-2 border-dashed border-gray-300 rounded-xl text-slate-400 hover:border-blue-500 hover:text-blue-500 transition-all flex items-center justify-center font-bold"
                                             >
                                                 <Plus className="w-5 h-5 mr-2" />
                                                 {t.addSectionBtnTemplate}
@@ -779,10 +780,10 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                         </div>
 
                         {/* Modal Footer */}
-                        <div className="px-6 py-4 border-t border-gray-100 dark:border-slate-800 flex justify-end bg-gray-50/50 dark:bg-slate-900/50">
+                        <div className="px-6 py-4 border-t border-gray-100 flex justify-end bg-gray-50/50">
                             <button
                                 onClick={() => setPreviewTemplate(null)}
-                                className="px-6 py-2 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors text-sm font-medium"
+                                className="px-6 py-2 text-slate-600 hover:text-slate-900 transition-colors text-sm font-medium"
                             >
                                 {t.closeBtn}
                             </button>
@@ -794,23 +795,23 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
             {/* Simple Add Modal */}
             {isCreating && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-                    <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
-                        <div className="px-6 py-4 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
-                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t.newTemplateBtn}</h2>
-                            <button onClick={() => setIsCreating(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full text-slate-400"><X className="w-6 h-6" /></button>
+                    <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
+                        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                            <h2 className="text-xl font-bold text-slate-900">{t.newTemplateBtn}</h2>
+                            <button onClick={() => setIsCreating(false)} className="p-2 hover:bg-gray-100 rounded-full text-slate-400"><X className="w-6 h-6" /></button>
                         </div>
                         <div className="p-6 space-y-3 flex-1 overflow-y-auto max-h-[70vh]">
                             {/* Create Tab Selection (Small Filter style) */}
-                            <div className="flex bg-gray-100 dark:bg-slate-800 p-1 rounded-lg mb-4">
+                            <div className="flex bg-gray-100 p-1 rounded-lg mb-4">
                                 <button
                                     onClick={() => setCreateTab('manual')}
-                                    className={`flex-1 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${createTab === 'manual' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                                    className={`flex-1 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${createTab === 'manual' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                                 >
                                     {t.tabManual}
                                 </button>
                                 <button
                                     onClick={() => setCreateTab('upload')}
-                                    className={`flex-1 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${createTab === 'upload' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                                    className={`flex-1 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${createTab === 'upload' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                                 >
                                     {t.tabUpload}
                                 </button>
@@ -824,7 +825,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                             type="text"
                                             value={newName}
                                             onChange={(e) => setNewName(e.target.value)}
-                                            className={`w-full px-3 py-1.5 rounded-lg border ${templates.some(t => t.name.toLowerCase() === newName.toLowerCase() && newName.length > 0) ? 'border-red-500 bg-red-50 dark:bg-red-900/10' : 'border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-950'} focus:ring-2 focus:ring-brand-500 outline-none transition-all text-sm`}
+                                            className={`w-full px-3 py-1.5 rounded-lg border ${templates.some(t => t.name.toLowerCase() === newName.toLowerCase() && newName.length > 0) ? 'border-red-500 bg-red-50' : 'border-gray-200 bg-gray-50'} focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm`}
                                             placeholder={t.newNamePlaceholder}
                                         />
                                         {templates.some(t => t.name.toLowerCase() === newName.toLowerCase() && newName.length > 0) && (
@@ -836,7 +837,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                         <textarea
                                             value={newDesc}
                                             onChange={(e) => setNewDesc(e.target.value)}
-                                            className="w-full px-3 py-1.5 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-950 focus:ring-2 focus:ring-brand-500 outline-none transition-all h-20 text-sm"
+                                            className="w-full px-3 py-1.5 rounded-lg border border-gray-200 bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none transition-all h-20 text-sm"
                                             placeholder={t.newDescPlaceholder}
                                         ></textarea>
                                     </div>
@@ -845,7 +846,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                         <select
                                             value={newType}
                                             onChange={(e) => setNewType(e.target.value as any)}
-                                            className="w-full px-3 py-1.5 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-950 focus:ring-2 focus:ring-brand-500 outline-none transition-all text-sm"
+                                            className="w-full px-3 py-1.5 rounded-lg border border-gray-200 bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
                                         >
                                             <option value="House">House</option>
                                             <option value="Apartment">Apartment</option>
@@ -855,7 +856,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                 </div>
                             ) : (
                                 <div className="space-y-3 animate-in fade-in slide-in-from-right-2 duration-300">
-                                    <div className="border-2 border-dashed border-gray-300 dark:border-slate-700 rounded-xl p-4 text-center hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors relative cursor-pointer group">
+                                    <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:bg-gray-50 transition-colors relative cursor-pointer group">
                                         <input
                                             type="file"
                                             accept=".pdf,.docx,.jpg,.jpeg,.png"
@@ -869,8 +870,8 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                             }}
                                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                                         />
-                                        <div className={`flex flex-col items-center pointer-events-none group-hover:scale-105 transition-transform ${selectedFile ? 'text-green-600 dark:text-green-400' : ''}`}>
-                                            <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 transition-colors ${selectedFile ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400'}`}>
+                                        <div className={`flex flex-col items-center pointer-events-none group-hover:scale-105 transition-transform ${selectedFile ? 'text-green-600' : ''}`}>
+                                            <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 transition-colors ${selectedFile ? 'bg-green-100 text-green-600' : 'bg-blue-50 text-blue-600'}`}>
                                                 {selectedFile ? (
                                                     <Check className="w-6 h-6" />
                                                 ) : (
@@ -878,13 +879,13 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                                 )}
                                             </div>
                                             {selectedFile ? (
-                                                <div className="bg-green-50 dark:bg-green-900/10 px-4 py-2 rounded-xl border border-green-100 dark:border-green-900/20 max-w-[90%] shadow-sm">
-                                                    <p className="text-green-700 dark:text-green-400 font-bold text-sm truncate">{selectedFile.name}</p>
-                                                    <p className="text-green-600/70 dark:text-green-400/50 text-[10px] mt-0.5 font-medium">{t.geminiAnalysisDesc}</p>
+                                                <div className="bg-green-50 px-4 py-2 rounded-xl border border-green-100 max-w-[90%] shadow-sm">
+                                                    <p className="text-green-700 font-bold text-sm truncate">{selectedFile.name}</p>
+                                                    <p className="text-green-600/70 text-[10px] mt-0.5 font-medium">{t.geminiAnalysisDesc}</p>
                                                 </div>
                                             ) : (
                                                 <>
-                                                    <p className="text-slate-900 dark:text-white font-medium text-sm">{t.uploadFile}</p>
+                                                    <p className="text-slate-900 font-medium text-sm">{t.uploadFile}</p>
                                                     <p className="text-slate-500 text-[10px] mt-0.5 max-w-xs mx-auto">{t.geminiAnalysisDesc}</p>
                                                 </>
                                             )}
@@ -896,7 +897,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                             type="text"
                                             value={newName}
                                             onChange={(e) => setNewName(e.target.value)}
-                                            className={`w-full px-3 py-1.5 rounded-lg border ${templates.some(t => t.name.toLowerCase() === newName.toLowerCase() && newName.length > 0) ? 'border-red-500 bg-red-50 dark:bg-red-900/10' : 'border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-950'} focus:ring-2 focus:ring-brand-500 outline-none transition-all text-sm`}
+                                            className={`w-full px-3 py-1.5 rounded-lg border ${templates.some(t => t.name.toLowerCase() === newName.toLowerCase() && newName.length > 0) ? 'border-red-500 bg-red-50' : 'border-gray-200 bg-gray-50'} focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm`}
                                             placeholder={t.newNamePlaceholder}
                                         />
                                         {templates.some(t => t.name.toLowerCase() === newName.toLowerCase() && newName.length > 0) && (
@@ -908,7 +909,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                         <textarea
                                             value={newDesc}
                                             onChange={(e) => setNewDesc(e.target.value)}
-                                            className="w-full px-3 py-1.5 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-950 focus:ring-2 focus:ring-brand-500 outline-none transition-all h-20 text-sm"
+                                            className="w-full px-3 py-1.5 rounded-lg border border-gray-200 bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none transition-all h-20 text-sm"
                                             placeholder={t.newDescPlaceholder}
                                         ></textarea>
                                     </div>
@@ -917,7 +918,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                         <select
                                             value={newType}
                                             onChange={(e) => setNewType(e.target.value as any)}
-                                            className="w-full px-3 py-1.5 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-950 focus:ring-2 focus:ring-brand-500 outline-none transition-all text-sm"
+                                            className="w-full px-3 py-1.5 rounded-lg border border-gray-200 bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
                                         >
                                             <option value="House">House</option>
                                             <option value="Apartment">Apartment</option>
@@ -927,12 +928,12 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                 </div>
                             )}
                         </div>
-                        <div className="px-6 py-4 border-t border-gray-100 dark:border-slate-800 flex justify-end gap-3 bg-gray-50/50 dark:bg-slate-900/50">
+                        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50">
                             <button onClick={() => setIsCreating(false)} className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900">{t.cancel}</button>
                             <button
                                 onClick={handleSaveNew}
                                 disabled={isAnalyzing}
-                                className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-brand-700 transition-colors disabled:opacity-50"
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-blue-700 transition-colors disabled:opacity-50"
                             >
                                 {isAnalyzing ? (
                                     <>
@@ -954,26 +955,26 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
             {/* Delete Confirmation Modal */}
             {templateToDelete && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-                    <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
+                    <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
                         <div className="p-6 text-center">
-                            <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center text-red-600 dark:text-red-400 mx-auto mb-4">
+                            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center text-red-600 mx-auto mb-4">
                                 <Trash2 className="w-8 h-8" />
                             </div>
-                            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{t.deleteTemplateTitle}</h3>
-                            <p className="text-slate-500 dark:text-slate-400">
-                                {t.deleteTemplateDescPart1}<span className="font-semibold text-slate-900 dark:text-white">{templateToDelete.name}</span>{t.deleteTemplateDescPart2}
+                            <h3 className="text-xl font-bold text-slate-900 mb-2">{t.deleteTemplateTitle}</h3>
+                            <p className="text-slate-500">
+                                {t.deleteTemplateDescPart1}<span className="font-semibold text-slate-900">{templateToDelete.name}</span>{t.deleteTemplateDescPart2}
                             </p>
                         </div>
-                        <div className="px-6 py-4 bg-gray-50/50 dark:bg-slate-900/50 flex flex-col sm:flex-row gap-3">
+                        <div className="px-6 py-4 bg-gray-50/50 flex flex-col sm:flex-row gap-3">
                             <button
                                 onClick={() => setTemplateToDelete(null)}
-                                className="flex-1 px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                                className="flex-1 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-gray-100 rounded-xl transition-colors"
                             >
                                 {t.cancel}
                             </button>
                             <button
                                 onClick={confirmDelete}
-                                className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-sm shadow-red-200 dark:shadow-none transition-all"
+                                className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-sm shadow-red-200 transition-all"
                             >
                                 {t.yesDeleteBtn}
                             </button>
@@ -985,15 +986,15 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
             {/* Save Toast Notification */}
             {showSaveToast && (
                 <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-bottom-4 duration-300">
-                    <div className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-800 dark:border-slate-200">
+                    <div className="bg-slate-900 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-800">
                         <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
                             <Check className="w-4 h-4 text-white" />
                         </div>
                         <span className="text-sm font-bold">{t.changesSavedToast}</span>
-                        <div className="w-px h-4 bg-slate-700 dark:bg-slate-200 mx-1"></div>
+                        <div className="w-px h-4 bg-slate-700 mx-1"></div>
                         <button
                             onClick={() => setShowSaveToast(false)}
-                            className="p-1 hover:bg-slate-800 dark:hover:bg-slate-100 rounded-full transition-colors"
+                            className="p-1 hover:bg-slate-800 rounded-full transition-colors"
                         >
                             <X className="w-4 h-4" />
                         </button>

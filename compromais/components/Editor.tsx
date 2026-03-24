@@ -97,7 +97,10 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
         active: boolean;
         query: string;
         sectionId: string | null;
+        top?: number;
+        left?: number;
     }>({ active: false, query: '', sectionId: null });
+    const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0);
 
     // AI Chat state
     const [chatMessages, setChatMessages] = useState<{role: 'user'|'model', content: string}[]>([
@@ -516,10 +519,10 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                 // For each unique ID, find the "best" instance (the one with the most metadata)
                 const bestInstances: Record<string, PlaceholderSuggestion> = {};
                 allUsedPlaceholders.forEach(p => {
-                    const currentBest = bestInstances[p.id];
+                    const currentBest = bestInstances[p.id.toLowerCase()];
                     // A placeholder is "better" if it has document metadata (source reference) or coordinates
                     if (!currentBest || (!currentBest.documentPad && p.documentPad) || (!currentBest.coords && p.coords)) {
-                        bestInstances[p.id] = { ...p };
+                        bestInstances[p.id.toLowerCase()] = { ...p, id: p.id }; // keep original casing in id just in case
                     }
                 });
 
@@ -529,14 +532,24 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                     // Rebuild placeholders for this section based on text content tags
                     let newSectionPlaceholders: PlaceholderSuggestion[] = [];
                     referencedIds.forEach(pid => {
+                        const lowerPid = pid.toLowerCase();
                         // Check if we already have it in the section
-                        const existing = s.placeholders.find(p => p.id === pid);
+                        const existing = s.placeholders.find(p => p.id.toLowerCase() === lowerPid);
                         if (existing) {
                             // Even if it exists, ensure it has the latest metadata from 'bestInstances'
-                            newSectionPlaceholders.push({ ...bestInstances[pid] });
-                        } else if (bestInstances[pid]) {
+                            newSectionPlaceholders.push({ ...bestInstances[lowerPid], id: existing.id });
+                        } else if (bestInstances[lowerPid]) {
                             // Inject from other sections
-                            newSectionPlaceholders.push({ ...bestInstances[pid] });
+                            newSectionPlaceholders.push({ ...bestInstances[lowerPid] });
+                        } else {
+                            // Entirely new placeholder, never used before in any section
+                            const supported = SUPPORTED_PLACEHOLDERS.find(sp => sp.id.toLowerCase() === lowerPid);
+                            newSectionPlaceholders.push({
+                                id: supported ? supported.id : pid,
+                                label: supported ? supported.label : pid,
+                                currentValue: '',
+                                isApproved: false
+                            });
                         }
                     });
 
@@ -571,11 +584,28 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
         if (lastDoubleBracket !== -1) {
             const query = textBeforeCursor.slice(lastDoubleBracket + 2).toLowerCase();
             if (!query.includes(']]')) {
+                let top: number | undefined;
+                let left: number | undefined;
+                try {
+                    const tempRange = document.createRange();
+                    tempRange.setStart(node, lastDoubleBracket);
+                    tempRange.setEnd(node, lastDoubleBracket + 2);
+                    const rect = tempRange.getBoundingClientRect();
+                    const parentRect = e.currentTarget.parentElement?.getBoundingClientRect();
+                    if (parentRect) {
+                        top = rect.bottom - parentRect.top;
+                        left = rect.left - parentRect.left;
+                    }
+                } catch (err) {}
+
                 setSuggestionState({
                     active: true,
                     query,
-                    sectionId
+                    sectionId,
+                    top,
+                    left
                 });
+                setSelectedSuggestionIndex(0);
                 return;
             }
         }
@@ -745,6 +775,35 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
 
     // sectionId is passed when the handler is used on a known section (enables Enter-to-inject)
     const handleContentKeyDown = (e: React.KeyboardEvent<HTMLDivElement>, sectionId?: string) => {
+        // --- Placeholder suggestion keyboard navigation ---
+        if (suggestionState.active) {
+            const allPlaceholders = sections.flatMap(s => s.placeholders);
+            const filteredItems = SUPPORTED_PLACEHOLDERS
+                .filter(p => p.id.toLowerCase().includes(suggestionState.query) || p.label.toLowerCase().includes(suggestionState.query));
+            
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setSelectedSuggestionIndex(prev => Math.min(prev + 1, filteredItems.length - 1));
+                return;
+            }
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setSelectedSuggestionIndex(prev => Math.max(prev - 1, 0));
+                return;
+            }
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                setSuggestionState({ active: false, query: '', sectionId: null });
+                return;
+            }
+            if (e.key === 'Enter' && filteredItems.length > 0) {
+                e.preventDefault();
+                const selected = filteredItems[selectedSuggestionIndex] || filteredItems[0];
+                handleSelectPlaceholderInEditor(selected.id);
+                return;
+            }
+        }
+
         // --- Enter: immediately inject [[...]] placeholders without waiting for blur ---
         if (e.key === 'Enter' && sectionId && !isReadOnly) {
             // Read the current DOM content exactly like handleContentBlur does
@@ -916,7 +975,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                         autoFocus
                         type="text"
                         defaultValue={p.currentValue}
-                        className="px-2 py-1 rounded-md border-2 border-brand-500 bg-white dark:bg-slate-800 text-sm font-semibold outline-none focus:ring-4 focus:ring-brand-100 w-40 shadow-lg text-brand-700"
+                        className="px-2 py-1 rounded-md border-2 border-blue-500 bg-white text-sm font-semibold outline-none focus:ring-4 focus:ring-blue-100 w-40 shadow-lg text-blue-700"
                         onKeyDown={(e) => {
                             e.stopPropagation();
                             if (e.key === 'Enter') {
@@ -944,8 +1003,8 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                 className={`
                     inline-block align-baseline relative group/placeholder mx-1 px-2 py-0.5 rounded-md border-2 transition-all duration-300
                     ${p.isApproved 
-                        ? 'bg-green-50 border-green-200 text-green-700 dark:bg-green-900/10 dark:border-green-800 cursor-default' 
-                        : 'bg-orange-50 border-orange-200 border-dashed hover:border-orange-400 text-orange-700 dark:bg-orange-900/10 dark:border-orange-800 animate-pulse-subtle cursor-pointer hover:scale-[1.02] active:scale-[0.98]'
+                        ? 'bg-green-50 border-green-200 text-green-700 cursor-default' 
+                        : 'bg-orange-50 border-orange-200 border-dashed hover:border-orange-400 text-orange-700 animate-pulse-subtle cursor-pointer hover:scale-[1.02] active:scale-[0.98]'
                     }
                 `}
                 contentEditable={false}
@@ -958,14 +1017,14 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
 
                 {/* Tooltip / Controls */}
                 <div className="hidden group-hover/placeholder:flex absolute bottom-full left-1/2 -translate-x-1/2 w-64 pb-2 z-[100] flex-col items-center animate-in fade-in zoom-in-95 duration-150">
-                    <div className="w-full bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-gray-100 dark:border-slate-800 p-2 flex flex-col gap-2 relative ring-1 ring-black/5">
+                    <div className="w-full bg-white rounded-xl shadow-2xl border border-gray-100 p-2 flex flex-col gap-2 relative ring-1 ring-black/5">
                         <div className="flex items-center justify-between px-1">
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">{p.label}</span>
+                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{p.label}</span>
                             {/* Trash button — only visible on rejected (non-approved) placeholders */}
                             {!isReadOnly && !p.isApproved && (
                                 <button
                                     onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); removePlaceholder(section.id, p.id); }}
-                                    className="p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                    className="p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                                     title="Placeholder verwijderen"
                                 >
                                     <Trash2 className="w-3.5 h-3.5" />
@@ -976,7 +1035,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                         <div className="flex gap-2 items-center">
                             <button
                                 onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleSourceClick(p.id); }}
-                                className="flex-1 flex items-center justify-center px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-xs font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-slate-600 dark:text-slate-300"
+                                className="flex-1 flex items-center justify-center px-3 py-1.5 bg-slate-100 rounded-lg text-xs font-semibold hover:bg-slate-200 transition-all text-slate-600"
                             >
                                 <Eye className="w-3.5 h-3.5 mr-1.5" /> {t.source}
                             </button>
@@ -992,7 +1051,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                 </button>
                             )}
                         </div>
-                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-white dark:border-t-slate-900"></div>
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-white"></div>
                     </div>
                 </div>
             </span>
@@ -1034,8 +1093,8 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
 
     if (isLoading) {
         return (
-            <div className="flex-1 flex items-center justify-center bg-gray-100 dark:bg-slate-950 h-full">
-                <RefreshCw className="w-10 h-10 animate-spin text-brand-600" />
+            <div className="flex-1 flex items-center justify-center bg-gray-100 h-full">
+                <RefreshCw className="w-10 h-10 animate-spin text-blue-600" />
             </div>
         );
     }
@@ -1046,7 +1105,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
             
             {/* Top Toolbar */}
             {!isCurrentVersion && dossier?.status !== DossierStatus.ARCHIVED && (
-                <div className="bg-yellow-50 border-b border-yellow-200 p-3 flex flex-col md:flex-row items-center justify-between text-yellow-800 dark:bg-yellow-900/30 dark:border-yellow-900 dark:text-yellow-200">
+                <div className="bg-yellow-50 border-b border-yellow-200 p-3 flex flex-col md:flex-row items-center justify-between text-yellow-800">
                     <div className="flex items-center gap-2 font-medium">
                         <AlertCircle className="w-5 h-5 flex-shrink-0" />
                         U bekijkt een oudere versie. Oude versies kunnen niet meer bewerkt worden.
@@ -1059,18 +1118,18 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                     </button>
                 </div>
             )}
-            <div className="h-14 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 flex items-center justify-between px-4 shrink-0 shadow-sm z-10">
+            <div className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 shrink-0 shadow-sm z-10">
 
                 <div className="flex items-center gap-4">
-                    <button onClick={() => onBack(dossier?.id)} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-500">
+                    <button onClick={() => onBack(dossier?.id)} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-slate-500">
                         <ArrowLeft className="w-5 h-5" />
                     </button>
                     {!isReadOnly && (
-                        <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 gap-1">
+                        <div className="flex bg-slate-100 rounded-lg p-1 gap-1">
                             <button 
                                 onClick={handleUndo} 
                                 disabled={history.length === 0} 
-                                className="p-1.5 hover:bg-white dark:hover:bg-slate-600 rounded text-slate-500 disabled:opacity-30 disabled:hover:bg-transparent shadow-sm transition-all"
+                                className="p-1.5 hover:bg-white rounded text-slate-500 disabled:opacity-30 disabled:hover:bg-transparent shadow-sm transition-all"
                                 title="Ongedaan maken"
                             >
                                 <Undo className="w-4 h-4" />
@@ -1078,7 +1137,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                             <button 
                                 onClick={handleRedo} 
                                 disabled={future.length === 0} 
-                                className="p-1.5 hover:bg-white dark:hover:bg-slate-600 rounded text-slate-500 disabled:opacity-30 disabled:hover:bg-transparent shadow-sm transition-all"
+                                className="p-1.5 hover:bg-white rounded text-slate-500 disabled:opacity-30 disabled:hover:bg-transparent shadow-sm transition-all"
                                 title="Opnieuw uitvoeren"
                             >
                                 <Redo className="w-4 h-4" />
@@ -1086,25 +1145,25 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                         </div>
                     )}
                     {!isReadOnly && (
-                        <button onClick={handleSave} className="flex items-center px-3 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded-lg text-sm font-bold transition-all border border-brand-200">
+                        <button onClick={handleSave} className="flex items-center px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-all shadow-sm">
                             <Save className="w-4 h-4 mr-2" />
                             {t.save}
                         </button>
                     )}
 
                     <div className="flex items-center gap-2">
-                        <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-1 mr-2">
+                        <div className="flex bg-slate-100 rounded-lg p-1 mr-2">
                             <button
                                 onClick={() => handleExport('docx')}
-                                className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white dark:hover:bg-slate-600 rounded-md transition-all text-xs font-medium flex items-center gap-1"
+                                className="p-1.5 text-slate-600 hover:text-blue-600 hover:bg-white rounded-md transition-all text-xs font-medium flex items-center gap-1"
                                 title="Export to Word"
                             >
                                 <FileText className="w-4 h-4" /> DOCX
                             </button>
-                            <div className="w-[1px] bg-slate-300 dark:bg-slate-600 mx-1"></div>
+                            <div className="w-[1px] bg-slate-300 mx-1"></div>
                             <button
                                 onClick={() => handleExport('pdf')}
-                                className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-white dark:hover:bg-slate-600 rounded-md transition-all text-xs font-medium flex items-center gap-1"
+                                className="p-1.5 text-slate-600 hover:text-red-600 hover:bg-white rounded-md transition-all text-xs font-medium flex items-center gap-1"
                                 title="Export to PDF"
                             >
                                 <Download className="w-4 h-4" /> PDF
@@ -1114,10 +1173,10 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <div className="flex items-center mr-4 bg-gray-50 dark:bg-slate-800 px-3 py-1.5 rounded-full border border-gray-200 dark:border-slate-700">
+                    <div className="flex items-center mr-4 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-200">
                         <div className="text-xs font-medium mr-3 text-slate-500">{progress}{t.percentComplete}</div>
-                        <div className="w-24 h-2 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                            <div className="h-full bg-green-500 transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                        <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div className="h-full bg-blue-600 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
                         </div>
                     </div>
 
@@ -1127,7 +1186,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                             setSidebarMode(newMode);
                             if (newMode !== 'none') setSplitScreen(false);
                         }}
-                        className={`p-2 rounded-lg transition-colors border ${sidebarMode === 'checklist' ? 'bg-brand-50 border-brand-200 text-brand-700' : 'border-transparent hover:bg-gray-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300'}`}
+                        className={`p-2 rounded-lg transition-colors border ${sidebarMode === 'checklist' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'border-transparent hover:bg-gray-100 text-slate-600'}`}
                         title={t.validationChecklist}
                     >
                         <ListChecks className="w-5 h-5" />
@@ -1139,7 +1198,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                             setSidebarMode(newMode);
                             if (newMode !== 'none') setSplitScreen(false);
                         }}
-                        className={`p-2 rounded-lg transition-colors border ${sidebarMode === 'ai' ? 'bg-brand-50 border-brand-200 text-brand-700' : 'border-transparent hover:bg-gray-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300'}`}
+                        className={`p-2 rounded-lg transition-colors border ${sidebarMode === 'ai' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'border-transparent hover:bg-gray-100 text-slate-600'}`}
                         title={t.aiAssistant}
                     >
                         <Wand2 className="w-5 h-5" />
@@ -1150,15 +1209,15 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
             </div>
 
             {/* Main Workspace */}
-            <div className="flex-1 flex min-h-0 bg-gray-100 dark:bg-slate-950 relative overflow-hidden">
+            <div className="flex-1 flex min-h-0 bg-gray-100 relative overflow-hidden">
 
                 {/* Document Area */}
-                <div className="flex-1 overflow-y-auto p-12 transition-all duration-300 bg-slate-200 dark:bg-slate-950/50">
+                <div className="flex-1 overflow-y-auto p-12 transition-all duration-300 bg-slate-200">
                     <div className="flex flex-col items-center gap-12 pb-24">
                         {Array.from({ length: Math.ceil(sections.length / 3) || 1 }).map((_, pageIndex) => (
-                            <div key={pageIndex} className="max-w-[850px] w-full h-fit min-h-[1100px] bg-white dark:bg-slate-900 shadow-2xl border border-gray-200 dark:border-slate-800 p-16 text-slate-900 dark:text-slate-100 font-serif leading-relaxed relative ring-1 ring-slate-100 dark:ring-slate-800 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                            <div key={pageIndex} className="max-w-[850px] w-full h-fit min-h-[1100px] bg-white shadow-2xl border border-gray-200 p-16 text-slate-900 font-serif leading-relaxed relative ring-1 ring-slate-100 animate-in fade-in slide-in-from-bottom-4 duration-700">
                                 {pageIndex === 0 && (
-                                    <div className="text-center font-bold text-2xl uppercase border-b-2 border-slate-900 dark:border-slate-100 pb-4 mb-10">
+                                    <div className="text-center font-bold text-2xl uppercase border-b-2 border-slate-900 pb-4 mb-10">
                                         {dossier?.name || t.newCompromis}
                                     </div>
                                 )}
@@ -1167,15 +1226,15 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                     {sections.slice(pageIndex * 3, (pageIndex * 3) + 3).map((section, subIndex) => {
                                         const globalIndex = (pageIndex * 3) + subIndex;
                                         return (
-                                            <div key={section.id} className="group/section relative border border-transparent hover:border-dashed hover:border-blue-400 rounded-xl p-6 -m-6 transition-all hover:bg-blue-50/50 dark:hover:bg-blue-900/10">
+                                            <div key={section.id} className="group/section relative border border-transparent hover:border-dashed hover:border-blue-400 rounded-xl p-6 -m-6 transition-all hover:bg-blue-50/50">
 
                                                 {/* Floating Actions */}
                                                 {!isReadOnly && (
-                                                    <div className="absolute -top-3 -right-2 flex gap-1 opacity-0 group-hover/section:opacity-100 transition-all bg-white dark:bg-slate-900 shadow-lg border border-gray-100 dark:border-slate-700 rounded-lg p-1 scale-90 hover:scale-100 z-10">
-                                                    <button onClick={() => moveSection(globalIndex, 'up')} disabled={globalIndex === 0} className="p-1.5 text-slate-400 hover:text-brand-500 disabled:opacity-30 rounded hover:bg-gray-50">
+                                                    <div className="absolute -top-3 -right-2 flex gap-1 opacity-0 group-hover/section:opacity-100 transition-all bg-white shadow-lg border border-gray-100 rounded-lg p-1 scale-90 hover:scale-100 z-10">
+                                                    <button onClick={() => moveSection(globalIndex, 'up')} disabled={globalIndex === 0} className="p-1.5 text-slate-400 hover:text-blue-500 disabled:opacity-30 rounded hover:bg-gray-50">
                                                         <ArrowUp className="w-4 h-4" />
                                                     </button>
-                                                    <button onClick={() => moveSection(globalIndex, 'down')} disabled={globalIndex === sections.length - 1} className="p-1.5 text-slate-400 hover:text-brand-500 disabled:opacity-30 rounded hover:bg-gray-50">
+                                                    <button onClick={() => moveSection(globalIndex, 'down')} disabled={globalIndex === sections.length - 1} className="p-1.5 text-slate-400 hover:text-blue-500 disabled:opacity-30 rounded hover:bg-gray-50">
                                                         <ArrowDown className="w-4 h-4" />
                                                     </button>
                                                     <div className="w-px bg-gray-200 mx-1"></div>
@@ -1192,7 +1251,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
 
                                                 {/* Editable Title */}
                                                 <div
-                                                    className={`font-bold text-lg mb-3 uppercase flex items-center border-b border-gray-100 dark:border-slate-800 pb-2 outline-none ${!isReadOnly ? 'focus:border-brand-300' : ''}`}
+                                                    className={`font-bold text-lg mb-3 uppercase flex items-center border-b border-gray-100 pb-2 outline-none ${!isReadOnly ? 'focus:border-blue-300' : ''}`}
                                                     contentEditable={!isReadOnly}
                                                     suppressContentEditableWarning
                                                     onBlur={(e) => handleTitleEdit(section.id, e.currentTarget.innerText)}
@@ -1205,7 +1264,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                                 <div className="relative">
                                                     <div
                                                         key={`${section.id}-v${contentRenderKeys.current[section.id] || 0}`}
-                                                        className={`text-base text-justify text-slate-700 dark:text-slate-300 outline-none rounded p-1 -ml-1 min-h-[1.5em] whitespace-pre-wrap ${!isReadOnly ? 'focus:ring-2 focus:ring-brand-100' : ''}`}
+                                                        className={`text-base text-justify text-slate-700 outline-none rounded p-1 -ml-1 min-h-[1.5em] whitespace-pre-wrap ${!isReadOnly ? 'focus:ring-2 focus:ring-blue-100' : ''}`}
                                                         contentEditable={!editingPlaceholder && !isReadOnly}
                                                         suppressContentEditableWarning
                                                         onBlur={(e) => handleContentBlur(section.id, e)}
@@ -1217,7 +1276,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                                             const match = part.match(/\[\[([A-Za-z0-9_]+)\]\]|\[placeholder:([A-Za-z0-9_]+)\]/);
                                                             if (match) {
                                                                 const placeholderId = match[1] || match[2];
-                                                                const p = section.placeholders.find(ph => ph.id === placeholderId);
+                                                                const p = section.placeholders.find(ph => ph.id.toLowerCase() === placeholderId.toLowerCase());
                                                                 if (p) return renderPlaceholder(section, p, i);
                                                             }
                                                             return <span key={`${section.id}-part-${i}`}>{part}</span>;
@@ -1225,33 +1284,52 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                                     </div>
 
                                                     {/* Suggestion Dropdown */}
-                                                    {suggestionState.active && suggestionState.sectionId === section.id && (
-                                                        <div className="absolute z-50 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg shadow-xl mt-1 w-64 max-h-48 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200" style={{ top: '100%', left: 0 }}>
-                                                            <div className="p-2 border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50">
-                                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.choosePlaceholder}</span>
+                                                    {suggestionState.active && suggestionState.sectionId === section.id && (() => {
+                                                        const allPlaceholders = sections.flatMap(s => s.placeholders);
+                                                        const filteredItems = SUPPORTED_PLACEHOLDERS
+                                                            .filter(p => p.id.toLowerCase().includes(suggestionState.query) || p.label.toLowerCase().includes(suggestionState.query));
+                                                        return (
+                                                            <div className="absolute z-50 bg-white border border-slate-200 rounded-xl shadow-xl mt-1 w-72 max-h-64 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200" style={{ top: suggestionState.top ?? '100%', left: suggestionState.left ?? 0 }}>
+                                                                <div className="p-2.5 border-b border-slate-100 bg-slate-50/80 rounded-t-xl">
+                                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.choosePlaceholder}</span>
+                                                                </div>
+                                                                {filteredItems.map((p, idx) => {
+                                                                    const existingPh = allPlaceholders.find(ep => ep.id === p.id);
+                                                                    const isFilled = existingPh?.currentValue && existingPh.currentValue.trim() !== '';
+                                                                    const isSelected = idx === selectedSuggestionIndex;
+                                                                    return (
+                                                                        <button
+                                                                            key={p.id}
+                                                                            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleSelectPlaceholderInEditor(p.id); }}
+                                                                            onMouseEnter={() => setSelectedSuggestionIndex(idx)}
+                                                                            className={`w-full text-left px-3 py-2 text-xs flex items-center gap-2.5 border-b border-slate-50 last:border-0 transition-colors
+                                                                                ${isSelected ? 'bg-blue-50' : 'hover:bg-slate-50'}
+                                                                            `}
+                                                                        >
+                                                                            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isFilled ? 'bg-green-500' : 'bg-slate-300'}`} />
+                                                                            <div className="flex flex-col min-w-0 flex-1">
+                                                                                <span className="font-mono text-sm text-blue-700 truncate">{p.id}</span>
+                                                                                <span className="text-[10px] text-slate-400 truncate">
+                                                                                    {isFilled 
+                                                                                        ? (existingPh!.currentValue!.length > 30 ? existingPh!.currentValue!.slice(0, 30) + '…' : existingPh!.currentValue)
+                                                                                        : 'Leeg'
+                                                                                    }
+                                                                                </span>
+                                                                            </div>
+                                                                        </button>
+                                                                    );
+                                                                })}
+                                                                {filteredItems.length === 0 && (
+                                                                    <div className="px-4 py-3 text-xs text-slate-400 italic">{t.noMatchingPlaceholders}</div>
+                                                                )}
                                                             </div>
-                                                            {SUPPORTED_PLACEHOLDERS
-                                                                .filter(p => p.id.toLowerCase().includes(suggestionState.query) || p.label.toLowerCase().includes(suggestionState.query))
-                                                                .map(p => (
-                                                                    <button
-                                                                        key={p.id}
-                                                                        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleSelectPlaceholderInEditor(p.id); }}
-                                                                        className="w-full text-left px-4 py-2 text-xs hover:bg-brand-50 dark:hover:bg-brand-900/20 text-slate-700 dark:text-slate-300 flex flex-col border-b border-gray-50 dark:border-slate-700/50 last:border-0"
-                                                                    >
-                                                                        <span className="font-bold text-brand-600">{p.label}</span>
-                                                                        <span className="text-[10px] text-slate-400 opacity-70">placeholder:{p.id}</span>
-                                                                    </button>
-                                                                ))}
-                                                            {SUPPORTED_PLACEHOLDERS.filter(p => p.id.toLowerCase().includes(suggestionState.query) || p.label.toLowerCase().includes(suggestionState.query)).length === 0 && (
-                                                                <div className="px-4 py-3 text-xs text-slate-400 italic">{t.noMatchingPlaceholders}</div>
-                                                            )}
-                                                        </div>
-                                                    )}
+                                                        );
+                                                    })()}
                                                 </div>
                                                 {/* [[...]] hint — only visible on section hover */}
                                                 {!isReadOnly && (
-                                                    <div className="mt-2 flex items-center gap-1.5 text-[10px] text-slate-400 dark:text-slate-600 select-none opacity-0 group-hover/section:opacity-100 transition-opacity duration-200">
-                                                        <span className="font-mono bg-slate-100 dark:bg-slate-800 px-1 rounded">[[sleutel]]</span>
+                                                    <div className="mt-2 flex items-center gap-1.5 text-[10px] text-slate-400 select-none opacity-0 group-hover/section:opacity-100 transition-opacity duration-200">
+                                                        <span className="font-mono bg-slate-100 px-1 rounded">[[sleutel]]</span>
                                                         <span>typen voegt een bestaande placeholder in</span>
                                                     </div>
                                                 )}
@@ -1273,7 +1351,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                             <div className="flex justify-center py-8 opacity-40 hover:opacity-100 transition-opacity">
                                 <button
                                     onClick={addSection}
-                                    className="flex items-center px-6 py-3 bg-white dark:bg-slate-800 rounded-full text-slate-500 hover:text-brand-500 text-sm border-2 border-dashed border-slate-300 hover:border-brand-400 hover:shadow-md transition-all"
+                                    className="flex items-center px-6 py-3 bg-white rounded-full text-slate-500 hover:text-blue-500 text-sm border-2 border-dashed border-slate-300 hover:border-blue-400 hover:shadow-md transition-all"
                                 >
                                     <Plus className="w-4 h-4 mr-2" />
                                     {t.addSectionBtn || 'Voeg nieuwe sectie toe'}
@@ -1285,8 +1363,8 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
 
                 {/* Split Screen Source Viewer */}
                 {splitScreen && (
-                    <div className="flex-1 border-l border-gray-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 flex flex-col animate-in slide-in-from-right duration-300 shadow-xl z-20">
-                        <div className="h-10 flex items-center justify-between px-4 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 shrink-0">
+                    <div className="flex-1 border-l border-gray-200 bg-slate-100 flex flex-col animate-in slide-in-from-right duration-300 shadow-xl z-20">
+                        <div className="h-10 flex items-center justify-between px-4 bg-white border-b border-gray-200 shrink-0">
                             <div className="flex items-center">
                                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center mr-3">
                                     <FileText className="w-3 h-3 mr-2" />
@@ -1296,7 +1374,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                 </span>
                                 <button
                                     onClick={() => selectedSourceDoc?.path && window.open(selectedSourceDoc.path, '_blank')}
-                                    className="p-1 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded transition-colors"
+                                    className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
                                     title={t.openInBrowser}
                                 >
                                     <ExternalLink className="w-3 h-3" />
@@ -1306,7 +1384,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                 <X className="w-4 h-4" />
                             </button>
                         </div>
-                        <div className="flex-1 overflow-hidden bg-slate-100 dark:bg-slate-950">
+                        <div className="flex-1 overflow-hidden bg-slate-100">
                             <div className="w-full h-full bg-white shadow-lg flex flex-col items-center justify-center text-slate-300 border border-gray-200 overflow-hidden relative group">
                                 {selectedSourceDoc?.path ? (
                                     <div className="w-full h-full overflow-y-auto bg-slate-200 flex flex-col items-center py-6">
@@ -1353,7 +1431,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                                                         // Build a flexible regex that ignores differences in whitespace/newlines
                                                                         const words = textToSearch.split(/[\s\r\n]+/).map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
                                                                         const flexRegex = new RegExp(`(${words.join('[\\s\\r\\n]+')})`, 'gi');
-                                                                        return textItem.str.replace(flexRegex, '<mark class="bg-yellow-300 font-bold px-1 rounded shadow-sm text-black">$1</mark>');
+                                                                        return textItem.str.replace(flexRegex, '<mark class="bg-blue-100 text-blue-800 font-semibold px-0.5 rounded">$1</mark>');
                                                                     }}
                                                                 />
                                                             </div>
@@ -1364,31 +1442,28 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                             
                                             {/* Text recognized by AI below the image/PDF */}
                                             {(selectedSourceDoc.bronText || selectedSourceDoc.currentValue) && (
-                                                <div className="max-w-[90%] w-full bg-white shadow-lg rounded-lg p-6 border-l-4 border-yellow-400 shrink-0">
-                                                    <h4 className="flex items-center text-sm font-bold text-slate-600 uppercase mb-3">
-                                                        <FileText className="w-4 h-4 mr-2" />
+                                                <div className="max-w-[90%] w-full bg-white shadow-sm rounded-xl p-5 border border-blue-200 shrink-0">
+                                                    <h4 className="flex items-center text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                                                        <FileText className="w-3.5 h-3.5 mr-2" />
                                                         Herkend Tekstfragment
                                                     </h4>
-                                                    <div className="text-slate-800 whitespace-pre-wrap leading-relaxed bg-slate-50 p-4 rounded border border-slate-100 italic">
-                                                        " {(() => {
+                                                    <div className="border-l-4 border-blue-400 pl-3 text-sm text-slate-700 italic whitespace-pre-wrap leading-relaxed">
+                                                        “{(() => {
                                                             const sourceText = selectedSourceDoc.bronText || selectedSourceDoc.currentValue || '';
                                                             const valToHighlight = selectedSourceDoc.currentValue?.trim();
                                                             if (!valToHighlight || valToHighlight.length < 2) return sourceText;
                                                             
-                                                            // Build a flexible regex that allows different spaces/newlines between words
                                                             const words = valToHighlight.split(/[\s\r\n]+/).map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
                                                             const flexRegex = new RegExp(`(${words.join('[\\s\\r\\n]+')})`, 'gi');
                                                             const parts = sourceText.split(flexRegex);
                                                             
                                                             return parts.map((part, i) => {
-                                                                // Because of the regex capturing group '()', 
-                                                                // every odd index in the split array is our guaranteed regex match!
                                                                 if (i % 2 !== 0) {
-                                                                    return <mark key={i} className="bg-yellow-300 font-bold px-1 rounded shadow-sm text-black">{part}</mark>;
+                                                                    return <span key={i} className="bg-blue-100 text-blue-800 rounded px-0.5 font-semibold not-italic">{part}</span>;
                                                                 }
                                                                 return part;
                                                             });
-                                                        })()} "
+                                                        })()}”
                                                     </div>
                                                 </div>
                                             )}
@@ -1401,9 +1476,9 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                             alt="Identity Card Proof"
                                             className="max-w-[90%] max-h-[90%] object-contain shadow-2xl rounded-lg border-4 border-white"
                                         />
-                                        <div className="absolute bottom-4 left-4 right-4 bg-white/90 dark:bg-slate-900/90 p-4 rounded-xl border border-gray-200 dark:border-slate-800 shadow-lg backdrop-blur-sm">
+                                        <div className="absolute bottom-4 left-4 right-4 bg-white/90 p-4 rounded-xl border border-gray-200 shadow-lg backdrop-blur-sm">
                                             <div className="text-xs font-bold text-slate-500 uppercase mb-1">{t.aiContextMapping}</div>
-                                            <div className="text-sm text-slate-700 dark:text-slate-200">
+                                            <div className="text-sm text-slate-700">
                                                 {t.aiContextFieldContent} <strong>{sections.flatMap(s => s.placeholders).find(p => p.id === activePlaceholderId)?.label}</strong> {t.aiContextMatchingId}
                                             </div>
                                         </div>
@@ -1411,24 +1486,24 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                 ) : (
                                     <div className="flex flex-col items-center justify-center h-full gap-4 p-8">
                                         {/* Info card when there is no linked source document */}
-                                        <div className="w-full max-w-sm bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-gray-100 dark:border-slate-700 p-6 flex flex-col gap-4">
-                                            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+                                        <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl border border-gray-100 p-6 flex flex-col gap-4">
+                                            <div className="flex items-center gap-2 text-slate-500">
                                                 <FileText className="w-5 h-5 flex-shrink-0" />
                                                 <span className="text-xs font-bold uppercase tracking-widest">{selectedSourceDoc?.placeholderLabel || activePlaceholderId}</span>
                                             </div>
                                             {selectedSourceDoc?.currentValue ? (
-                                                <div className="bg-brand-50 dark:bg-brand-900/20 border border-brand-200 dark:border-brand-800 rounded-xl p-4">
-                                                    <div className="text-[10px] font-bold text-brand-500 uppercase tracking-widest mb-1">Ingevulde waarde</div>
-                                                    <div className="text-sm font-semibold text-brand-800 dark:text-brand-200">{selectedSourceDoc.currentValue}</div>
+                                                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                                                    <div className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1">Ingevulde waarde</div>
+                                                    <div className="text-sm font-semibold text-blue-800">{selectedSourceDoc.currentValue}</div>
                                                 </div>
                                             ) : null}
                                             {selectedSourceDoc?.bronText ? (
-                                                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
-                                                    <div className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Brontekst</div>
-                                                    <div className="text-sm text-amber-900 dark:text-amber-200 italic">"{selectedSourceDoc.bronText}"</div>
+                                                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                                                    <div className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1">Brontekst</div>
+                                                    <div className="border-l-4 border-blue-400 pl-3 text-sm text-slate-700 italic">“{selectedSourceDoc.bronText}”</div>
                                                 </div>
                                             ) : null}
-                                            <div className="flex items-start gap-2 text-slate-400 dark:text-slate-500">
+                                            <div className="flex items-start gap-2 text-slate-400">
                                                 <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                                                 <p className="text-xs leading-relaxed">
                                                     {t.noSourceDocumentLinked}
@@ -1444,10 +1519,10 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
 
                 {/* Sidebars */}
                 {sidebarMode !== 'none' && (
-                    <div className="shrink-0 w-80 bg-white dark:bg-slate-900 border-l border-gray-200 dark:border-slate-800 shadow-2xl z-30 flex flex-col animate-in slide-in-from-right duration-300 relative">
-                        <div className="h-14 flex items-center justify-between px-4 border-b border-gray-200 dark:border-slate-800 shrink-0">
-                            <h3 className="font-bold text-slate-900 dark:text-white flex items-center">
-                                {sidebarMode === 'ai' ? <Wand2 className="w-4 h-4 mr-2 text-brand-600" /> : <ListChecks className="w-4 h-4 mr-2 text-brand-600" />}
+                    <div className="shrink-0 w-80 bg-white border-l border-gray-200 shadow-2xl z-30 flex flex-col animate-in slide-in-from-right duration-300 relative">
+                        <div className="h-14 flex items-center justify-between px-4 border-b border-gray-200 shrink-0">
+                            <h3 className="font-bold text-slate-900 flex items-center">
+                                {sidebarMode === 'ai' ? <Wand2 className="w-4 h-4 mr-2 text-blue-600" /> : <ListChecks className="w-4 h-4 mr-2 text-blue-600" />}
                                 {sidebarMode === 'ai' ? t.aiAssistant : t.validationChecklist}
                             </h3>
                             <button onClick={() => setSidebarMode('none')} className="text-slate-400 hover:text-slate-900 p-1 hover:bg-gray-100 rounded">
@@ -1458,20 +1533,20 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                         <div className="flex-1 overflow-y-auto p-4">
                             {sidebarMode === 'checklist' ? (
                                 <div className="space-y-6">
-                                    <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-100 dark:border-green-900 mb-4">
-                                        <div className="text-sm font-bold text-green-800 dark:text-green-300 mb-1">Status: {progress}{t.percentComplete}</div>
-                                        <div className="w-full h-1.5 bg-green-200 dark:bg-green-900 rounded-full overflow-hidden">
+                                    <div className="p-4 bg-green-50 rounded-lg border border-green-100 mb-4">
+                                        <div className="text-sm font-bold text-green-800 mb-1">Status: {progress}{t.percentComplete}</div>
+                                        <div className="w-full h-1.5 bg-green-200 rounded-full overflow-hidden">
                                             <div className="h-full bg-green-500" style={{ width: `${progress}%` }}></div>
                                         </div>
                                     </div>
 
                                     {sections.filter(s => s.placeholders.length > 0).map(s => (
                                         <div key={s.id} className="space-y-2">
-                                            <div className="flex items-center justify-between font-medium text-sm text-slate-700 dark:text-slate-200">
+                                            <div className="flex items-center justify-between font-medium text-sm text-slate-700">
                                                 {s.title}
                                                 {s.isApproved ? <Check className="w-4 h-4 text-green-600" /> : <div className="w-4 h-4 rounded-full border-2 border-slate-300"></div>}
                                             </div>
-                                            <div className="pl-3 space-y-1 border-l-2 border-gray-100 dark:border-slate-800 ml-1">
+                                            <div className="pl-3 space-y-1 border-l-2 border-gray-100 ml-1">
                                                 {s.placeholders
                                                     .filter((v, i, a) => a.findIndex(t => t.label === v.label) === i)
                                                     .map(p => {
@@ -1479,7 +1554,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                                         const isAllApproved = group.every(t => t.isApproved);
                                                         
                                                         return (
-                                                            <div key={p.label} className="flex items-center justify-between text-xs py-1 hover:bg-gray-50 dark:hover:bg-slate-800 px-2 rounded cursor-pointer" onClick={() => setActivePlaceholderId(p.id)}>
+                                                            <div key={p.label} className="flex items-center justify-between text-xs py-1 hover:bg-gray-50 px-2 rounded cursor-pointer" onClick={() => setActivePlaceholderId(p.id)}>
                                                                 <span className={isAllApproved ? "text-slate-500 line-through decoration-green-500" : "text-slate-600 font-medium"}>{p.label}</span>
                                                                 {isAllApproved ? <Check className="w-3 h-3 text-green-500" /> : <div className="w-3 h-3 rounded-full border border-slate-300"></div>}
                                                             </div>
@@ -1497,10 +1572,10 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                         {chatMessages.map((msg, i) => (
                                             msg.role === 'model' ? (
                                                 <div key={i} className="flex gap-3">
-                                                    <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center shrink-0">
-                                                        <Wand2 className="w-4 h-4 text-brand-600" />
+                                                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                                                        <Wand2 className="w-4 h-4 text-blue-600" />
                                                     </div>
-                                                    <div className="bg-gray-100 dark:bg-slate-800 p-3 rounded-2xl rounded-tl-none text-sm text-slate-700 dark:text-slate-300 shadow-sm whitespace-pre-wrap">
+                                                    <div className="bg-gray-100 p-3 rounded-2xl rounded-tl-none text-sm text-slate-700 shadow-sm whitespace-pre-wrap">
                                                         {msg.content}
                                                     </div>
                                                 </div>
@@ -1509,7 +1584,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                                     <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center shrink-0">
                                                         <span className="text-xs font-bold text-slate-600">ME</span>
                                                     </div>
-                                                    <div className="bg-brand-600 text-white p-3 rounded-2xl rounded-tr-none text-sm shadow-sm whitespace-pre-wrap">
+                                                    <div className="bg-blue-600 text-white p-3 rounded-2xl rounded-tr-none text-sm shadow-sm whitespace-pre-wrap">
                                                         {msg.content}
                                                     </div>
                                                 </div>
@@ -1518,21 +1593,21 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                         
                                         {isChatLoading && (
                                             <div className="flex gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center shrink-0">
-                                                    <Wand2 className="w-4 h-4 text-brand-600" />
+                                                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                                                    <Wand2 className="w-4 h-4 text-blue-600" />
                                                 </div>
-                                                <div className="bg-gray-100 dark:bg-slate-800 p-3 rounded-2xl rounded-tl-none text-sm text-slate-700 dark:text-slate-300 shadow-sm">
+                                                <div className="bg-gray-100 p-3 rounded-2xl rounded-tl-none text-sm text-slate-700 shadow-sm">
                                                     <div className="flex space-x-1 items-center h-4 py-2">
-                                                        <div className="w-1.5 h-1.5 bg-brand-400 rounded-full animate-bounce"></div>
-                                                        <div className="w-1.5 h-1.5 bg-brand-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                                                        <div className="w-1.5 h-1.5 bg-brand-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                                                        <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce"></div>
+                                                        <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                                                        <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                                                     </div>
                                                 </div>
                                             </div>
                                         )}
                                         <div ref={chatEndRef} />
                                     </div>
-                                    <div className="mt-auto pt-4 border-t border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 pb-2">
+                                    <div className="mt-auto pt-4 border-t border-gray-100 bg-white pb-2">
                                         <div className="relative">
                                             <input
                                                 type="text"
@@ -1542,12 +1617,12 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                                     if (e.key === 'Enter') handleSendMessage();
                                                 }}
                                                 placeholder="Stel een vraag of geef een opdracht..."
-                                                className="w-full border border-gray-300 dark:border-slate-700 rounded-xl px-4 py-3 pr-10 text-sm bg-white dark:bg-slate-950 outline-none focus:ring-2 focus:ring-brand-500 shadow-sm"
+                                                className="w-full border border-gray-300 rounded-xl px-4 py-3 pr-10 text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
                                             />
                                             <button 
                                                 onClick={handleSendMessage}
                                                 disabled={isChatLoading || !chatInput.trim()}
-                                                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:hover:bg-brand-600 transition-colors"
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:hover:bg-blue-600 transition-colors"
                                             >
                                                 <ArrowRight className="w-4 h-4" />
                                             </button>

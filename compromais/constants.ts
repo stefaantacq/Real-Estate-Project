@@ -1,29 +1,726 @@
 import { Language, Dossier, DossierStatus, Template, DocumentSection } from './types';
 
 export const SUPPORTED_PLACEHOLDERS = [
-  { id: 'seller_firstname', label: 'Voornaam verkoper' },
-  { id: 'seller_lastname', label: 'Achternaam verkoper' },
-  { id: 'seller_birthplace', label: 'Geboorteplaats verkoper' },
-  { id: 'seller_birthdate', label: 'Geboortedatum verkoper' },
-  { id: 'seller_address', label: 'Adres verkoper' },
-  { id: 'buyer1_firstname', label: 'Voornaam koper 1' },
-  { id: 'buyer1_lastname', label: 'Achternaam koper 1' },
-  { id: 'buyer1_birthplace', label: 'Geboorteplaats koper 1' },
-  { id: 'buyer1_birthdate', label: 'Geboortedatum koper 1' },
-  { id: 'buyer2_firstname', label: 'Voornaam koper 2' },
-  { id: 'buyer2_lastname', label: 'Achternaam koper 2' },
-  { id: 'buyer2_birthplace', label: 'Geboorteplaats koper 2' },
-  { id: 'buyer2_birthdate', label: 'Geboortedatum koper 2' },
-  { id: 'buyers_address', label: 'Adres kopers' },
-  { id: 'property_municipality', label: 'Gemeente eigendom' },
-  { id: 'property_section', label: 'Kadastrale afdeling' },
-  { id: 'property_street', label: 'Straat eigendom' },
-  { id: 'cadastral_number', label: 'Kadastraal nummer' },
-  { id: 'sale_price_amount', label: 'Verkoopprijs' },
-  { id: 'deposit_amount', label: 'Voorschot' },
-  { id: 'notary_name', label: 'Naam notaris' },
-  { id: 'signing_date', label: 'Datum ondertekening' },
-  { id: 'signing_location', label: 'Plaats ondertekening' },
+  {
+    "id": "NAAM_VERKOPER",
+    "label": "NAAM_VERKOPER"
+  },
+  {
+    "id": "ADRES_VERKOPER",
+    "label": "ADRES_VERKOPER"
+  },
+  {
+    "id": "ID_VERKOPER",
+    "label": "ID_VERKOPER"
+  },
+  {
+    "id": "NAAM_KOPER",
+    "label": "NAAM_KOPER"
+  },
+  {
+    "id": "ADRES_KOPER",
+    "label": "ADRES_KOPER"
+  },
+  {
+    "id": "ID_KOPER",
+    "label": "ID_KOPER"
+  },
+  {
+    "id": "ADRES_PAND",
+    "label": "ADRES_PAND"
+  },
+  {
+    "id": "KADASTRELE_GEGEVENS",
+    "label": "KADASTRELE_GEGEVENS"
+  },
+  {
+    "id": "OPPERVLAKTE",
+    "label": "OPPERVLAKTE"
+  },
+  {
+    "id": "VERKOOPPRIJS",
+    "label": "VERKOOPPRIJS"
+  },
+  {
+    "id": "WAARBORG_BEDRAG",
+    "label": "WAARBORG_BEDRAG"
+  },
+  {
+    "id": "EPC_SCORE",
+    "label": "EPC_SCORE"
+  },
+  {
+    "id": "ASBEST_REF",
+    "label": "ASBEST_REF"
+  },
+  {
+    "id": "BEDRAG_LENING",
+    "label": "BEDRAG_LENING"
+  },
+  {
+    "id": "TERMIJN_LENING",
+    "label": "TERMIJN_LENING"
+  },
+  {
+    "id": "real_estate_agent",
+    "label": "real_estate_agent"
+  },
+  {
+    "id": "biv_number",
+    "label": "biv_number"
+  },
+  {
+    "id": "office",
+    "label": "office"
+  },
+  {
+    "id": "street",
+    "label": "street"
+  },
+  {
+    "id": "number",
+    "label": "number"
+  },
+  {
+    "id": "bus",
+    "label": "bus"
+  },
+  {
+    "id": "postal_code",
+    "label": "postal_code"
+  },
+  {
+    "id": "city",
+    "label": "city"
+  },
+  {
+    "id": "seller_name",
+    "label": "seller_name"
+  },
+  {
+    "id": "seller_first_name",
+    "label": "seller_first_name"
+  },
+  {
+    "id": "seller_address",
+    "label": "seller_address"
+  },
+  {
+    "id": "seller_birth_place",
+    "label": "seller_birth_place"
+  },
+  {
+    "id": "seller_birth_date",
+    "label": "seller_birth_date"
+  },
+  {
+    "id": "seller_marital_status",
+    "label": "seller_marital_status"
+  },
+  {
+    "id": "seller_company_name",
+    "label": "seller_company_name"
+  },
+  {
+    "id": "seller_company_number",
+    "label": "seller_company_number"
+  },
+  {
+    "id": "seller_company_address",
+    "label": "seller_company_address"
+  },
+  {
+    "id": "seller_representative_name",
+    "label": "seller_representative_name"
+  },
+  {
+    "id": "seller_representative_first_name",
+    "label": "seller_representative_first_name"
+  },
+  {
+    "id": "seller_representative_address",
+    "label": "seller_representative_address"
+  },
+  {
+    "id": "seller_representative_capacity",
+    "label": "seller_representative_capacity"
+  },
+  {
+    "id": "seller_acting_for",
+    "label": "seller_acting_for"
+  },
+  {
+    "id": "seller_ratification_term",
+    "label": "seller_ratification_term"
+  },
+  {
+    "id": "seller_email",
+    "label": "seller_email"
+  },
+  {
+    "id": "seller_phone",
+    "label": "seller_phone"
+  },
+  {
+    "id": "buyer_name",
+    "label": "buyer_name"
+  },
+  {
+    "id": "buyer_first_name",
+    "label": "buyer_first_name"
+  },
+  {
+    "id": "buyer_address",
+    "label": "buyer_address"
+  },
+  {
+    "id": "buyer_birth_place",
+    "label": "buyer_birth_place"
+  },
+  {
+    "id": "buyer_birth_date",
+    "label": "buyer_birth_date"
+  },
+  {
+    "id": "buyer_marital_status",
+    "label": "buyer_marital_status"
+  },
+  {
+    "id": "buyer_company_name",
+    "label": "buyer_company_name"
+  },
+  {
+    "id": "buyer_company_number",
+    "label": "buyer_company_number"
+  },
+  {
+    "id": "buyer_company_address",
+    "label": "buyer_company_address"
+  },
+  {
+    "id": "buyer_representative_name",
+    "label": "buyer_representative_name"
+  },
+  {
+    "id": "buyer_representative_first_name",
+    "label": "buyer_representative_first_name"
+  },
+  {
+    "id": "buyer_representative_address",
+    "label": "buyer_representative_address"
+  },
+  {
+    "id": "buyer_representative_capacity",
+    "label": "buyer_representative_capacity"
+  },
+  {
+    "id": "company_in_formation_name",
+    "label": "company_in_formation_name"
+  },
+  {
+    "id": "agreement_ratio",
+    "label": "agreement_ratio"
+  },
+  {
+    "id": "buyer_email",
+    "label": "buyer_email"
+  },
+  {
+    "id": "buyer_phone",
+    "label": "buyer_phone"
+  },
+  {
+    "id": "street_property",
+    "label": "street_property"
+  },
+  {
+    "id": "number_property",
+    "label": "number_property"
+  },
+  {
+    "id": "bus_property",
+    "label": "bus_property"
+  },
+  {
+    "id": "postal_code_property",
+    "label": "postal_code_property"
+  },
+  {
+    "id": "city_property",
+    "label": "city_property"
+  },
+  {
+    "id": "country_property",
+    "label": "country_property"
+  },
+  {
+    "id": "property_type",
+    "label": "property_type"
+  },
+  {
+    "id": "cadastral_division",
+    "label": "cadastral_division"
+  },
+  {
+    "id": "cadastral_section",
+    "label": "cadastral_section"
+  },
+  {
+    "id": "cadastral_number",
+    "label": "cadastral_number"
+  },
+  {
+    "id": "surface_area",
+    "label": "surface_area"
+  },
+  {
+    "id": "cadastral_income",
+    "label": "cadastral_income"
+  },
+  {
+    "id": "movable_goods_value",
+    "label": "movable_goods_value"
+  },
+  {
+    "id": "spouse_name",
+    "label": "spouse_name"
+  },
+  {
+    "id": "agreement_date",
+    "label": "agreement_date"
+  },
+  {
+    "id": "easements_exceptions",
+    "label": "easements_exceptions"
+  },
+  {
+    "id": "preemption_right_details",
+    "label": "preemption_right_details"
+  },
+  {
+    "id": "datum_uiterlijk_bewonen",
+    "label": "datum_uiterlijk_bewonen"
+  },
+  {
+    "id": "bewoningsvergoeding",
+    "label": "bewoningsvergoeding"
+  },
+  {
+    "id": "grondwaarde",
+    "label": "grondwaarde"
+  },
+  {
+    "id": "constructiewaarde",
+    "label": "constructiewaarde"
+  },
+  {
+    "id": "totale_btw_waarde",
+    "label": "totale_btw_waarde"
+  },
+  {
+    "id": "btw_nummer_verkoper",
+    "label": "btw_nummer_verkoper"
+  },
+  {
+    "id": "datum_bodemattest",
+    "label": "datum_bodemattest"
+  },
+  {
+    "id": "referentienummer_bodemattest",
+    "label": "referentienummer_bodemattest"
+  },
+  {
+    "id": "inhoud_bodemattest",
+    "label": "inhoud_bodemattest"
+  },
+  {
+    "id": "uitvoerder_obo",
+    "label": "uitvoerder_obo"
+  },
+  {
+    "id": "datum_obo",
+    "label": "datum_obo"
+  },
+  {
+    "id": "datum_bodemattest_b1",
+    "label": "datum_bodemattest_b1"
+  },
+  {
+    "id": "referentienummer_bodemattest_b1",
+    "label": "referentienummer_bodemattest_b1"
+  },
+  {
+    "id": "inhoud_bodemattest_b1",
+    "label": "inhoud_bodemattest_b1"
+  },
+  {
+    "id": "uitvoerder_beschrijvend_onderzoek",
+    "label": "uitvoerder_beschrijvend_onderzoek"
+  },
+  {
+    "id": "datum_verslag_onderzoek",
+    "label": "datum_verslag_onderzoek"
+  },
+  {
+    "id": "seller_ovam_letter_date",
+    "label": "seller_ovam_letter_date"
+  },
+  {
+    "id": "soil_certificate_date",
+    "label": "soil_certificate_date"
+  },
+  {
+    "id": "soil_certificate_reference",
+    "label": "soil_certificate_reference"
+  },
+  {
+    "id": "soil_certificate_content",
+    "label": "soil_certificate_content"
+  },
+  {
+    "id": "restoration_claim_details",
+    "label": "restoration_claim_details"
+  },
+  {
+    "id": "most_recent_urban_planning_destination",
+    "label": "most_recent_urban_planning_destination"
+  },
+  {
+    "id": "measure_violation_urban_planning_rules",
+    "label": "measure_violation_urban_planning_rules"
+  },
+  {
+    "id": "most_recent_urban_planning_destination_2",
+    "label": "most_recent_urban_planning_destination_2"
+  },
+  {
+    "id": "urban_planning_certificate_date",
+    "label": "urban_planning_certificate_date"
+  },
+  {
+    "id": "notary_name",
+    "label": "notary_name"
+  },
+  {
+    "id": "notary_deed_date",
+    "label": "notary_deed_date"
+  },
+  {
+    "id": "alignment_decision_date",
+    "label": "alignment_decision_date"
+  },
+  {
+    "id": "forest_decree_obligations",
+    "label": "forest_decree_obligations"
+  },
+  {
+    "id": "heritage_protection_date",
+    "label": "heritage_protection_date"
+  },
+  {
+    "id": "datum_keuring_elektrische_installatie_a1",
+    "label": "datum_keuring_elektrische_installatie_a1"
+  },
+  {
+    "id": "datum_keuring_elektrische_installatie_b",
+    "label": "datum_keuring_elektrische_installatie_b"
+  },
+  {
+    "id": "datum_herkeuring_elektrische_installatie_c1",
+    "label": "datum_herkeuring_elektrische_installatie_c1"
+  },
+  {
+    "id": "certificaatnummer",
+    "label": "certificaatnummer"
+  },
+  {
+    "id": "datum_epc",
+    "label": "datum_epc"
+  },
+  {
+    "id": "epc_label",
+    "label": "epc_label"
+  },
+  {
+    "id": "p_score",
+    "label": "p_score"
+  },
+  {
+    "id": "g_score",
+    "label": "g_score"
+  },
+  {
+    "id": "datum_asbestattest",
+    "label": "datum_asbestattest"
+  },
+  {
+    "id": "tijdens_inspectie_asbest",
+    "label": "tijdens_inspectie_asbest"
+  },
+  {
+    "id": "asbestveilige_eigendom",
+    "label": "asbestveilige_eigendom"
+  },
+  {
+    "id": "additional_buyer_costs",
+    "label": "additional_buyer_costs"
+  },
+  {
+    "id": "notary_seller_name",
+    "label": "notary_seller_name"
+  },
+  {
+    "id": "notary_buyer_name",
+    "label": "notary_buyer_name"
+  },
+  {
+    "id": "akte_datum",
+    "label": "akte_datum"
+  },
+  {
+    "id": "purchase_price_text",
+    "label": "purchase_price_text"
+  },
+  {
+    "id": "deposit_amount",
+    "label": "deposit_amount"
+  },
+  {
+    "id": "cheque_number",
+    "label": "cheque_number"
+  },
+  {
+    "id": "cheque_amount",
+    "label": "cheque_amount"
+  },
+  {
+    "id": "cheque_account_number",
+    "label": "cheque_account_number"
+  },
+  {
+    "id": "cheque_bank",
+    "label": "cheque_bank"
+  },
+  {
+    "id": "cheque_account_owner",
+    "label": "cheque_account_owner"
+  },
+  {
+    "id": "transfer_amount",
+    "label": "transfer_amount"
+  },
+  {
+    "id": "transfer_account",
+    "label": "transfer_account"
+  },
+  {
+    "id": "transfer_bank",
+    "label": "transfer_bank"
+  },
+  {
+    "id": "transfer_account_owner",
+    "label": "transfer_account_owner"
+  },
+  {
+    "id": "escrow_account_number",
+    "label": "escrow_account_number"
+  },
+  {
+    "id": "notary_account_number",
+    "label": "notary_account_number"
+  },
+  {
+    "id": "escrow_account_number_guarantee",
+    "label": "escrow_account_number_guarantee"
+  },
+  {
+    "id": "notary_account_number_guarantee",
+    "label": "notary_account_number_guarantee"
+  },
+  {
+    "id": "balance_amount",
+    "label": "balance_amount"
+  },
+  {
+    "id": "cheque_details",
+    "label": "cheque_details"
+  },
+  {
+    "id": "balance_transfer_account",
+    "label": "balance_transfer_account"
+  },
+  {
+    "id": "balance_transfer_bank",
+    "label": "balance_transfer_bank"
+  },
+  {
+    "id": "balance_transfer_account_owner",
+    "label": "balance_transfer_account_owner"
+  },
+  {
+    "id": "certificaat",
+    "label": "certificaat"
+  },
+  {
+    "id": "datum_brandveiligheidsattest",
+    "label": "datum_brandveiligheidsattest"
+  },
+  {
+    "id": "geldig_tot_brandveiligheidsattest",
+    "label": "geldig_tot_brandveiligheidsattest"
+  },
+  {
+    "id": "aantal_exemplaren",
+    "label": "aantal_exemplaren"
+  },
+  {
+    "id": "plaats_opmaak",
+    "label": "plaats_opmaak"
+  },
+  {
+    "id": "datum_opmaak",
+    "label": "datum_opmaak"
+  },
+  {
+    "id": "geboorteplaats_verkoper",
+    "label": "geboorteplaats_verkoper"
+  },
+  {
+    "id": "geboortedatum_verkoper",
+    "label": "geboortedatum_verkoper"
+  },
+  {
+    "id": "rijksregister_verkoper",
+    "label": "rijksregister_verkoper"
+  },
+  {
+    "id": "naam_lasthebber",
+    "label": "naam_lasthebber"
+  },
+  {
+    "id": "email_lasthebber",
+    "label": "email_lasthebber"
+  },
+  {
+    "id": "tel_lasthebber",
+    "label": "tel_lasthebber"
+  },
+  {
+    "id": "naam_koper_rechtspersoon_of_particulier",
+    "label": "naam_koper_rechtspersoon_of_particulier"
+  },
+  {
+    "id": "KBO_nummer",
+    "label": "KBO_nummer"
+  },
+  {
+    "id": "naam_vertegenwoordiger_koper",
+    "label": "naam_vertegenwoordiger_koper"
+  },
+  {
+    "id": "geboorteplaats_vertegenwoordiger",
+    "label": "geboorteplaats_vertegenwoordiger"
+  },
+  {
+    "id": "geboortedatum_vertegenwoordiger",
+    "label": "geboortedatum_vertegenwoordiger"
+  },
+  {
+    "id": "adres_vertegenwoordiger",
+    "label": "adres_vertegenwoordiger"
+  },
+  {
+    "id": "naam_makelaar",
+    "label": "naam_makelaar"
+  },
+  {
+    "id": "naam_kantoor",
+    "label": "naam_kantoor"
+  },
+  {
+    "id": "adres_kantoor",
+    "label": "adres_kantoor"
+  },
+  {
+    "id": "straat",
+    "label": "straat"
+  },
+  {
+    "id": "huisnummer",
+    "label": "huisnummer"
+  },
+  {
+    "id": "postcode",
+    "label": "postcode"
+  },
+  {
+    "id": "stad",
+    "label": "stad"
+  },
+  {
+    "id": "land",
+    "label": "land"
+  },
+  {
+    "id": "aard_goed",
+    "label": "aard_goed"
+  },
+  {
+    "id": "kadastrale_afdeling",
+    "label": "kadastrale_afdeling"
+  },
+  {
+    "id": "kadastrale_sectie",
+    "label": "kadastrale_sectie"
+  },
+  {
+    "id": "kadastraal_nummer",
+    "label": "kadastraal_nummer"
+  },
+  {
+    "id": "kadastraal_inkomen",
+    "label": "kadastraal_inkomen"
+  },
+  {
+    "id": "voorschot_bedrag",
+    "label": "voorschot_bedrag"
+  },
+  {
+    "id": "termijn_voorschot",
+    "label": "termijn_voorschot"
+  },
+  {
+    "id": "waarde_roerende_goederen",
+    "label": "waarde_roerende_goederen"
+  },
+  {
+    "id": "lijst_roerende_goederen",
+    "label": "lijst_roerende_goederen"
+  },
+  {
+    "id": "attestnummer_bodemattest",
+    "label": "attestnummer_bodemattest"
+  },
+  {
+    "id": "datum_akte",
+    "label": "datum_akte"
+  },
+  {
+    "id": "naam_notaris",
+    "label": "naam_notaris"
+  },
+  {
+    "id": "standplaats_notaris",
+    "label": "standplaats_notaris"
+  },
+  {
+    "id": "plaats_ondertekening",
+    "label": "plaats_ondertekening"
+  },
+  {
+    "id": "datum_ondertekening",
+    "label": "datum_ondertekening"
+  }
 ];
 
 export const TRANSLATIONS = {

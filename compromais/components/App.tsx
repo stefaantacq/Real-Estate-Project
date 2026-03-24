@@ -20,7 +20,7 @@ import { SettingsService } from '../services/settingsService';
 const MainApp: React.FC = () => {
   // State
   const [isAuthenticated, setIsAuthenticated] = useState(() => !!localStorage.getItem('auth_token'));
-  const [darkMode, setDarkMode] = useState(true); // Default to Dark as per screens
+  const [darkMode, setDarkMode] = useState(false); // Light theme
   const [language, setLanguage] = useState<Language>(Language.NL);
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem('auth_user');

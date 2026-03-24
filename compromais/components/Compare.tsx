@@ -199,23 +199,23 @@ export const Compare: React.FC<CompareProps> = ({ lang, onBack }) => {
     };
 
     const renderUnifiedDiff = (parts: diff.Change[]) => (
-        <div className="whitespace-pre-wrap font-serif text-sm leading-relaxed text-slate-800 dark:text-slate-200">
+        <div className="whitespace-pre-wrap font-serif text-sm leading-relaxed text-slate-800">
             {parts.map((part, i) => {
                 if (part.added) {
                     return (
-                        <mark key={i} className="bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-200 rounded-sm not-italic font-normal">
+                        <mark key={i} className="bg-emerald-100 text-emerald-900 rounded-sm not-italic font-normal">
                             {part.value}
                         </mark>
                     );
                 }
                 if (part.removed) {
                     return (
-                        <span key={i} className="bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 rounded-sm" style={{ textDecoration: 'line-through', textDecorationColor: '#f87171' }}>
+                        <span key={i} className="bg-red-100 text-red-800 rounded-sm" style={{ textDecoration: 'line-through', textDecorationColor: '#f87171' }}>
                             {part.value}
                         </span>
                     );
                 }
-                return <span key={i} className="text-slate-700 dark:text-slate-300">{part.value}</span>;
+                return <span key={i} className="text-slate-700">{part.value}</span>;
             })}
         </div>
     );
@@ -237,27 +237,27 @@ export const Compare: React.FC<CompareProps> = ({ lang, onBack }) => {
             <div className="whitespace-pre-wrap font-serif text-sm leading-relaxed">
                 {items.map((part, i) => {
                     if (part.removed && side === 'left') {
-                        return <mark key={i} className="bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 rounded-sm not-italic font-normal">{part.value}</mark>;
+                        return <mark key={i} className="bg-red-100 text-red-800 rounded-sm not-italic font-normal">{part.value}</mark>;
                     }
                     if (part.added && side === 'right') {
-                        return <mark key={i} className="bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-200 rounded-sm not-italic font-normal">{part.value}</mark>;
+                        return <mark key={i} className="bg-emerald-100 text-emerald-900 rounded-sm not-italic font-normal">{part.value}</mark>;
                     }
-                    return <span key={i} className="text-slate-700 dark:text-slate-300">{part.value}</span>;
+                    return <span key={i} className="text-slate-700">{part.value}</span>;
                 })}
             </div>
         );
 
         return (
-            <div className="grid grid-cols-2 divide-x divide-slate-200 dark:divide-slate-700">
-                <div className="p-4 bg-red-50/30 dark:bg-red-950/10">{renderSide(leftParts, 'left')}</div>
-                <div className="p-4 bg-emerald-50/30 dark:bg-emerald-950/10">{renderSide(rightParts, 'right')}</div>
+            <div className="grid grid-cols-2 divide-x divide-slate-200">
+                <div className="p-4 bg-red-50/30">{renderSide(leftParts, 'left')}</div>
+                <div className="p-4 bg-emerald-50/30">{renderSide(rightParts, 'right')}</div>
             </div>
         );
     };
 
     if (isLoading) {
         return (
-            <div className="flex h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
+            <div className="flex h-screen items-center justify-center bg-slate-50">
                 <div className="flex flex-col items-center gap-4">
                     <RefreshCw className="w-8 h-8 animate-spin text-indigo-500" />
                     <p className="text-slate-500 text-sm">{t.compareLoading}</p>
@@ -270,35 +270,35 @@ export const Compare: React.FC<CompareProps> = ({ lang, onBack }) => {
 
     return (
         <div
-            className="flex flex-col bg-slate-50 dark:bg-slate-950"
+            className="flex flex-col bg-slate-50"
             style={{ height: 'calc(100vh - 6rem)' }}
         >
             {/* ── Top bar ── */}
-            <div className="shrink-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm z-10">
+            <div className="shrink-0 bg-white border-b border-slate-200 shadow-sm z-10">
                 {/* Row 1: back + title + view toggle */}
                 <div className="flex items-center justify-between px-6 h-14 gap-4">
                     <div className="flex items-center gap-3">
                         <button
                             onClick={onBack}
-                            className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                            className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 transition-colors"
                         >
                             <ArrowLeft className="w-4 h-4" />
                         </button>
                         <div className="flex items-center gap-2">
                             <GitCompare className="w-5 h-5 text-indigo-500" />
-                            <h1 className="text-base font-bold text-slate-900 dark:text-white">
+                            <h1 className="text-base font-bold text-slate-900">
                                 {t.compareTitle}
                             </h1>
                         </div>
                     </div>
 
                     {/* View mode toggle */}
-                    <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
+                    <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
                         <button
                             onClick={() => setViewMode('unified')}
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${viewMode === 'unified'
-                                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                ? 'bg-white text-slate-900 shadow-sm'
+                                : 'text-slate-500 hover:text-slate-700'
                                 }`}
                         >
                             <Eye className="w-3.5 h-3.5" />
@@ -307,8 +307,8 @@ export const Compare: React.FC<CompareProps> = ({ lang, onBack }) => {
                         <button
                             onClick={() => setViewMode('split')}
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${viewMode === 'split'
-                                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                ? 'bg-white text-slate-900 shadow-sm'
+                                : 'text-slate-500 hover:text-slate-700'
                                 }`}
                         >
                             <Columns className="w-3.5 h-3.5" />
@@ -320,14 +320,14 @@ export const Compare: React.FC<CompareProps> = ({ lang, onBack }) => {
                 {/* Row 2: version selectors + stats */}
                 <div className="flex items-center gap-4 px-6 pb-3 flex-wrap">
                     {/* Version 1 (Old) */}
-                    <div className="flex items-center gap-2 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/40 rounded-xl px-3 py-2 min-w-0 flex-1 max-w-xs">
+                    <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2 min-w-0 flex-1 max-w-xs">
                         <div className="w-2.5 h-2.5 rounded-full bg-red-400 shrink-0" />
                         <span className="text-[10px] font-bold uppercase tracking-wider text-red-400 shrink-0 leading-none">{t.compareOld}</span>
                         <div className="relative min-w-0 flex-1 flex items-center">
                             <select
                                 value={version1Id}
                                 onChange={e => setVersion1Id(e.target.value)}
-                                className="w-full bg-transparent text-xs font-semibold text-red-800 dark:text-red-300 outline-none cursor-pointer truncate appearance-none pr-4 leading-none py-0"
+                                className="w-full bg-transparent text-xs font-semibold text-red-800 outline-none cursor-pointer truncate appearance-none pr-4 leading-none py-0"
                             >
                                 {availableVersions.map(v => (
                                     <option key={v.id} value={v.id}>{v.hasPlaceholderSnapshot ? '' : '⚠ '}{v.label} — {v.originalDate}</option>
@@ -340,14 +340,14 @@ export const Compare: React.FC<CompareProps> = ({ lang, onBack }) => {
                     <ArrowUpDown className="w-4 h-4 text-slate-400 shrink-0" />
 
                     {/* Version 2 (New) */}
-                    <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40 rounded-xl px-3 py-2 min-w-0 flex-1 max-w-xs">
+                    <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 min-w-0 flex-1 max-w-xs">
                         <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 shrink-0" />
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 shrink-0 leading-none">{t.compareNew}</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 shrink-0 leading-none">{t.compareNew}</span>
                         <div className="relative min-w-0 flex-1 flex items-center">
                             <select
                                 value={version2Id}
                                 onChange={e => setVersion2Id(e.target.value)}
-                                className="w-full bg-transparent text-xs font-semibold text-emerald-800 dark:text-emerald-300 outline-none cursor-pointer truncate appearance-none pr-4 leading-none py-0"
+                                className="w-full bg-transparent text-xs font-semibold text-emerald-800 outline-none cursor-pointer truncate appearance-none pr-4 leading-none py-0"
                             >
                                 {availableVersions.map(v => (
                                     <option key={v.id} value={v.id}>{v.hasPlaceholderSnapshot ? '' : '⚠ '}{v.label} — {v.originalDate}</option>
@@ -360,17 +360,17 @@ export const Compare: React.FC<CompareProps> = ({ lang, onBack }) => {
                     {/* Stats pills */}
                     {!isSameVersion && !isDiffing && sectionDiffs.length > 0 && (
                         <div className="flex items-center gap-3 ml-auto shrink-0">
-                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800/30">
+                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 rounded-lg border border-emerald-200">
                                 <Plus className="w-3 h-3 text-emerald-600" />
-                                <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">{totalAdded} {t.compareWords}</span>
+                                <span className="text-xs font-bold text-emerald-700">{totalAdded} {t.compareWords}</span>
                             </div>
-                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800/30">
+                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-red-50 rounded-lg border border-red-200">
                                 <Minus className="w-3 h-3 text-red-500" />
-                                <span className="text-xs font-bold text-red-600 dark:text-red-400">{totalRemoved} {t.compareWords}</span>
+                                <span className="text-xs font-bold text-red-600">{totalRemoved} {t.compareWords}</span>
                             </div>
-                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800/30">
+                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 rounded-lg border border-amber-200">
                                 <ListFilter className="w-3 h-3 text-amber-600" />
-                                <span className="text-xs font-bold text-amber-700 dark:text-amber-400">{changedSections}/{sectionDiffs.length} {t.compareSectionsChanged}</span>
+                                <span className="text-xs font-bold text-amber-700">{changedSections}/{sectionDiffs.length} {t.compareSectionsChanged}</span>
                             </div>
                         </div>
                     )}
@@ -379,13 +379,13 @@ export const Compare: React.FC<CompareProps> = ({ lang, onBack }) => {
 
             {/* ── Legend bar ── */}
             {!isSameVersion && !isDiffing && sectionDiffs.length > 0 && (
-                <div className="shrink-0 flex items-center gap-6 px-6 py-2 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 text-xs text-slate-500">
+                <div className="shrink-0 flex items-center gap-6 px-6 py-2 bg-white border-b border-slate-100 text-xs text-slate-500">
                     <span className="flex items-center gap-1.5">
-                        <span className="inline-block w-4 h-3 rounded-sm bg-emerald-100 dark:bg-emerald-900/40" />
+                        <span className="inline-block w-4 h-3 rounded-sm bg-emerald-100" />
                         {t.compareAdded}
                     </span>
                     <span className="flex items-center gap-1.5">
-                        <span className="inline-block w-4 h-3 rounded-sm bg-red-100 dark:bg-red-900/40" style={{ textDecoration: 'line-through' }} />
+                        <span className="inline-block w-4 h-3 rounded-sm bg-red-100" style={{ textDecoration: 'line-through' }} />
                         {t.compareRemoved}
                     </span>
                     {viewMode === 'split' && (
@@ -403,8 +403,8 @@ export const Compare: React.FC<CompareProps> = ({ lang, onBack }) => {
             <div className="flex flex-1 min-h-0 relative">
                 {/* Section sidebar */}
                 {!isSameVersion && !isDiffing && sectionDiffs.length > 0 && (
-                    <aside className="w-60 shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 overflow-y-auto">
-                        <div className="p-3 border-b border-slate-100 dark:border-slate-800">
+                    <aside className="w-60 shrink-0 bg-white border-r border-slate-200 overflow-y-auto">
+                        <div className="p-3 border-b border-slate-100">
                             <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{t.compareSections}</p>
                         </div>
                         <nav className="p-2 space-y-0.5">
@@ -413,8 +413,8 @@ export const Compare: React.FC<CompareProps> = ({ lang, onBack }) => {
                                     key={idx}
                                     onClick={() => scrollToSection(idx)}
                                     className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-all flex items-start gap-2 ${activeSectionIdx === idx
-                                        ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-semibold'
-                                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                                        ? 'bg-indigo-50 text-indigo-700 font-semibold'
+                                        : 'text-slate-600 hover:bg-slate-50'
                                         }`}
                                 >
                                     <span className="mt-0.5 shrink-0">
@@ -426,7 +426,7 @@ export const Compare: React.FC<CompareProps> = ({ lang, onBack }) => {
                                     </span>
                                     <span className="leading-snug">{s.title}</span>
                                     {s.hasChanges && (
-                                        <span className="ml-auto shrink-0 px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-[10px] font-bold">
+                                        <span className="ml-auto shrink-0 px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-[10px] font-bold">
                                             {s.addedCount + s.removedCount}
                                         </span>
                                     )}
@@ -440,15 +440,15 @@ export const Compare: React.FC<CompareProps> = ({ lang, onBack }) => {
                 <main className="flex-1 overflow-y-auto">
                     {/* Loading overlay */}
                     {isDiffing && (
-                        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-50/80 dark:bg-slate-950/80 backdrop-blur-sm">
+                        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-50/80 backdrop-blur-sm">
                             <RefreshCw className="w-8 h-8 animate-spin text-indigo-500 mb-3" />
-                            <p className="text-slate-600 dark:text-slate-400 text-sm font-medium">{t.compareDiffing}</p>
+                            <p className="text-slate-600 text-sm font-medium">{t.compareDiffing}</p>
                         </div>
                     )}
 
                     {/* Error */}
                     {errorMsg && (
-                        <div className="m-8 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-700 dark:text-red-300 text-sm">
+                        <div className="m-8 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
                             {errorMsg}
                         </div>
                     )}
@@ -456,10 +456,10 @@ export const Compare: React.FC<CompareProps> = ({ lang, onBack }) => {
                     {/* Same version selected */}
                     {!isDiffing && !errorMsg && isSameVersion && (
                         <div className="flex flex-col items-center justify-center h-full text-center px-8">
-                            <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
+                            <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
                                 <Info className="w-8 h-8 text-slate-400" />
                             </div>
-                            <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-2">{t.compareSelectTwo}</h2>
+                            <h2 className="text-lg font-bold text-slate-800 mb-2">{t.compareSelectTwo}</h2>
                             <p className="text-slate-500 text-sm max-w-xs">{t.compareSelectTwoDesc}</p>
                         </div>
                     )}
@@ -467,10 +467,10 @@ export const Compare: React.FC<CompareProps> = ({ lang, onBack }) => {
                     {/* Not enough versions */}
                     {!isDiffing && !errorMsg && !isSameVersion && availableVersions.length < 2 && (
                         <div className="flex flex-col items-center justify-center h-full text-center px-8">
-                            <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
+                            <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
                                 <FileText className="w-8 h-8 text-slate-400" />
                             </div>
-                            <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-2">{t.compareNotEnough}</h2>
+                            <h2 className="text-lg font-bold text-slate-800 mb-2">{t.compareNotEnough}</h2>
                             <p className="text-slate-500 text-sm max-w-xs">{t.compareNotEnoughDesc}</p>
                         </div>
                     )}
@@ -481,10 +481,10 @@ export const Compare: React.FC<CompareProps> = ({ lang, onBack }) => {
                             {/* Column headers for split view */}
                             {viewMode === 'split' && (
                                 <div className="grid grid-cols-2 gap-0 text-xs font-bold text-center">
-                                    <div className="py-2 bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 rounded-tl-xl border border-red-200 dark:border-red-800/40 truncate px-4">
+                                    <div className="py-2 bg-red-50 text-red-600 rounded-tl-xl border border-red-200 truncate px-4">
                                         {version1Label}
                                     </div>
-                                    <div className="py-2 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 rounded-tr-xl border border-emerald-200 dark:border-emerald-800/40 border-l-0 truncate px-4">
+                                    <div className="py-2 bg-emerald-50 text-emerald-700 rounded-tr-xl border border-emerald-200 border-l-0 truncate px-4">
                                         {version2Label}
                                     </div>
                                 </div>
@@ -495,14 +495,14 @@ export const Compare: React.FC<CompareProps> = ({ lang, onBack }) => {
                                     key={idx}
                                     ref={el => { sectionRefs.current[idx] = el; }}
                                     className={`rounded-2xl border overflow-hidden shadow-sm transition-all ${section.hasChanges
-                                        ? 'border-amber-200 dark:border-amber-800/40'
-                                        : 'border-slate-200 dark:border-slate-700'
+                                        ? 'border-amber-200'
+                                        : 'border-slate-200'
                                         }`}
                                 >
                                     {/* Section header */}
                                     <div className={`flex items-center justify-between px-5 py-3 ${section.hasChanges
-                                        ? 'bg-amber-50 dark:bg-amber-950/20'
-                                        : 'bg-slate-50 dark:bg-slate-800/50'
+                                        ? 'bg-amber-50'
+                                        : 'bg-slate-50'
                                         }`}>
                                         <div className="flex items-center gap-2">
                                             {section.hasChanges ? (
@@ -510,25 +510,25 @@ export const Compare: React.FC<CompareProps> = ({ lang, onBack }) => {
                                             ) : (
                                                 <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
                                             )}
-                                            <h3 className="font-bold text-sm text-slate-900 dark:text-white">{section.title}</h3>
+                                            <h3 className="font-bold text-sm text-slate-900">{section.title}</h3>
                                         </div>
                                         {section.hasChanges ? (
                                             <div className="flex items-center gap-2 text-xs">
-                                                <span className="flex items-center gap-1 text-red-500 dark:text-red-400 font-semibold">
+                                                <span className="flex items-center gap-1 text-red-500 font-semibold">
                                                     <Minus className="w-3 h-3" />{section.removedCount}
                                                 </span>
-                                                <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
+                                                <span className="flex items-center gap-1 text-emerald-600 font-semibold">
                                                     <Plus className="w-3 h-3" />{section.addedCount}
                                                 </span>
-                                                <span className="text-amber-600 dark:text-amber-400 font-bold ml-1">{t.compareChanged}</span>
+                                                <span className="text-amber-600 font-bold ml-1">{t.compareChanged}</span>
                                             </div>
                                         ) : (
-                                            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">{t.compareUnchanged}</span>
+                                            <span className="text-xs text-emerald-600 font-semibold">{t.compareUnchanged}</span>
                                         )}
                                     </div>
 
                                     {/* Diff content */}
-                                    <div className="bg-white dark:bg-slate-900">
+                                    <div className="bg-white">
                                         {viewMode === 'unified' ? (
                                             <div className="p-6">{renderUnifiedDiff(section.parts)}</div>
                                         ) : (
@@ -539,9 +539,9 @@ export const Compare: React.FC<CompareProps> = ({ lang, onBack }) => {
                             ))}
 
                             {/* Footer summary */}
-                            <div className="mt-6 p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center justify-between text-sm text-slate-500">
+                            <div className="mt-6 p-4 bg-white rounded-2xl border border-slate-200 flex items-center justify-between text-sm text-slate-500">
                                 <span>
-                                    <strong className="text-slate-800 dark:text-white">{changedSections}</strong> {t.compareSummary} <strong className="text-slate-800 dark:text-white">{sectionDiffs.length}</strong> {t.compareSummary2}
+                                    <strong className="text-slate-800">{changedSections}</strong> {t.compareSummary} <strong className="text-slate-800">{sectionDiffs.length}</strong> {t.compareSummary2}
                                 </span>
                                 <div className="flex items-center gap-4">
                                     <span className="text-emerald-600 font-semibold">+{totalAdded} {t.compareWordsAdded}</span>

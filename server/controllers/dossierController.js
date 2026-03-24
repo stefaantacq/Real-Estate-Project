@@ -238,7 +238,86 @@ const syncDossierMasterData = async (dossierId, tag, value, documentId = null, b
     } catch (err) { console.error('Error in syncDossierMasterData:', err); }
 };
 
+/**
+ * Determines which fields are relevant for a given document based on its filename.
+ * Returns a subset of tags and contexts, or all if no heuristic matches.
+ */
+const getTargetedFieldsForDocument = (filename, allTags, allContexts) => {
+    const name = (filename || '').toLowerCase();
+    
+    // Keyword groups for targeted extraction
+    const groups = [
+        { keywords: ['verkoper', 'seller', 'vendeur', 'eigenaar'], pattern: /verkop|seller|vendeur|eigenaar|eigen/i },
+        { keywords: ['koper', 'buyer', 'acheteur', 'acquéreur'], pattern: /koper|buyer|achet|acquér/i },
+        { keywords: ['makelaar', 'agent', 'kantoor', 'office', 'immobilier', 'vastgoed'], pattern: /makelaar|agent|kantoor|office|immob|vastgoed|biv/i },
+        { keywords: ['bodem', 'ovam', 'milieu', 'environment'], pattern: /bodem|ovam|milieu|environ|attest/i },
+    ];
+
+    for (const group of groups) {
+        if (group.pattern.test(name)) {
+            // Filter tags that match this group's domain OR are generic (don't contain other group keywords)
+            const otherPatterns = groups.filter(g => g !== group).map(g => g.pattern);
+            const filteredTags = [];
+            const filteredContexts = [];
+            
+            for (let i = 0; i < allTags.length; i++) {
+                const tag = allTags[i];
+                const tagLower = tag.toLowerCase();
+                // Include if the tag matches this group's pattern OR doesn't match any other group
+                const matchesThisGroup = group.pattern.test(tagLower);
+                const matchesOtherGroup = otherPatterns.some(p => p.test(tagLower));
+                
+                if (matchesThisGroup || !matchesOtherGroup) {
+                    filteredTags.push(tag);
+                    filteredContexts.push(allContexts[i]);
+                }
+            }
+            
+            if (filteredTags.length > 0 && filteredTags.length < allTags.length) {
+                console.log(`[TARGETING] Document "${filename}" matched group, filtered ${allTags.length} → ${filteredTags.length} fields`);
+                return { tags: filteredTags, contexts: filteredContexts };
+            }
+        }
+    }
+    
+    // No heuristic match — send all fields
+    return { tags: allTags, contexts: allContexts };
+};
+
+/**
+ * Processes a single document file for AI extraction.
+ * Returns { file, extractedData, fileMatchCount }
+ */
+const processSingleFile = async (file, tags, contexts, customPrompt, dossierId) => {
+    const startTime = Date.now();
+    dlog(`[AI] Processing file ${file.filename} / ${file.originalname} (mimetype: ${file.mimetype})`);
+    
+    let extractedData = null;
+    const filePath = path.join(__dirname, '..', 'uploads', file.filename);
+    
+    if (file.mimetype === 'application/pdf' || file.mimetype.startsWith('image/')) {
+        dlog(`[AI] Processing ${file.mimetype === 'application/pdf' ? 'PDF' : 'IMAGE'} with Vision extraction: ${file.originalname}`);
+        extractedData = await analyzeDocument(filePath, tags, customPrompt, contexts);
+    } else if (file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.mimetype === 'application/msword') {
+        dlog(`[AI] Processing Word with text extraction: ${file.originalname}`);
+        const text = await extractTextFromDOCX(filePath);
+        if (text && text.trim().length > 0) {
+            extractedData = await analyzeDocument(text, tags, customPrompt, contexts);
+        }
+    } else {
+        dlog(`[AI] Unsupported mimetype: ${file.mimetype}`);
+        return { file, extractedData: null, elapsed: Date.now() - startTime };
+    }
+    
+    const elapsed = Date.now() - startTime;
+    const valueCount = extractedData ? Object.values(extractedData).filter(v => v?.waarde && v.waarde.toString().trim()).length : 0;
+    dlog(`[AI] Finished ${file.originalname} in ${elapsed}ms — ${valueCount} values extracted`);
+    
+    return { file, extractedData, elapsed, valueCount };
+};
+
 const processDossierDocuments = async (dossierId, files, customPrompt = null, templateId = null, verkoopsovereenkomstId = null) => {
+    const totalStartTime = Date.now();
     try {
         let pRows;
         if (templateId) {
@@ -263,65 +342,70 @@ const processDossierDocuments = async (dossierId, files, customPrompt = null, te
             if (row.pdf_label) consolidatedMap[row.name].labels.add(row.pdf_label);
             if (row.section_title) consolidatedMap[row.name].sections.add(row.section_title);
         }
-        const tagsToExtract = Object.keys(consolidatedMap);
-        const fieldContexts = Object.values(consolidatedMap).map(ctx => ({ naam: ctx.name, type: ctx.type, label: Array.from(ctx.labels).join(', ') || ctx.name, sections: Array.from(ctx.sections).join(', ') || 'General' }));
+        const allTags = Object.keys(consolidatedMap);
+        const allContexts = Object.values(consolidatedMap).map(ctx => ({ naam: ctx.name, type: ctx.type, label: Array.from(ctx.labels).join(', ') || ctx.name, sections: Array.from(ctx.sections).join(', ') || 'General' }));
+
+        // Log start
+        await pool.query('INSERT INTO TimelineEvent (dossier_id, titel, beschrijving, user_name) VALUES (?, ?, ?, ?)', 
+            [dossierId, 'AI Analyse Gestart', `AI analyseert ${files.length} document(en) parallel...`, 'AI Assistent']);
+
+        // Filter out unsupported files
+        const supportedFiles = files.filter(f => 
+            f.mimetype === 'application/pdf' || 
+            f.mimetype.startsWith('image/') || 
+            f.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
+            f.mimetype === 'application/msword'
+        );
+
+        // Process ALL documents in parallel with targeted fields per document
+        const filePromises = supportedFiles.map(file => {
+            const { tags, contexts } = getTargetedFieldsForDocument(file.originalname, allTags, allContexts);
+            return processSingleFile(file, tags, contexts, customPrompt, dossierId);
+        });
+
+        const results = await Promise.allSettled(filePromises);
+
+        // Merge results: combine extracted data, preferring first non-empty value per key
         let combinedExtractedData = {};
-        for (const file of files) {
-            dlog(`[AI] Processing file ${file.filename} / ${file.originalname} (mimetype: ${file.mimetype})`);
-            
-            // Wait 2 seconds to avoid rate limiting
-            await new Promise(r => setTimeout(r, 2000));
-            
-            let extractedData = null;
-            const filePath = path.join(__dirname, '..', 'uploads', file.filename);
-            
-            if (file.mimetype === 'application/pdf' || file.mimetype.startsWith('image/')) {
-                dlog(`[AI] Processing ${file.mimetype === 'application/pdf' ? 'PDF' : 'IMAGE'} with Vision extraction: ${file.originalname}`);
-                await pool.query('INSERT INTO TimelineEvent (dossier_id, titel, beschrijving, user_name) VALUES (?, ?, ?, ?)', [dossierId, 'AI Analyse: Vision Scan', `Systeem analyseert visueel: ${file.originalname}...`, 'AI Assistent']);
-                // Direct file analysis for images and PDFs
-                extractedData = await analyzeDocument(filePath, tagsToExtract, customPrompt, fieldContexts);
-            } else if (file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.mimetype === 'application/msword') {
-                dlog(`[AI] Processing Word with text extraction: ${file.originalname}`);
-                await pool.query('INSERT INTO TimelineEvent (dossier_id, titel, beschrijving, user_name) VALUES (?, ?, ?, ?)', [dossierId, 'AI Analyse: Word inlezen', `Tekst herkenning op ${file.originalname}...`, 'AI Assistent']);
-                text = await extractTextFromDOCX(filePath);
-                if (text && text.trim().length > 0) {
-                    extractedData = await analyzeDocument(text, tagsToExtract, customPrompt, fieldContexts);
-                }
-            } else {
-                dlog(`[AI] Unsupported mimetype: ${file.mimetype}`);
+        for (const result of results) {
+            if (result.status === 'rejected') {
+                console.error(`[AI] File processing failed:`, result.reason?.message);
                 continue;
             }
+            const { file, extractedData, elapsed, valueCount } = result.value;
+            if (!extractedData) continue;
 
-            if (extractedData) {
-                dlog(`[AI] Extracted ${Object.keys(extractedData || {}).length} items from ${file.originalname}`);
-                for (const [key, val] of Object.entries(extractedData || {})) {
-                    // Only update if we don't have a value yet found in a previous file (unless the new one is non-empty)
-                    const isNewValSolid = val && typeof val === 'object' && val.waarde !== undefined && val.waarde.toString().trim() !== '';
-                    const isOldValEmpty = !combinedExtractedData[key] || !combinedExtractedData[key].waarde;
+            // Per-document timeline event
+            await pool.query('INSERT INTO TimelineEvent (dossier_id, titel, beschrijving, user_name) VALUES (?, ?, ?, ?)', 
+                [dossierId, `AI: ${file.originalname}`, `${valueCount || 0} velden geëxtraheerd in ${Math.round((elapsed || 0) / 1000)}s`, 'AI Assistent']);
 
-                    if (isNewValSolid && isOldValEmpty) {
-                        combinedExtractedData[key] = {
-                            waarde: val.waarde,
-                            bron_text: val.bron_text || null,
-                            document_id: file.id || null,
-                            pagina_nummer: val.pagina_nummer || null,
-                            coords: val.coords || null
-                        };
-                    } else if (isNewValSolid && !isOldValEmpty && val.coords) {
-                        // If we already have a value but now we found one WITH coordinates, update it (or at least add the coordinates)
-                        combinedExtractedData[key].coords = val.coords;
-                        combinedExtractedData[key].document_id = file.id; // Switch to the file that has coords
-                        combinedExtractedData[key].bron_text = val.bron_text || combinedExtractedData[key].bron_text;
-                    } else if (typeof val === 'string' && val.trim() !== '' && isOldValEmpty) {
-                        combinedExtractedData[key] = {
-                            waarde: val,
-                            bron_text: null,
-                            document_id: file.id || null
-                        };
-                    }
+            for (const [key, val] of Object.entries(extractedData)) {
+                const isNewValSolid = val && typeof val === 'object' && val.waarde !== undefined && val.waarde.toString().trim() !== '';
+                const isOldValEmpty = !combinedExtractedData[key] || !combinedExtractedData[key].waarde;
+
+                if (isNewValSolid && isOldValEmpty) {
+                    combinedExtractedData[key] = {
+                        waarde: val.waarde,
+                        bron_text: val.bron_text || null,
+                        document_id: file.id || null,
+                        pagina_nummer: val.pagina_nummer || null,
+                        coords: val.coords || null
+                    };
+                } else if (isNewValSolid && !isOldValEmpty && val.coords) {
+                    combinedExtractedData[key].coords = val.coords;
+                    combinedExtractedData[key].document_id = file.id;
+                    combinedExtractedData[key].bron_text = val.bron_text || combinedExtractedData[key].bron_text;
+                } else if (typeof val === 'string' && val.trim() !== '' && isOldValEmpty) {
+                    combinedExtractedData[key] = {
+                        waarde: val,
+                        bron_text: null,
+                        document_id: file.id || null
+                    };
                 }
             }
         }
+
+        // Sync all extracted values to the database
         let matchCount = 0;
         for (const [tag, data] of Object.entries(combinedExtractedData)) {
             if (data && data.waarde && data.waarde.toString().trim()) { 
@@ -330,8 +414,11 @@ const processDossierDocuments = async (dossierId, files, customPrompt = null, te
                 matchCount++; 
             }
         }
-        await pool.query('INSERT INTO TimelineEvent (dossier_id, titel, beschrijving, user_name) VALUES (?, ?, ?, ?)', [dossierId, 'AI Analyse Voltooid', `AI heeft de documenten geanalyseerd and ${matchCount} velden ingevuld of bijgewerkt.`, 'AI Assistent']);
-        dlog(`[AI] Finished processDossierDocuments successfully with ${matchCount} matches`);
+
+        const totalElapsed = Math.round((Date.now() - totalStartTime) / 1000);
+        await pool.query('INSERT INTO TimelineEvent (dossier_id, titel, beschrijving, user_name) VALUES (?, ?, ?, ?)', 
+            [dossierId, 'AI Analyse Voltooid', `AI heeft ${files.length} documenten geanalyseerd in ${totalElapsed}s — ${matchCount} velden ingevuld.`, 'AI Assistent']);
+        dlog(`[AI] Finished processDossierDocuments in ${totalElapsed}s with ${matchCount} matches`);
     } catch (error) {
         dlog(`[AI] ERROR in processDossierDocuments: ${error.message} - ${error.stack}`);
         console.error('Error in processDossierDocuments:', error);

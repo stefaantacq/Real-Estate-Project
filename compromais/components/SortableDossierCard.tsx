@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { FileText, Clock, ChevronRight, MapPin, GripVertical } from 'lucide-react';
+import { Clock, ChevronRight, MapPin, GripVertical } from 'lucide-react';
 import { Dossier, DossierStatus, Language } from '../types';
 import { TRANSLATIONS } from '../constants';
 
@@ -34,32 +34,32 @@ export const SortableDossierCard: React.FC<SortableDossierCardProps> = ({ dossie
         <div
             ref={setNodeRef}
             style={style}
-            className={`flex flex-col bg-white dark:bg-slate-900 p-5 rounded-2xl border border-gray-200 dark:border-slate-800 hover:border-brand-400 dark:hover:border-brand-500 hover:shadow-lg transition-all cursor-pointer group min-w-[280px] h-full min-h-[120px] relative ${isDragging ? 'shadow-2xl' : ''}`}
+            className={`flex flex-col bg-white p-4 rounded-xl border border-slate-200 hover:border-blue-200 hover:shadow-md shadow-sm transition-all duration-150 cursor-pointer group min-w-[260px] h-full min-h-[110px] relative ${isDragging ? 'shadow-xl' : ''}`}
             onClick={() => onOpenDossier(dossier.id)}
             onContextMenu={(e) => onContextMenu?.(e, dossier.id, dossier.status)}
         >
-            <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="flex justify-between items-start mb-3">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
                     <div
                         {...attributes}
                         {...listeners}
-                        className="p-1 -ml-1 text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing transition-colors flex-shrink-0"
+                        className="p-0.5 -ml-1 text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing transition-colors flex-shrink-0"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <GripVertical className="w-5 h-5" />
+                        <GripVertical className="w-4 h-4" />
                     </div>
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white truncate">{dossier.name}</h3>
+                    <h3 className="text-sm font-semibold text-slate-900 truncate">{dossier.name}</h3>
                 </div>
             </div>
 
             <div className="space-y-1 mt-auto">
-                <div className="flex items-center text-xs text-slate-500 dark:text-slate-400 truncate">
-                    <MapPin className="w-3 h-3 mr-1" />
+                <div className="flex items-center text-xs text-slate-400 truncate">
+                    <MapPin className="w-3 h-3 mr-1 flex-shrink-0" />
                     {dossier.address}
                 </div>
                 <div className="flex items-center justify-between text-xs text-slate-400">
                     <span className="flex items-center"><Clock className="w-3 h-3 mr-1" /> {dossier.date}</span>
-                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-500 transition-colors" />
+                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-blue-500 transition-colors" />
                 </div>
             </div>
         </div>

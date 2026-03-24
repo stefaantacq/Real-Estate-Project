@@ -70,21 +70,21 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, darkMode, to
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex items-center justify-center p-4 transition-colors duration-300">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 transition-colors duration-300">
 
       {/* Lang & Theme Toggles */}
       <div className="absolute top-6 right-6 flex items-center space-x-4">
-        <button onClick={toggleDarkMode} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors text-slate-500 dark:text-slate-400">
+        <button onClick={toggleDarkMode} className="p-2 rounded-full hover:bg-gray-200 transition-colors text-slate-500">
           {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
         </button>
-        <div className="flex bg-white dark:bg-slate-900 rounded-lg p-1 border border-gray-200 dark:border-slate-800">
+        <div className="flex bg-white rounded-lg p-1 border border-gray-200">
           {(['NL', 'FR', 'EN'] as Language[]).map((l) => (
             <button
               key={l}
               onClick={() => setLang(l)}
               className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${lang === l
-                ? 'bg-brand-600 text-white shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
                 }`}
             >
               {l}
@@ -96,23 +96,23 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, darkMode, to
       <div className="max-w-md w-full">
         {/* Brand Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-brand-600 rounded-2xl mb-4 shadow-lg shadow-brand-600/20">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4 shadow-lg shadow-blue-600/20">
             <Building2 className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">compromAIs</h1>
-          <p className="text-slate-500 dark:text-slate-400">
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">compromAIs</h1>
+          <p className="text-slate-500">
             {view === 'login' && t.welcomeBack}
             {view === 'register' && t.registerBroker}
           </p>
         </div>
 
         {/* Card */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-gray-100 dark:border-slate-800 overflow-hidden relative">
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden relative">
 
           {/* Progress Bar (Mock) - Removed as redundant for 2 steps */}
           <div className="p-8">
             {error && (
-              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-600 dark:text-red-400 text-sm">
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
                 {error}
               </div>
             )}
@@ -121,13 +121,13 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, darkMode, to
               {view === 'login' && (
                 <>
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">{t.email}</label>
+                    <label className="text-sm font-medium text-slate-700">{t.email}</label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                       <input
                         type="email"
                         required
-                        className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none transition-all dark:text-white"
+                        className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                         placeholder="naam@kantoor.be"
                         value={loginData.email}
                         onChange={e => setLoginData({ ...loginData, email: e.target.value })}
@@ -135,13 +135,13 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, darkMode, to
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">{t.password}</label>
+                    <label className="text-sm font-medium text-slate-700">{t.password}</label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                       <input
                         type="password"
                         required
-                        className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none transition-all dark:text-white"
+                        className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                         placeholder="••••••••"
                         value={loginData.password}
                         onChange={e => setLoginData({ ...loginData, password: e.target.value })}
@@ -150,7 +150,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, darkMode, to
                   </div>
                   <button
                     type="button"
-                    className="w-full py-2 border border-gray-200 dark:border-slate-700 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors dark:text-white"
+                    className="w-full py-2 border border-gray-200 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors"
                   >
                     <span className="font-bold text-[#E1306C]">CIB</span> {t.loginCib}
                   </button>
@@ -164,7 +164,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, darkMode, to
                   <button
                     type="button"
                     onClick={() => setView('register')}
-                    className="w-full py-2 text-brand-600 hover:text-brand-700 text-sm font-medium"
+                    className="w-full py-2 text-blue-600 hover:text-blue-700 text-sm font-medium"
                   >
                     {t.noAccount}
                   </button>
@@ -174,13 +174,13 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, darkMode, to
               {view === 'register' && (
                 <>
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">{t.fullName}</label>
+                    <label className="text-sm font-medium text-slate-700">{t.fullName}</label>
                     <div className="relative">
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                       <input
                         type="text"
                         required
-                        className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none transition-all dark:text-white"
+                        className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                         placeholder="Jan Janssens"
                         value={regData.name}
                         onChange={e => setRegData({ ...regData, name: e.target.value })}
@@ -188,13 +188,13 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, darkMode, to
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">{t.email}</label>
+                    <label className="text-sm font-medium text-slate-700">{t.email}</label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                       <input
                         type="email"
                         required
-                        className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none transition-all dark:text-white"
+                        className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                         placeholder="naam@kantoor.be"
                         value={regData.email}
                         onChange={e => setRegData({ ...regData, email: e.target.value })}
@@ -202,13 +202,13 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, darkMode, to
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">{t.password}</label>
+                    <label className="text-sm font-medium text-slate-700">{t.password}</label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                       <input
                         type="password"
                         required
-                        className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none transition-all dark:text-white"
+                        className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                         placeholder="••••••••"
                         value={regData.password}
                         onChange={e => setRegData({ ...regData, password: e.target.value })}
@@ -229,7 +229,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, darkMode, to
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-3 bg-brand-600 hover:bg-brand-700 active:scale-[0.98] text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all flex items-center justify-center"
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all flex items-center justify-center"
               >
                 {isLoading ? (
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
