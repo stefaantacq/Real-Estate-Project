@@ -1,0 +1,13 @@
+{
+  "name": "compromais-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "install-all": "npm install && cd compromais && npm install && cd ../server && npm install",
+    "build": "cd compromais && npm run build",
+    "start": "cd server && node index.js"
+  },
+  "engines": {
+    "node": "20.x"
+  }
+}
