@@ -12,14 +12,16 @@ const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir);
 }
-
 const app = express();
+
+const frontendDist = path.join(__dirname, '../compromais/dist');
 
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use('/uploads', express.static(uploadDir));
+app.use(express.static(frontendDist));
 
 // Multer Config
 const storage = multer.diskStorage({
@@ -161,6 +163,11 @@ app.get('/api/documents/preview/:filename', async (req, res, next) => {
     } catch (error) {
         next(error);
     }
+});
+
+// Serve Frontend SPA
+app.get('*', (req, res) => {
+    res.sendFile(path.join(frontendDist, 'index.html'));
 });
 
 // Global Error Logger
