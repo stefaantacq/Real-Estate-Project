@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "install-all": "npm install && cd compromais && npm install && cd ../server && npm install",
-    "build": "cd compromais && npm run build",
+    "install-all": "cd compromais && npm install && cd ../server && npm install",
+    "build": "cd compromais && npm install && npm run build",
     "start": "cd server && node index.js"
   },
   "engines": {
