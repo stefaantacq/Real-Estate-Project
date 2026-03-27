@@ -186,7 +186,7 @@ const validateExtractedValues = (parsed, fieldNames) => {
 /**
  * Analyzes document text to extract real estate data.
  */
-const analyzeDocument = async (text, fieldNames, customPrompt = null, fieldContexts = []) => {
+const _analyzeDocumentSingleCall = async (text, fieldNames, customPrompt = null, fieldContexts = []) => {
     const contextStr = fieldContexts.length > 0
         ? `\nCONTEXT FOR DATA FIELDS:\n${fieldContexts.map(ctx => 
             `- Key: "${ctx.naam}" | Labels: "${ctx.label}" | Sections: "${ctx.sections}"`
@@ -237,56 +237,61 @@ ${userInstruction}
 KEYS TO EXTRACT: ${fieldNames.join(', ')}
 `;
 
-    try {
-        console.log(`Sending dynamic prompt to Gemini (JSON mode)...`);
+    console.log(`Sending dynamic prompt to Gemini (JSON mode)...`);
+    
+    let contents = [];
+    // If text is actually a file path (starts with / or has common image extensions) and file exists
+    const isFilePath = typeof text === 'string' && (text.startsWith('/') || text.includes('uploads/')) && fs.existsSync(text);
+    
+    if (isFilePath) {
+        let mimeType = 'application/pdf';
+        if (text.toLowerCase().endsWith('.png')) mimeType = 'image/png';
+        else if (text.toLowerCase().endsWith('.jpg') || text.toLowerCase().endsWith('.jpeg')) mimeType = 'image/jpeg';
+        else if (!text.toLowerCase().endsWith('.pdf')) mimeType = 'image/jpeg'; // Default for other potential images
         
-        let contents = [];
-        // If text is actually a file path (starts with / or has common image extensions) and file exists
-        const isFilePath = typeof text === 'string' && (text.startsWith('/') || text.includes('uploads/')) && fs.existsSync(text);
-        
-        if (isFilePath) {
-            let mimeType = 'application/pdf';
-            if (text.toLowerCase().endsWith('.png')) mimeType = 'image/png';
-            else if (text.toLowerCase().endsWith('.jpg') || text.toLowerCase().endsWith('.jpeg')) mimeType = 'image/jpeg';
-            else if (!text.toLowerCase().endsWith('.pdf')) mimeType = 'image/jpeg'; // Default for other potential images
-            
-            contents = [
-                { text: prompt },
-                {
-                    inlineData: {
-                        data: fs.readFileSync(text).toString('base64'),
-                        mimeType: mimeType
-                    }
+        contents = [
+            { text: prompt },
+            {
+                inlineData: {
+                    data: fs.readFileSync(text).toString('base64'),
+                    mimeType: mimeType
                 }
-            ];
-        } else {
-            contents = [
-                { text: prompt + "\n\nTEXT TO ANALYZE:\n" + text }
-            ];
-        }
+            }
+        ];
+    } else {
+        contents = [
+            { text: prompt + "\n\nTEXT TO ANALYZE:\n" + text }
+        ];
+    }
 
-        const result = await callGeminiWithRetry(contents);
-        const response = await result.response;
-        const textResponse = response.text();
+    const result = await callGeminiWithRetry(contents);
+    const response = await result.response;
+    const textResponse = response.text();
 
-        console.log('--- GEMINI RESPONSE RECEIVED ---');
-        console.log('Text Response Segment:', textResponse.substring(0, 100));
+    console.log('--- GEMINI RESPONSE RECEIVED ---');
+    console.log('Text Response Segment:', textResponse.substring(0, 100));
 
-        let jsonText = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
-        const firstBrace = jsonText.indexOf('{');
-        const lastBrace = jsonText.lastIndexOf('}');
-        if (firstBrace !== -1 && lastBrace !== -1) {
-            jsonText = jsonText.substring(firstBrace, lastBrace + 1);
-        }
-        let parsed = JSON.parse(jsonText);
-        // Validate: reject values that look like placeholder names
-        parsed = validateExtractedValues(parsed, fieldNames);
-        const keysWithCoords = Object.keys(parsed).filter(k => parsed[k]?.coords);
-        const keysWithValues = Object.keys(parsed).filter(k => parsed[k]?.waarde && parsed[k].waarde.toString().trim());
-        console.log(`AI extracted ${Object.keys(parsed).length} keys, ${keysWithValues.length} with values. Coords for: ${keysWithCoords.join(', ') || 'NONE'}`);
-        return parsed;
+    let jsonText = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
+    const firstBrace = jsonText.indexOf('{');
+    const lastBrace = jsonText.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1) {
+        jsonText = jsonText.substring(firstBrace, lastBrace + 1);
+    }
+    let parsed = JSON.parse(jsonText);
+    // Validate: reject values that look like placeholder names
+    parsed = validateExtractedValues(parsed, fieldNames);
+    const keysWithCoords = Object.keys(parsed).filter(k => parsed[k]?.coords);
+    const keysWithValues = Object.keys(parsed).filter(k => parsed[k]?.waarde && parsed[k].waarde.toString().trim());
+    console.log(`AI extracted ${Object.keys(parsed).length} keys, ${keysWithValues.length} with values. Coords for: ${keysWithCoords.join(', ') || 'NONE'}`);
+    return parsed;
+};
+
+const _analyzeDocumentRecursive = async (text, fieldNames, customPrompt = null, fieldContexts = []) => {
+    if (!fieldNames || fieldNames.length === 0) return {};
+    try {
+        return await _analyzeDocumentSingleCall(text, fieldNames, customPrompt, fieldContexts);
     } catch (error) {
-        console.error('Error analyzing document with Gemini:', error);
+        console.error('Error analyzing document with Gemini:', error.message);
         
         // Log details to debug file
         try { 
@@ -297,8 +302,55 @@ KEYS TO EXTRACT: ${fieldNames.join(', ')}
         if (error.status === 404) {
             console.error('ERROR 404: The model was not found.');
         }
-        return {};
+        
+        // Recursive splitting validation logic
+        if (fieldNames.length > 5) {
+            console.warn(`[RECURSIVE SPLIT] Gemini call failed for ${fieldNames.length} fields. Splitting in half...`);
+            const half = Math.floor(fieldNames.length / 2);
+            const p1 = _analyzeDocumentRecursive(text, fieldNames.slice(0, half), customPrompt, fieldContexts.slice(0, half));
+            const p2 = _analyzeDocumentRecursive(text, fieldNames.slice(half), customPrompt, fieldContexts.slice(half));
+            const [res1, res2] = await Promise.all([p1, p2]);
+            return { ...res1, ...res2 };
+        } else {
+            console.error(`[RECURSIVE SPLIT] Failed for ${fieldNames.length} fields, too small to split. Returning {}.`);
+            return {};
+        }
     }
+};
+
+const analyzeDocument = async (text, fieldNames, customPrompt = null, fieldContexts = []) => {
+    if (!fieldNames || fieldNames.length === 0) return {};
+    
+    // 1. Group by logical sections (e.g. 'Partijen', 'Onroerend Goed', 'Financieel')
+    const grouped = {};
+    for (let i = 0; i < fieldNames.length; i++) {
+        const fieldName = fieldNames[i];
+        const ctx = fieldContexts[i] || { sections: 'Algemeen' };
+        
+        // Use the first section if there are multiple comma-separated sections
+        const sectionRaw = ctx.sections ? ctx.sections.split(',')[0].trim() : 'Algemeen';
+        const groupName = sectionRaw || 'Algemeen';
+        
+        if (!grouped[groupName]) {
+            grouped[groupName] = { fieldNames: [], fieldContexts: [] };
+        }
+        grouped[groupName].fieldNames.push(fieldName);
+        grouped[groupName].fieldContexts.push(ctx);
+    }
+    
+    console.log(`[TEMPLATE CHUNKING] Grouped ${fieldNames.length} fields into ${Object.keys(grouped).length} sections: ${Object.keys(grouped).join(', ')}`);
+    
+    // 2. Process groups in Parallel/Sequential
+    const allResults = {};
+    const groupPromises = Object.entries(grouped).map(async ([groupName, groupData]) => {
+        console.log(`[TEMPLATE CHUNKING] Processing group "${groupName}" with ${groupData.fieldNames.length} fields...`);
+        const result = await _analyzeDocumentRecursive(text, groupData.fieldNames, customPrompt, groupData.fieldContexts);
+        Object.assign(allResults, result);
+    });
+    
+    await Promise.all(groupPromises);
+    
+    return allResults;
 };
 
 /**
