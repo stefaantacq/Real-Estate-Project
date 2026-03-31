@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Save, Download, FileText, Check, ChevronRight, Wand2, ArrowLeft, Eye, Undo, Redo, MoreHorizontal, Trash2, Plus, X, ListChecks, Maximize2, Split, ArrowUp, ArrowDown, ArrowRight, ExternalLink, Edit2, RefreshCw, AlertCircle } from 'lucide-react';
+import { Save, Download, FileText, Check, ChevronRight, Wand2, ArrowLeft, Eye, Undo, Redo, MoreHorizontal, Trash2, Plus, X, ListChecks, Maximize2, Split, ArrowUp, ArrowDown, ArrowRight, ExternalLink, Edit2, RefreshCw, AlertCircle, Info } from 'lucide-react';
 import { Language, DocumentSection, PlaceholderSuggestion, Dossier, DossierStatus } from '../types';
 import { TRANSLATIONS, MOCK_SECTIONS, SUPPORTED_PLACEHOLDERS } from '../constants';
 import { api } from '../services/api';
@@ -89,6 +89,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
         coords?: [number, number, number, number] | null 
     } | null>(null);
     const [editingPlaceholder, setEditingPlaceholder] = useState<{ sectionId: string, placeholderId: string, partIndex?: number } | null>(null);
+    const [reasoningOpenFor, setReasoningOpenFor] = useState<string | null>(null);
     const [isCurrentVersion, setIsCurrentVersion] = useState(true);
     const [isInitialized, setIsInitialized] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -996,6 +997,9 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
             );
         }
 
+        const isHighConfidence = p.confidenceScore !== undefined && p.confidenceScore >= 0.9;
+        const displayScore = p.confidenceScore !== undefined ? Math.round(p.confidenceScore * 100) : null;
+
         return (
             <span
                 key={`${p.id}-${partIndex}`}
@@ -1003,28 +1007,63 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                 className={`
                     inline-block align-baseline relative group/placeholder mx-1 px-2 py-0.5 rounded-md border-2 transition-all duration-300
                     ${p.isApproved 
-                        ? 'bg-green-50 border-green-200 text-green-700 cursor-default' 
-                        : 'bg-orange-50 border-orange-200 border-dashed hover:border-orange-400 text-orange-700 animate-pulse-subtle cursor-pointer hover:scale-[1.02] active:scale-[0.98]'
+                        ? 'bg-blue-50 border-blue-400 text-blue-800 cursor-default shadow-sm' 
+                        : isHighConfidence
+                            ? 'bg-green-50 border-green-300 border-dashed hover:border-green-500 text-green-700 animate-pulse-subtle cursor-pointer hover:scale-[1.02] active:scale-[0.98]'
+                            : 'bg-orange-50 border-orange-300 border-dashed hover:border-orange-500 text-orange-700 animate-pulse-subtle cursor-pointer hover:scale-[1.02] active:scale-[0.98]'
                     }
                 `}
                 contentEditable={false}
-                onClick={() => !isReadOnly && !p.isApproved && setEditingPlaceholder({ sectionId: section.id, placeholderId: p.id, partIndex })}
+                onClick={(e) => {
+                    // Don't enter edit mode if we just interacted with the reasoning panel or tooltip buttons
+                    if (reasoningOpenFor === p.id) return;
+                    if ((e.target as HTMLElement).closest('button')) return;
+                    if ((e.target as HTMLElement).closest('[data-reasoning-panel]')) return;
+                    !isReadOnly && !p.isApproved && setEditingPlaceholder({ sectionId: section.id, placeholderId: p.id, partIndex });
+                }}
             >
                 {/* The Value */}
-                <span className="text-sm font-bold">
+                <span className="text-sm font-bold flex items-center">
                     {p.currentValue || <span className="italic opacity-50">{p.label}</span>}
+                    {p.isApproved && <Check className="w-3 h-3 ml-1 text-blue-600" />}
                 </span>
 
                 {/* Tooltip / Controls */}
-                <div className="hidden group-hover/placeholder:flex absolute bottom-full left-1/2 -translate-x-1/2 w-64 pb-2 z-[100] flex-col items-center animate-in fade-in zoom-in-95 duration-150">
+                <div className="hidden group-hover/placeholder:flex absolute bottom-full left-1/2 -translate-x-1/2 w-80 pb-2 z-[100] flex-col items-center animate-in fade-in zoom-in-95 duration-150">
                     <div className="w-full bg-white rounded-xl shadow-2xl border border-gray-100 p-2 flex flex-col gap-2 relative ring-1 ring-black/5">
-                        <div className="flex items-center justify-between px-1">
-                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{p.label}</span>
-                            {/* Trash button — only visible on rejected (non-approved) placeholders */}
+                        <div className="flex items-center justify-between px-1 gap-2 min-h-[22px]">
+                            <div className="flex items-center gap-2 overflow-hidden flex-1">
+                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-tight truncate min-w-0 flex-1">
+                                    {p.label}
+                                </span>
+                                {displayScore !== null && (
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                        <div className={`px-2 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap shadow-sm ${isHighConfidence ? 'bg-green-100 text-green-700 border-green-200' : 'bg-orange-50 text-orange-700 border-orange-200'} border`}>
+                                            {displayScore}% {t.confidence || 'zekerheid'}
+                                        </div>
+                                        {p.confidenceReasoning && (
+                                            <button
+                                                onMouseDown={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    setReasoningOpenFor(reasoningOpenFor === p.id ? null : p.id);
+                                                }}
+                                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                                className={`p-0.5 rounded-full transition-all hover:scale-110 ${isHighConfidence ? 'text-green-500 hover:bg-green-100' : 'text-orange-500 hover:bg-orange-100'}`}
+                                                title="Bekijk AI redenering"
+                                            >
+                                                {isHighConfidence ? <Info className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                            {/* Trash button */}
                             {!isReadOnly && !p.isApproved && (
                                 <button
                                     onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); removePlaceholder(section.id, p.id); }}
-                                    className="p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                    onClick={(e) => { e.stopPropagation(); }}
+                                    className="p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors shrink-0"
                                     title="Placeholder verwijderen"
                                 >
                                     <Trash2 className="w-3.5 h-3.5" />
@@ -1035,6 +1074,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                         <div className="flex gap-2 items-center">
                             <button
                                 onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleSourceClick(p.id); }}
+                                onClick={(e) => { e.stopPropagation(); }}
                                 className="flex-1 flex items-center justify-center px-3 py-1.5 bg-slate-100 rounded-lg text-xs font-semibold hover:bg-slate-200 transition-all text-slate-600"
                             >
                                 <Eye className="w-3.5 h-3.5 mr-1.5" /> {t.source}
@@ -1042,8 +1082,9 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                             {!isReadOnly && (
                                 <button
                                     onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); toggleApprovePlaceholder(section.id, p.id); }}
+                                    onClick={(e) => { e.stopPropagation(); }}
                                     className={`flex-1 flex items-center justify-center px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-all shadow-md active:scale-95
-                                        ${p.isApproved ? 'bg-red-500 hover:bg-red-600 shadow-red-500/10' : 'bg-green-600 hover:bg-green-700 shadow-green-500/10'}
+                                        ${p.isApproved ? 'bg-red-500 hover:bg-red-600 shadow-red-500/10' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/10'}
                                     `}
                                 >
                                     {p.isApproved ? <X className="w-3.5 h-3.5 mr-1.5" /> : <Check className="w-3.5 h-3.5 mr-1.5" />}
@@ -1054,6 +1095,69 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                         <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-white"></div>
                     </div>
                 </div>
+
+                {/* AI Reasoning Overlay — rendered OUTSIDE the hover tooltip, as a fixed card */}
+                {reasoningOpenFor === p.id && p.confidenceReasoning && (
+                    <>
+                        {/* Backdrop to close on outside click */}
+                        <div 
+                            className="fixed inset-0 z-[200]"
+                            onClick={(e) => { e.stopPropagation(); setReasoningOpenFor(null); }}
+                        />
+                        <div 
+                            data-reasoning-panel
+                            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 w-72 z-[201] animate-in fade-in zoom-in-95 duration-200"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden ring-1 ring-black/5">
+                                {/* Header */}
+                                <div className="flex items-center justify-between px-3 py-2 bg-slate-50 border-b border-gray-100">
+                                    <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                                        <Wand2 className="w-3.5 h-3.5 text-blue-500" />
+                                        {t.ai_reasoning || 'AI Redenering'}
+                                    </div>
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); setReasoningOpenFor(null); }}
+                                        className="p-0.5 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
+                                    >
+                                        <X className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+                                {/* Body */}
+                                <div className="px-3 py-2.5 text-xs text-slate-600 leading-relaxed">
+                                    {p.confidenceReasoning}
+                                </div>
+                                {/* Conflict Warning */}
+                                {p.conflictingSources && p.conflictingSources.length > 0 && (
+                                    <div className="px-3 py-2 bg-orange-50 border-t border-orange-100 flex items-start gap-2">
+                                        <AlertCircle className="w-3.5 h-3.5 text-orange-500 shrink-0 mt-0.5" />
+                                        <div className="text-[11px] text-orange-700 font-medium">
+                                            {p.conflictingSources.length} tegenstrijdige {p.conflictingSources.length > 1 ? 'bronnen' : 'bron'} gevonden
+                                            {p.conflictingSources.map((c, i) => (
+                                                <div key={i} className="mt-1 text-orange-600 font-normal">
+                                                    → Andere waarde: <strong>{c.value}</strong>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {/* Score Bar */}
+                                <div className="px-3 py-2 bg-gray-50 border-t border-gray-100">
+                                    <div className="flex items-center justify-between text-[10px] text-slate-500 mb-1">
+                                        <span>Zekerheidsgraad</span>
+                                        <span className={`font-bold ${isHighConfidence ? 'text-green-600' : 'text-orange-600'}`}>{displayScore}%</span>
+                                    </div>
+                                    <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                        <div 
+                                            className={`h-full rounded-full transition-all duration-500 ${isHighConfidence ? 'bg-green-500' : 'bg-orange-500'}`}
+                                            style={{ width: `${displayScore}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </>
+                )}
             </span>
         );
     };
@@ -1552,11 +1656,20 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                                     .map(p => {
                                                         const group = s.placeholders.filter(t => t.label === p.label);
                                                         const isAllApproved = group.every(t => t.isApproved);
+                                                        const isHighConfidence = p.confidenceScore !== undefined && p.confidenceScore >= 0.9;
                                                         
                                                         return (
-                                                            <div key={p.label} className="flex items-center justify-between text-xs py-1 hover:bg-gray-50 px-2 rounded cursor-pointer" onClick={() => setActivePlaceholderId(p.id)}>
-                                                                <span className={isAllApproved ? "text-slate-500 line-through decoration-green-500" : "text-slate-600 font-medium"}>{p.label}</span>
-                                                                {isAllApproved ? <Check className="w-3 h-3 text-green-500" /> : <div className="w-3 h-3 rounded-full border border-slate-300"></div>}
+                                                            <div key={p.label} className="flex items-center justify-between text-xs py-1 hover:bg-gray-50 px-2 rounded cursor-pointer" onClick={() => handleSourceClick(p.id)}>
+                                                                <div className="flex items-center gap-2 overflow-hidden">
+                                                                    <div className={`w-2 h-2 rounded-full shrink-0 ${isAllApproved ? 'bg-blue-500' : (isHighConfidence ? 'bg-green-500' : 'bg-orange-500 animate-pulse')}`} />
+                                                                    <span className={`truncate ${isAllApproved ? "text-slate-500 line-through decoration-blue-500" : "text-slate-600 font-medium"}`}>{p.label}</span>
+                                                                    {p.confidenceScore !== undefined && !isAllApproved && (
+                                                                        <span className={`text-[9px] font-bold px-1 rounded ${isHighConfidence ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-orange-600'}`}>
+                                                                            {Math.round(p.confidenceScore * 100)}%
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                {isAllApproved ? <Check className="w-3 h-3 text-blue-500" /> : <div className="w-3 h-3 rounded-full border border-slate-300"></div>}
                                                             </div>
                                                         );
                                                     })

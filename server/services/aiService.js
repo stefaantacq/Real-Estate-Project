@@ -232,6 +232,14 @@ Each key maps to an object with:
 - "waarde": extracted real value as string ("" if not found)
 - "bron_text": the surrounding context/paragraph (20-50 words) from the source document proving this value ("" if not found)
 - "pagina_nummer": page number as integer (null if not applicable)
+- "score_bron": Quality of the source document for this specific field. Use exactly these values:
+    - 1.0: Official document (akte, bodemattest, kadastraal uittreksel)
+    - 0.8: Filled-in form from a reliable source
+    - 0.5: Informal source (messages, email, photo, informal note)
+    - 0.0: Not found or extremely unreliable
+- "score_context": How well does the extracted value fit the expected context of the field? (Value between 0.0 and 1.0)
+- "score_volledigheid": How complete is the extracted information? (e.g., for an address, does it have street, number, city?) (Value between 0.0 and 1.0)
+- "reden": Brief explanation of your decision (e.g., "Found on page 2 of the sales agreement," "Conflicting values in documents X and Y," "Incomplete address").
 ${contextStr}
 ${userInstruction}
 KEYS TO EXTRACT: ${fieldNames.join(', ')}
@@ -403,7 +411,7 @@ const analyzeTemplate = async (text, libraryPlaceholders, customPrompt = null) =
              }
            ]
         12. Only return the JSON object, nothing else.
-
+ 
         ${userInstruction}
     `;
 

@@ -55,6 +55,9 @@ const fetchFullVersionContent = async (versie_id) => {
                     COALESCE(vp.bron_text, ap.bron_text) as bron_text,
                     COALESCE(vp.pagina_nummer, ap.pagina_nummer) as pagina_nummer,
                     COALESCE(vp.coords_json, ap.coords_json) as coords_json,
+                    COALESCE(vp.confidence_score, ap.confidence_score) as confidence_score,
+                    COALESCE(vp.confidence_reasoning, ap.confidence_reasoning) as confidenceReasoning,
+                    COALESCE(vp.conflicting_sources, ap.conflicting_sources) as conflictingSources,
                     COALESCE(d1.bestand_pad, d2.bestand_pad) as document_pad,
                     COALESCE(d1.bestandsnaam, d2.bestandsnaam) as document_naam
                 FROM Placeholder p
@@ -85,6 +88,9 @@ const fetchFullVersionContent = async (versie_id) => {
                     ap.bron_text,
                     ap.pagina_nummer,
                     ap.coords_json,
+                    ap.confidence_score,
+                    ap.confidence_reasoning as confidenceReasoning,
+                    ap.conflicting_sources as conflictingSources,
                     d.bestand_pad as document_pad,
                     d.bestandsnaam as document_naam
                 FROM Placeholder p
@@ -107,7 +113,10 @@ const fetchFullVersionContent = async (versie_id) => {
             paginaNummer: p.pagina_nummer || null,
             documentPad: p.document_pad || null,
             documentNaam: p.document_naam || null,
-            coords: p.coords_json ? (typeof p.coords_json === 'string' ? JSON.parse(p.coords_json) : p.coords_json) : null
+            coords: p.coords_json ? (typeof p.coords_json === 'string' ? JSON.parse(p.coords_json) : p.coords_json) : null,
+            confidenceScore: p.confidence_score || null,
+            confidenceReasoning: p.confidenceReasoning || null,
+            conflictingSources: p.conflictingSources ? (typeof p.conflictingSources === 'string' ? JSON.parse(p.conflictingSources) : p.conflictingSources) : null
         }));
 
         section.id = section.aangepaste_sectie_id.toString();
@@ -176,13 +185,14 @@ const copyVersionContent = async (sourceVersionId, targetVersionId) => {
     }
 };
 
-const syncDossierMasterData = async (dossierId, tag, value, documentId = null, bronText = null, paginaNummer = null, verkoopsovereenkomstId = null, coords = null) => {
+const syncDossierMasterData = async (dossierId, tag, value, documentId = null, bronText = null, paginaNummer = null, verkoopsovereenkomstId = null, coords = null, confidenceScore = null, confidenceReasoning = null, conflictingSources = null) => {
     try {
         const [pDef] = await pool.query('SELECT placeholder_id FROM Placeholder_Library WHERE sleutel = ? LIMIT 1', [tag]);
         if (pDef.length === 0) return;
         
         const placeholderId = pDef[0].placeholder_id;
         const coordsStr = coords ? JSON.stringify(coords) : null;
+        const confSourcesStr = conflictingSources ? JSON.stringify(conflictingSources) : null;
 
         // 1. Update the global Master Data table (Aangepaste_Placeholder)
         const [existing] = await pool.query('SELECT 1 FROM Aangepaste_Placeholder WHERE verkoopsovereenkomst_id = ? AND placeholder_id = ?', [verkoopsovereenkomstId, placeholderId]);
@@ -194,14 +204,17 @@ const syncDossierMasterData = async (dossierId, tag, value, documentId = null, b
                   document_id = COALESCE(?, document_id), 
                   bron_text = COALESCE(?, bron_text), 
                   pagina_nummer = COALESCE(?, pagina_nummer),
-                  coords_json = COALESCE(?, coords_json)
+                  coords_json = COALESCE(?, coords_json),
+                  confidence_score = COALESCE(?, confidence_score),
+                  confidence_reasoning = COALESCE(?, confidence_reasoning),
+                  conflicting_sources = COALESCE(?, conflicting_sources)
                 WHERE verkoopsovereenkomst_id = ? AND placeholder_id = ?`, 
-                [value, 'unverified', documentId, bronText, paginaNummer, coordsStr, verkoopsovereenkomstId, placeholderId]
+                [value, 'unverified', documentId, bronText, paginaNummer, coordsStr, confidenceScore, confidenceReasoning, confSourcesStr, verkoopsovereenkomstId, placeholderId]
             );
         } else {
             await pool.query(
-                'INSERT INTO Aangepaste_Placeholder (dossier_id, placeholder_id, verkoopsovereenkomst_id, ingevulde_waarde, validatiestatus, document_id, bron_text, pagina_nummer, coords_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', 
-                [dossierId, placeholderId, verkoopsovereenkomstId, value, 'unverified', documentId, bronText, paginaNummer, coordsStr]
+                'INSERT INTO Aangepaste_Placeholder (dossier_id, placeholder_id, verkoopsovereenkomst_id, ingevulde_waarde, validatiestatus, document_id, bron_text, pagina_nummer, coords_json, confidence_score, confidence_reasoning, conflicting_sources) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', 
+                [dossierId, placeholderId, verkoopsovereenkomstId, value, 'unverified', documentId, bronText, paginaNummer, coordsStr, confidenceScore, confidenceReasoning, confSourcesStr]
             );
         }
 
@@ -225,9 +238,12 @@ const syncDossierMasterData = async (dossierId, tag, value, documentId = null, b
                       document_id = COALESCE(?, document_id), 
                       bron_text = COALESCE(?, bron_text), 
                       pagina_nummer = COALESCE(?, pagina_nummer),
-                      coords_json = COALESCE(?, coords_json)
-                    WHERE versie_id = ? AND placeholder_id = ?`,
-                    [value, documentId, bronText, paginaNummer, coordsStr, currentVersieId, placeholderId]
+                      coords_json = COALESCE(?, coords_json),
+                      confidence_score = COALESCE(?, confidence_score),
+                      confidence_reasoning = COALESCE(?, confidence_reasoning),
+                      conflicting_sources = COALESCE(?, conflicting_sources)
+                    WHERE versie_id = ? AND placeholder_id = ?`, 
+                    [value, documentId, bronText, paginaNummer, coordsStr, confidenceScore, confidenceReasoning, confSourcesStr, currentVersieId, placeholderId]
                 );
             }
         }
@@ -366,7 +382,10 @@ const processDossierDocuments = async (dossierId, files, customPrompt = null, te
         const results = await Promise.allSettled(filePromises);
 
         // Merge results: combine extracted data, preferring first non-empty value per key
+        // NEW: Also track multiple findings for consistency calculation
         let combinedExtractedData = {};
+        const findingsPerPlaceholder = {}; // key -> [{ waarde, score_bron, score_context, score_volledigheid, doc_id, ... }]
+
         for (const result of results) {
             if (result.status === 'rejected') {
                 console.error(`[AI] File processing failed:`, result.reason?.message);
@@ -381,9 +400,24 @@ const processDossierDocuments = async (dossierId, files, customPrompt = null, te
 
             for (const [key, val] of Object.entries(extractedData)) {
                 const isNewValSolid = val && typeof val === 'object' && val.waarde !== undefined && val.waarde.toString().trim() !== '';
+                if (!isNewValSolid) continue;
+
+                if (!findingsPerPlaceholder[key]) findingsPerPlaceholder[key] = [];
+                findingsPerPlaceholder[key].push({
+                    waarde: val.waarde,
+                    bron_text: val.bron_text || null,
+                    document_id: file.id || null,
+                    pagina_nummer: val.pagina_nummer || null,
+                    coords: val.coords || null,
+                    score_bron: parseFloat(val.score_bron || 0),
+                    score_context: parseFloat(val.score_context || 0),
+                    score_volledigheid: parseFloat(val.score_volledigheid || 0),
+                    reden: val.reden || null
+                });
+
                 const isOldValEmpty = !combinedExtractedData[key] || !combinedExtractedData[key].waarde;
 
-                if (isNewValSolid && isOldValEmpty) {
+                if (isOldValEmpty) {
                     combinedExtractedData[key] = {
                         waarde: val.waarde,
                         bron_text: val.bron_text || null,
@@ -391,17 +425,63 @@ const processDossierDocuments = async (dossierId, files, customPrompt = null, te
                         pagina_nummer: val.pagina_nummer || null,
                         coords: val.coords || null
                     };
-                } else if (isNewValSolid && !isOldValEmpty && val.coords) {
+                } else if (val.coords) {
+                    // Update coords if found in a subsequent document
                     combinedExtractedData[key].coords = val.coords;
                     combinedExtractedData[key].document_id = file.id;
                     combinedExtractedData[key].bron_text = val.bron_text || combinedExtractedData[key].bron_text;
-                } else if (typeof val === 'string' && val.trim() !== '' && isOldValEmpty) {
-                    combinedExtractedData[key] = {
-                        waarde: val,
-                        bron_text: null,
-                        document_id: file.id || null
-                    };
                 }
+            }
+        }
+
+        // CALCULATE FINAL CONFIDENCE SCORES
+        const w_bron = 0.35;
+        const w_cons = 0.35;
+        const w_cont = 0.20;
+        const w_voll = 0.10;
+
+        for (const [tag, findings] of Object.entries(findingsPerPlaceholder)) {
+            if (findings.length === 0) continue;
+
+            // 1. Consistency Score (S_consistentie)
+            const bestFinding = findings[0]; // Simplistic: use the first solid one as reference
+            const sameCount = findings.filter(f => f.waarde.toString().toLowerCase() === bestFinding.waarde.toString().toLowerCase()).length;
+            const totalCountWithVal = findings.length;
+            
+            let s_cons = 1.0; // Start at 1.0 for perfect unanimity or single source
+            let reasoning = bestFinding.reden || 'Gevonden via AI analyse.';
+            let conflicts = [];
+
+            if (totalCountWithVal > 1) {
+                const sameCount = findings.filter(f => f.waarde.toString().toLowerCase() === bestFinding.waarde.toString().toLowerCase()).length;
+                
+                if (sameCount < totalCountWithVal) {
+                    // Conflict detected: punish the score
+                    s_cons = (sameCount / totalCountWithVal) * 0.4;
+                    const otherFindings = findings.filter(f => f.waarde.toString().toLowerCase() !== bestFinding.waarde.toString().toLowerCase());
+                    conflicts = otherFindings.map(f => ({ value: f.waarde, docId: f.document_id }));
+                    reasoning += `. OPGELET: Tegenstrijdigheid gevonden! Er zijn ${otherFindings.length} andere waarden gevonden in andere documenten.`;
+                } else {
+                    // Consensus: maintain high score
+                    s_cons = 1.0;
+                    reasoning += `. Bevestigd door ${totalCountWithVal} verschillende bronnen.`;
+                }
+            } else {
+                reasoning += `. Gevonden in 1 bron.`;
+            }
+
+            // 2. Average the other factors from AI
+            const s_bron = bestFinding.score_bron;
+            const s_cont = bestFinding.score_context;
+            const s_voll = bestFinding.score_volledigheid;
+
+            // 3. Final Weighted Formula
+            const finalScore = (w_bron * s_bron) + (w_cons * s_cons) + (w_cont * s_cont) + (w_voll * s_voll);
+            
+            if (combinedExtractedData[tag]) {
+                combinedExtractedData[tag].confidence_score = finalScore;
+                combinedExtractedData[tag].confidence_reasoning = reasoning;
+                combinedExtractedData[tag].conflicting_sources = conflicts;
             }
         }
 
@@ -409,8 +489,8 @@ const processDossierDocuments = async (dossierId, files, customPrompt = null, te
         let matchCount = 0;
         for (const [tag, data] of Object.entries(combinedExtractedData)) {
             if (data && data.waarde && data.waarde.toString().trim()) { 
-                console.log(`AI extracted field [${tag}]: ${data.waarde}`);
-                await syncDossierMasterData(dossierId, tag, data.waarde.toString(), data.document_id, data.bron_text, data.pagina_nummer, verkoopsovereenkomstId, data.coords); 
+                console.log(`AI extracted field [${tag}]: ${data.waarde} (Score: ${data.confidence_score?.toFixed(2)})`);
+                await syncDossierMasterData(dossierId, tag, data.waarde.toString(), data.document_id, data.bron_text, data.pagina_nummer, verkoopsovereenkomstId, data.coords, data.confidence_score, data.confidence_reasoning, data.conflicting_sources); 
                 matchCount++; 
             }
         }
@@ -652,7 +732,10 @@ const dossierController = {
                             documentId: p.documentId,
                             bronText: p.bronText || p.bron_text,
                             paginaNummer: p.paginaNummer || p.pagina_nummer,
-                            coords: p.coords
+                            coords: p.coords,
+                            confidenceScore: p.confidenceScore,
+                            confidenceReasoning: p.confidenceReasoning,
+                            conflictingSources: p.conflictingSources
                         };
                     }
                 }
@@ -683,7 +766,7 @@ const dossierController = {
                         const coordsStr = coords ? JSON.stringify(coords) : null;
 
                         if (!docId || !bronText) {
-                            const [existRows] = await pool.query('SELECT document_id, bron_text, pagina_nummer, coords_json FROM Aangepaste_Placeholder WHERE verkoopsovereenkomst_id = ? AND placeholder_id = ?', [verkoopsovereenkomstId, placeholderId]);
+                            const [existRows] = await pool.query('SELECT document_id, bron_text, pagina_nummer, coords_json, confidence_score, confidence_reasoning, conflicting_sources FROM Aangepaste_Placeholder WHERE verkoopsovereenkomst_id = ? AND placeholder_id = ?', [verkoopsovereenkomstId, placeholderId]);
                             if (existRows.length > 0) {
                                 docId = docId || existRows[0].document_id;
                                 bronText = bronText || existRows[0].bron_text;
@@ -691,8 +774,21 @@ const dossierController = {
                                 if (!coordsStr && existRows[0].coords_json) {
                                     coords = existRows[0].coords_json;
                                 }
+                                // No change needed to confidenceScore here since it's already defined
+                                // But we do need to update reasoning/conflicts if they're still null
+                                if (!p.confidenceReasoning && !bestMeta.confidenceReasoning) {
+                                    p.confidenceReasoning = existRows[0].confidence_reasoning;
+                                }
+                                if (!p.conflictingSources && !bestMeta.conflictingSources) {
+                                    p.conflictingSources = existRows[0].conflicting_sources;
+                                }
                             }
                         }
+                        
+                        const confidenceScore = p.confidenceScore || bestMeta.confidenceScore || null;
+                        const confidenceReasoning = p.confidenceReasoning || bestMeta.confidenceReasoning || null;
+                        const conflictingSources = p.conflictingSources || bestMeta.conflictingSources || null;
+                        const confSourcesStr = conflictingSources ? (typeof conflictingSources === 'string' ? conflictingSources : JSON.stringify(conflictingSources)) : null;
                         
                         // Properly recalculate coordsStr with the potentially fetched DB value
                         const finalCoordsStr = coords ? (typeof coords === 'string' ? coords : JSON.stringify(coords)) : null;
@@ -701,8 +797,8 @@ const dossierController = {
 
                         // Update the global current value (used by the Editor)
                         await pool.query(
-                            `INSERT INTO Aangepaste_Placeholder (dossier_id, placeholder_id, verkoopsovereenkomst_id, aangepaste_sectie_id, ingevulde_waarde, validatiestatus, document_id, bron_text, pagina_nummer, coords_json)
-                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            `INSERT INTO Aangepaste_Placeholder (dossier_id, placeholder_id, verkoopsovereenkomst_id, aangepaste_sectie_id, ingevulde_waarde, validatiestatus, document_id, bron_text, pagina_nummer, coords_json, confidence_score, confidence_reasoning, conflicting_sources)
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                              ON DUPLICATE KEY UPDATE
                                ingevulde_waarde = VALUES(ingevulde_waarde),
                                validatiestatus = VALUES(validatiestatus),
@@ -710,14 +806,17 @@ const dossierController = {
                                 document_id = COALESCE(VALUES(document_id), document_id),
                                 bron_text = COALESCE(VALUES(bron_text), bron_text),
                                 pagina_nummer = COALESCE(VALUES(pagina_nummer), pagina_nummer),
-                                coords_json = COALESCE(VALUES(coords_json), coords_json)`,
-                            [dossierId, placeholderId, verkoopsovereenkomstId, newAangepasteSectieId, p.currentValue, placeholderStatus, docId, bronText, paginaNummer, finalCoordsStr]
+                                coords_json = COALESCE(VALUES(coords_json), coords_json),
+                                confidence_score = COALESCE(VALUES(confidence_score), confidence_score),
+                                confidence_reasoning = COALESCE(VALUES(confidence_reasoning), confidence_reasoning),
+                                conflicting_sources = COALESCE(VALUES(conflicting_sources), conflicting_sources)`,
+                            [dossierId, placeholderId, verkoopsovereenkomstId, newAangepasteSectieId, p.currentValue, placeholderStatus, docId, bronText, paginaNummer, finalCoordsStr, confidenceScore, confidenceReasoning, confSourcesStr]
                         );
 
                         // Write a version-specific snapshot so the diff feature can compare values across versions
                         await pool.query(
-                            `INSERT INTO VersiePlaceholder (versie_id, placeholder_id, aangepaste_sectie_id, ingevulde_waarde, validatiestatus, document_id, bron_text, pagina_nummer, coords_json)
-                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            `INSERT INTO VersiePlaceholder (versie_id, placeholder_id, aangepaste_sectie_id, ingevulde_waarde, validatiestatus, document_id, bron_text, pagina_nummer, coords_json, confidence_score, confidence_reasoning, conflicting_sources)
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                              ON DUPLICATE KEY UPDATE
                                 ingevulde_waarde = VALUES(ingevulde_waarde),
                                 validatiestatus = VALUES(validatiestatus),
@@ -725,8 +824,11 @@ const dossierController = {
                                 document_id = COALESCE(VALUES(document_id), document_id),
                                 bron_text = COALESCE(VALUES(bron_text), bron_text),
                                 pagina_nummer = COALESCE(VALUES(pagina_nummer), pagina_nummer),
-                                coords_json = COALESCE(VALUES(coords_json), coords_json)`,
-                            [newVersieId, placeholderId, newAangepasteSectieId, p.currentValue, placeholderStatus, docId, bronText, paginaNummer, finalCoordsStr]
+                                coords_json = COALESCE(VALUES(coords_json), coords_json),
+                                confidence_score = COALESCE(VALUES(confidence_score), confidence_score),
+                                confidence_reasoning = COALESCE(VALUES(confidence_reasoning), confidence_reasoning),
+                                conflicting_sources = COALESCE(VALUES(conflicting_sources), conflicting_sources)`,
+                            [newVersieId, placeholderId, newAangepasteSectieId, p.currentValue, placeholderStatus, docId, bronText, paginaNummer, finalCoordsStr, confidenceScore, confidenceReasoning, confSourcesStr]
                         );
                     }
                 }

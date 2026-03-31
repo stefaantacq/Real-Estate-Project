@@ -101,6 +101,9 @@ export interface PlaceholderSuggestion {
   documentPad?: string;
   documentNaam?: string;
   confidence?: 'High' | 'Medium' | 'Low'; // Made optional
+  confidenceScore?: number;
+  confidenceReasoning?: string;
+  conflictingSources?: { value: string; docId: number }[];
   isApproved: boolean;
   type?: string;
   coords?: [number, number, number, number] | null;
