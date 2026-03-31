@@ -9,6 +9,7 @@ router.get('/:id', dossierController.getDossierById);
 router.put('/:id', dossierController.updateDossier);
 router.delete('/:id', dossierController.deleteDossier);
 router.post('/:id/analyze', dossierController.reAnalyzeDossier);
+router.post('/:id/documents', (req, res, next) => req.app.get('upload').array('files')(req, res, next), dossierController.addDossierDocuments);
 
 // Versions
 router.get('/versions/:id', dossierController.getVersionById);

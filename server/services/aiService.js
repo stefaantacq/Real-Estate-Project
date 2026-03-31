@@ -6,7 +6,7 @@ require('dotenv').config();
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({
-    model: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
+    model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
     generationConfig: { 
         maxOutputTokens: 16000,
         responseMimeType: "application/json"
@@ -15,7 +15,7 @@ const model = genAI.getGenerativeModel({
 
 // A separate model instance for text-only/fallback without JSON enforcement if needed
 const textModel = genAI.getGenerativeModel({
-    model: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
+    model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
     generationConfig: { maxOutputTokens: 16000 }
 });
 
@@ -89,7 +89,7 @@ const extractTextFromImage = async (filePath, mimeType) => {
 /**
  * Helper to call Gemini with exponential backoff retry logic and per-call timeout.
  */
-const GEMINI_CALL_TIMEOUT_MS = 15000; // 15 seconds per call
+const GEMINI_CALL_TIMEOUT_MS = 60000; // 60 seconds per call
 
 const withTimeout = (promise, ms) => {
     let timer;
@@ -101,7 +101,7 @@ const withTimeout = (promise, ms) => {
     ]).finally(() => clearTimeout(timer));
 };
 
-const callGeminiWithRetry = async (contents, maxRetries = 3) => {
+const callGeminiWithRetry = async (contents, maxRetries = 3, targetModel = model) => {
     let lastError;
     const input = typeof contents === 'string' ? contents : contents; 
     
@@ -112,7 +112,7 @@ const callGeminiWithRetry = async (contents, maxRetries = 3) => {
                 console.log(`Retry ${i}/${maxRetries} for Gemini call. Waiting ${Math.round(delay)}ms...`);
                 await new Promise(r => setTimeout(r, delay));
             }
-            const result = await withTimeout(model.generateContent(input), GEMINI_CALL_TIMEOUT_MS);
+            const result = await withTimeout(targetModel.generateContent(input), GEMINI_CALL_TIMEOUT_MS);
             return result;
         } catch (error) {
             lastError = error;
