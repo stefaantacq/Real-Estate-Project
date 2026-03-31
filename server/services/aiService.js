@@ -412,7 +412,7 @@ const analyzeTemplate = async (text, libraryPlaceholders, customPrompt = null) =
         
         // Robust chunking logic to allow massive templates up to 50 pages
         // We split by double newlines, but if a block is still too big, we split further.
-        const CHUNK_SIZE = 12000;
+        const CHUNK_SIZE = 18000; // Increased from 12000 to reduce total calls
         let blocks = (text || '').split(/\n\s*\n/);
         
         // Final chunks array
@@ -420,11 +420,9 @@ const analyzeTemplate = async (text, libraryPlaceholders, customPrompt = null) =
         let currentChunk = '';
 
         for (let block of blocks) {
-            // Trim block to avoid whitespace issues
             block = block.trim();
             if (!block) continue;
 
-            // If the block itself is larger than CHUNK_SIZE, we must split it further (e.g. by single newlines)
             if (block.length > CHUNK_SIZE) {
                 const subBlocks = block.split('\n');
                 for (const sb of subBlocks) {
@@ -435,7 +433,6 @@ const analyzeTemplate = async (text, libraryPlaceholders, customPrompt = null) =
                         currentChunk += sb + '\n';
                     }
                     
-                    // Safety valve: if a single line is STILL > CHUNK_SIZE, split by chars
                     if (currentChunk.length > CHUNK_SIZE) {
                         chunks.push(currentChunk.slice(0, CHUNK_SIZE).trim());
                         currentChunk = currentChunk.slice(CHUNK_SIZE) + '\n';
@@ -452,49 +449,59 @@ const analyzeTemplate = async (text, libraryPlaceholders, customPrompt = null) =
         }
         if (currentChunk.trim().length > 0) chunks.push(currentChunk.trim());
 
-        console.log(`Split template into ${chunks.length} chunks. Total length: ${text?.length || 0}`);
+        console.log(`[PERFORMANCE] Split template into ${chunks.length} chunks. Total length: ${text?.length || 0}. Starting parallel analysis...`);
 
+        const startTime = Date.now();
+        
+        // Use a concurrency limit to avoid hitting rate limits 429, but still much faster than sequential
+        const CONCURRENCY_LIMIT = 3; 
         let allSections = [];
         
-        for (let i = 0; i < chunks.length; i++) {
-            console.log(`Analyzing chunk ${i + 1}/${chunks.length}... Size: ${chunks[i].length} chars`);
-            try {
-                const prompt = getPrompt(chunks[i]);
-                const textResponse = await callGeminiWithRetry(prompt);
+        for (let i = 0; i < chunks.length; i += CONCURRENCY_LIMIT) {
+            const batch = chunks.slice(i, i + CONCURRENCY_LIMIT);
+            const batchPromises = batch.map(async (chunkText, index) => {
+                const chunkId = i + index;
+                console.log(`Analyzing chunk ${chunkId + 1}/${chunks.length}... (${chunkText.length} chars)`);
                 
-                if (!textResponse) {
-                    console.warn(`Empty response from Gemini for chunk ${i+1}`);
-                    continue;
-                }
+                try {
+                    const prompt = getPrompt(chunkText);
+                    const result = await callGeminiWithRetry(prompt);
+                    const response = await result.response;
+                    const textResponse = response.text();
+                    
+                    if (!textResponse) return [];
 
-                let jsonText = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
-                const firstBracket = jsonText.indexOf('[');
-                const lastBracket = jsonText.lastIndexOf(']');
-                
-                if (firstBracket !== -1 && lastBracket !== -1) {
-                    jsonText = jsonText.substring(firstBracket, lastBracket + 1);
-                } else {
-                    console.warn(`No JSON array found in Gemini response for chunk ${i+1}. Raw response started with: ${textResponse.substring(0, 50)}`);
-                    continue;
+                    let jsonText = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
+                    const firstBracket = jsonText.indexOf('[');
+                    const lastBracket = jsonText.lastIndexOf(']');
+                    
+                    if (firstBracket !== -1 && lastBracket !== -1) {
+                        jsonText = jsonText.substring(firstBracket, lastBracket + 1);
+                    } else {
+                        return [];
+                    }
+                    
+                    const parsed = JSON.parse(jsonText);
+                    return Array.isArray(parsed) ? parsed : [];
+                } catch (e) {
+                    console.error(`Error processing chunk ${chunkId + 1}:`, e.message);
+                    return [];
                 }
-                
-                const parsed = JSON.parse(jsonText);
-                if (Array.isArray(parsed)) {
-                    console.log(`Chunk ${i+1} returned ${parsed.length} sections.`);
-                    allSections = allSections.concat(parsed);
-                } else {
-                    console.warn(`Chunk ${i+1} did not return an array.`);
-                }
-            } catch (e) {
-                console.error(`Error processing chunk ${i + 1}:`, e.message);
-                // Log partial error but keep going
-            }
+            });
+
+            const batchResults = await Promise.all(batchPromises);
+            batchResults.forEach(sections => {
+                allSections = allSections.concat(sections);
+            });
             
-            // Short delay between chunks to be safe, though retry handles 429
-            if (i < chunks.length - 1) {
-                await new Promise(r => setTimeout(r, 1000));
+            // Minimal pause between batches to breathe
+            if (i + CONCURRENCY_LIMIT < chunks.length) {
+                await new Promise(r => setTimeout(r, 500));
             }
         }
+
+        const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+        console.log(`[PERFORMANCE] Template analysis finished in ${duration}s. Extracted ${allSections.length} sections.`);
 
         console.log(`Total sections extracted: ${allSections.length}`);
 
