@@ -118,6 +118,14 @@ export const api = {
         });
     },
 
+    async addDossierDocuments(id: string, data: FormData) {
+        return this.request(`/dossiers/${id}/documents`, {
+            method: 'POST',
+            body: data,
+            headers: {}
+        });
+    },
+
     // Versions
     async getVersion(id: string) {
         return this.request(`/dossiers/versions/${id}`);

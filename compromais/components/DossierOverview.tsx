@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Calendar, MapPin, FileText, Clock, GitCompare, Archive, ExternalLink, RefreshCw, File, Trash2, X, Home, Building2, Edit2, Bookmark, BookmarkCheck, ChevronDown, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, FileText, Clock, GitCompare, Archive, ExternalLink, RefreshCw, File, Trash2, X, Home, Building2, Edit2, Bookmark, BookmarkCheck, ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { Language, Dossier, DossierStatus } from '../types';
 import { TRANSLATIONS } from '../constants';
@@ -60,6 +60,8 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
    const [activeAgreementId, setActiveAgreementId] = React.useState<string | null>(null);
    const [isCreatingVersion, setIsCreatingVersion] = React.useState(false);
    const fileInputRef = React.useRef<HTMLInputElement>(null);
+   const dossierFileInputRef = React.useRef<HTMLInputElement>(null);
+   const [isUploadingDocs, setIsUploadingDocs] = React.useState(false);
 
    React.useEffect(() => {
       const fetchDossier = async () => {
@@ -473,6 +475,36 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
       } finally {
          setIsCreatingVersion(false);
          if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+   };
+
+   const handleAddDossierDocumentsClick = () => {
+      if (dossier?.status === DossierStatus.ARCHIVED) return;
+      dossierFileInputRef.current?.click();
+   };
+
+   const handleDossierFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (!files || files.length === 0 || !id) return;
+
+      setIsUploadingDocs(true);
+      try {
+         const formData = new FormData();
+         for (let i = 0; i < files.length; i++) {
+            formData.append('files', files[i]);
+         }
+
+         await api.addDossierDocuments(id, formData);
+         
+         // Refresh dossier
+         const data: any = await api.getDossierById(id);
+         setDossier(data as Dossier);
+      } catch (error) {
+         console.error("Failed to upload dossier documents", error);
+         alert("Kon documenten niet toevoegen.");
+      } finally {
+         setIsUploadingDocs(false);
+         if (dossierFileInputRef.current) dossierFileInputRef.current.value = '';
       }
    };
 
@@ -904,7 +936,23 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                </div>
 
                <div className="bg-white p-6 rounded-2xl border border-gray-200">
-                  <h3 className="font-bold text-sm uppercase tracking-wider text-slate-500 mb-4">{t.documents}</h3>
+                  <div className="flex items-center justify-between mb-4">
+                     <h3 className="font-bold text-sm uppercase tracking-wider text-slate-500">{t.documents}</h3>
+                     {dossier.status !== DossierStatus.ARCHIVED && (
+                        <button 
+                           onClick={handleAddDossierDocumentsClick}
+                           disabled={isUploadingDocs}
+                           className="p-1.5 px-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors flex items-center justify-center shadow-sm border border-blue-100"
+                           title={(t as any).addDocuments || 'Documenten toevoegen'}
+                        >
+                           {isUploadingDocs ? (
+                              <RefreshCw className="w-4 h-4 animate-spin"/>
+                           ) : (
+                              <Plus className="w-4 h-4 stroke-[3px]" />
+                           )}
+                        </button>
+                     )}
+                  </div>
                   <div className="space-y-3">
                      {(dossier as any).documents && (dossier as any).documents.length > 0 ? (dossier as any).documents.map((doc: any, i: number) => (
                         <div
@@ -1087,6 +1135,15 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
             ref={fileInputRef}
             onChange={handleFileChange}
             className="hidden"
+            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+         />
+
+         <input
+            type="file"
+            ref={dossierFileInputRef}
+            onChange={handleDossierFileChange}
+            className="hidden"
+            multiple
             accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
          />
 

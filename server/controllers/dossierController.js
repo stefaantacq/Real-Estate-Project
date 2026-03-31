@@ -965,6 +965,53 @@ const dossierController = {
         }
     },
 
+    addDossierDocuments: async (req, res) => {
+        const { id } = req.params;
+        const { ai_extraction_prompt } = req.body;
+        console.log(`--- addDossierDocuments request for Dossier ID: ${id} ---`);
+        try {
+            const [dosRows] = await pool.query('SELECT dossier_id, titel FROM Dossier WHERE ui_id = ?', [id]);
+            if (dosRows.length === 0) return res.status(404).json({ error: 'Dossier niet gevonden' });
+            const dossier_id = dosRows[0].dossier_id;
+
+            if (!req.files || req.files.length === 0) {
+                return res.status(400).json({ error: 'Geen bestanden ontvangen' });
+            }
+
+            const newFiles = [];
+            for (const file of req.files) {
+                const [docResult] = await pool.query(
+                    'INSERT INTO Documenten (ui_id, dossier_id, naam, bestandsnaam, bestand_pad, bestandstype, document_type) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                    [`doc-${Date.now()}-${Math.random()}`, dossier_id, file.originalname, file.filename, `/uploads/${file.filename}`, file.mimetype, 'Uploaded']
+                );
+                newFiles.push({
+                    id: docResult.insertId,
+                    filename: file.filename,
+                    originalname: file.originalname,
+                    mimetype: file.mimetype
+                });
+            }
+
+            // Add timeline event
+            await pool.query(
+                'INSERT INTO TimelineEvent (dossier_id, titel, beschrijving, user_name) VALUES (?, ?, ?, ?)',
+                [dossier_id, 'Extra documenten geüpload', `Er zijn ${req.files.length} extra document(en) aan het dossier toegevoegd.`, 'Systeem']
+            );
+
+            // Trigger AI analysis for the NEW documents
+            const [agRows] = await pool.query('SELECT verkoopsovereenkomst_id, template_id FROM Verkoopsovereenkomst WHERE dossier_id = ?', [dossier_id]);
+            const templateId = agRows.length > 0 ? agRows[0].template_id : null;
+            const verkoopsovereenkomstId = agRows.length > 0 ? agRows[0].verkoopsovereenkomst_id : null;
+
+            processDossierDocuments(dossier_id, newFiles, ai_extraction_prompt || null, templateId, verkoopsovereenkomstId);
+
+            res.status(200).json({ message: 'Documenten toegevoegd en AI analyse gestart' });
+        } catch (error) {
+            console.error("Error adding documents to dossier:", error);
+            res.status(500).json({ error: error.message });
+        }
+    },
+
     processDossierDocuments
 };
 
