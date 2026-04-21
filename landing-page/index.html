@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pricing | compromAIs - De toekomst van vastgoedcompromissen</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ["Inter", "sans-serif"],
+                    },
+                    colors: {
+                        brand: {
+                            50: "#EFF6FF",
+                            100: "#DBEAFE",
+                            200: "#BFDBFE",
+                            500: "#3B82F6",
+                            600: "#2563EB",
+                            700: "#1D4ED8",
+                            800: "#1E40AF",
+                            900: "#1E3A5F",
+                        },
+                    },
+                },
+            },
+        };
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .pricing-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .pricing-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 antialiased">
+    <!-- Navigation Placeholder -->
+    <nav class="bg-white border-b border-slate-200 py-4">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <div class="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center">
+                    <span class="text-white font-bold text-lg">C</span>
+                </div>
+                <span class="text-xl font-bold tracking-tight text-brand-900">comprom<span class="text-brand-600">AIs</span></span>
+            </div>
+            <div class="hidden md:flex space-x-8 text-sm font-medium text-slate-600">
+                <a href="#" class="hover:text-brand-600 transition-colors">Product</a>
+                <a href="#" class="hover:text-brand-600 transition-colors">Hoe het werkt</a>
+                <a href="#" class="text-brand-600">Pricing</a>
+            </div>
+            <a href="#" class="bg-brand-600 text-white px-5 py-2 rounded-full text-sm font-semibold hover:bg-brand-700 transition-all shadow-sm">Start Gratis</a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="py-16 md:py-24 px-4 bg-white overflow-hidden relative">
+        <div class="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-96 h-96 bg-brand-50 rounded-full blur-3xl opacity-50"></div>
+        <div class="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/2 w-64 h-64 bg-brand-100 rounded-full blur-3xl opacity-30"></div>
+        
+        <div class="max-w-4xl mx-auto text-center relative z-10">
+            <h1 class="text-4xl md:text-6xl font-extrabold tracking-tight mb-6">
+                Kies het plan dat bij <br/>
+                <span class="gradient-text">jouw kantoor past</span>
+            </h1>
+            <p class="text-lg md:text-xl text-slate-600 max-w-2xl mx-auto mb-10">
+                Of je nu een klein kantoor bent of een groot netwerk, compromAIs groeit met je mee. 
+                Geen verborgen kosten, volledige transparantie.
+            </p>
+        </div>
+    </header>
+
+    <!-- Pricing Section -->
+    <section class="pb-24 px-4 -mt-12">
+        <div class="max-w-7xl mx-auto">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                
+                <!-- Starter Plan -->
+                <div class="pricing-card bg-white rounded-3xl p-8 border border-slate-200 flex flex-col relative overflow-hidden">
+                    <div class="mb-8">
+                        <h3 class="text-xl font-bold mb-2">Starter</h3>
+                        <p class="text-slate-500 text-sm">Kleine kantoren, occasioneel gebruik</p>
+                    </div>
+                    
+                    <div class="space-y-4 mb-8 flex-grow">
+                        <div class="group p-4 rounded-2xl border border-slate-100 hover:border-brand-200 hover:bg-brand-50/30 transition-all cursor-pointer">
+                            <div class="flex items-baseline mb-1">
+                                <span class="text-2xl font-bold">€8</span>
+                                <span class="text-slate-500 ml-1 text-sm">/compromis</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <p class="text-xs uppercase tracking-wider font-semibold text-slate-400">Pay-per-use</p>
+                                <span class="text-brand-600 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">Kies &rarr;</span>
+                            </div>
+                        </div>
+                        
+                        <div class="group p-4 rounded-2xl border border-slate-100 hover:border-brand-200 hover:bg-brand-50/30 transition-all cursor-pointer">
+                            <div class="flex items-baseline mb-1">
+                                <span class="text-2xl font-bold">€29</span>
+                                <span class="text-slate-500 ml-1 text-sm">/maand</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <p class="text-xs uppercase tracking-wider font-semibold text-slate-400">Maandabonnement</p>
+                                <span class="text-brand-600 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">Kies &rarr;</span>
+                            </div>
+                        </div>
+                        
+                        <div class="group p-4 rounded-2xl border border-brand-100 bg-brand-50/50 hover:border-brand-200 hover:bg-brand-50 transition-all cursor-pointer">
+                            <div class="flex items-baseline mb-1">
+                                <span class="text-2xl font-bold">€290</span>
+                                <span class="text-slate-500 ml-1 text-sm">/jaar</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <p class="text-xs uppercase tracking-wider font-semibold text-brand-600">Jaarabonnement</p>
+                                <span class="bg-brand-100 text-brand-700 text-[10px] py-0.5 px-2 rounded-full font-bold">~17% korting</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button class="w-full py-4 px-6 rounded-2xl border-2 border-slate-200 text-slate-900 font-bold hover:bg-slate-50 transition-colors mt-auto">
+                        Kies Starter
+                    </button>
+                    
+                    <div class="mt-8 space-y-3">
+                        <div class="flex items-center text-sm text-slate-600">
+                            <svg class="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            Alle basis AI features
+                        </div>
+                        <div class="flex items-center text-sm text-slate-600">
+                            <svg class="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            Onbeperkt aantal dossiers
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Standaard Plan (Highest Value) -->
+                <div class="pricing-card bg-white rounded-3xl p-8 border-2 border-brand-600 flex flex-col relative overflow-hidden shadow-xl shadow-brand-100 z-10">
+                    <div class="absolute top-0 right-0 bg-brand-600 text-white text-[10px] uppercase tracking-widest font-black py-1 px-8 translate-x-[30%] translate-y-[100%] rotate-45">
+                        Populair
+                    </div>
+                    
+                    <div class="mb-8">
+                        <h3 class="text-xl font-bold mb-2">Standaard</h3>
+                        <p class="text-slate-500 text-sm">Kantoren met 3–10 medewerkers</p>
+                    </div>
+                    
+                    <div class="space-y-4 mb-8 flex-grow">
+                        <div class="group p-4 rounded-2xl border border-slate-100 hover:border-brand-200 hover:bg-brand-50/30 transition-all cursor-pointer">
+                            <div class="flex items-baseline mb-1">
+                                <span class="text-2xl font-bold">€12</span>
+                                <span class="text-slate-500 ml-1 text-sm">/compromis</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <p class="text-xs uppercase tracking-wider font-semibold text-slate-400">Pay-per-use</p>
+                                <span class="text-brand-600 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">Kies &rarr;</span>
+                            </div>
+                        </div>
+                        
+                        <div class="group p-4 rounded-2xl border border-slate-100 hover:border-brand-200 hover:bg-brand-50/30 transition-all cursor-pointer">
+                            <div class="flex items-baseline mb-1">
+                                <span class="text-2xl font-bold">€49</span>
+                                <span class="text-slate-500 ml-1 text-sm">/user/maand</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <p class="text-xs uppercase tracking-wider font-semibold text-slate-400">Maandabonnement</p>
+                                <span class="text-brand-600 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">Kies &rarr;</span>
+                            </div>
+                        </div>
+                        
+                        <div class="group p-4 rounded-2xl border-2 border-brand-200 bg-brand-50/30 hover:border-brand-600 transition-all cursor-pointer relative">
+                            <div class="flex items-baseline mb-1">
+                                <span class="text-2xl font-bold">€490</span>
+                                <span class="text-slate-500 ml-1 text-sm">/user/jaar</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <p class="text-xs uppercase tracking-wider font-semibold text-brand-600">Jaarabonnement</p>
+                                <span class="bg-brand-600 text-white text-[10px] py-0.5 px-2 rounded-full font-bold">~17% korting</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button class="w-full py-4 px-6 rounded-2xl bg-brand-600 text-white font-bold hover:bg-brand-700 transition-all shadow-lg shadow-brand-200 mt-auto">
+                        Start met Standaard
+                    </button>
+                    
+                    <div class="mt-8 space-y-3">
+                        <div class="flex items-center text-sm text-slate-900 font-medium">
+                            <svg class="w-5 h-5 text-brand-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            Geavanceerde Team features
+                        </div>
+                        <div class="flex items-center text-sm text-slate-600">
+                            <svg class="w-5 h-5 text-brand-300 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            Priority support
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Volume / Netwerk Plan -->
+                <div class="pricing-card bg-white rounded-3xl p-8 border border-slate-200 flex flex-col relative overflow-hidden">
+                    <div class="mb-8">
+                        <h3 class="text-xl font-bold mb-2">Volume / Netwerk</h3>
+                        <p class="text-slate-500 text-sm">B2B — voorspelbare cashflow</p>
+                    </div>
+                    
+                    <div class="space-y-4 mb-8 flex-grow">
+                        <div class="group p-4 rounded-2xl border border-slate-100 hover:border-brand-200 hover:bg-brand-50/30 transition-all cursor-pointer">
+                            <div class="flex items-baseline mb-1">
+                                <span class="text-2xl font-bold text-brand-900">€7</span>
+                                <span class="text-slate-500 ml-1 text-sm">/compromis</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <p class="text-xs uppercase tracking-wider font-semibold text-slate-400 text-wrap">Pay-per-use (10+ users)</p>
+                                <span class="text-brand-600 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">Kies &rarr;</span>
+                            </div>
+                        </div>
+                        
+                        <div class="group p-4 rounded-2xl border border-slate-100 hover:border-brand-200 hover:bg-brand-50/30 transition-all cursor-pointer">
+                            <div class="flex items-baseline mb-1">
+                                <span class="text-2xl font-bold text-brand-900">€39</span>
+                                <span class="text-slate-500 ml-1 text-sm">/user/maand</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <p class="text-xs uppercase tracking-wider font-semibold text-slate-400 text-wrap">Maandabonnement (10+ users)</p>
+                                <span class="text-brand-600 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">Kies &rarr;</span>
+                            </div>
+                        </div>
+                        
+                        <div class="group p-4 rounded-2xl border border-brand-100 bg-brand-50/50 hover:border-brand-200 hover:bg-brand-50 transition-all cursor-pointer">
+                            <div class="flex items-baseline mb-1">
+                                <span class="text-2xl font-bold text-brand-900">€390</span>
+                                <span class="text-slate-500 ml-1 text-sm">/user/jaar</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <p class="text-xs uppercase tracking-wider font-semibold text-brand-600 text-wrap">Jaarabonnement (10+ users)</p>
+                                <span class="bg-emerald-100 text-emerald-700 text-[10px] py-0.5 px-2 rounded-full font-bold">~17% korting</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button class="w-full py-4 px-6 rounded-2xl border-2 border-slate-900 text-slate-900 font-bold hover:bg-slate-900 hover:text-white transition-all mt-auto">
+                        Contact Sales
+                    </button>
+                    
+                    <div class="mt-8 space-y-3">
+                        <div class="flex items-center text-sm text-slate-600">
+                            <svg class="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            Dedicated Account Manager
+                        </div>
+                        <div class="flex items-center text-sm text-slate-600">
+                            <svg class="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            SLA Garanties
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            
+            <!-- Comparison Table Link Placeholder -->
+            <div class="mt-16 text-center">
+                <p class="text-slate-500 text-sm mb-4">Heb je meer dan 50 medewerkers? We maken graag een offerte op maat.</p>
+                <a href="#" class="inline-flex items-center text-brand-600 font-semibold hover:underline">
+                    Bekijk alle features
+                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-brand-900 text-white py-12">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <p class="text-brand-200 text-sm mb-4">© 2026 compromAIs. Alle rechten voorbehouden.</p>
+            <div class="flex justify-center space-x-6 text-brand-400 text-xs">
+                <a href="#" class="hover:text-white transition-colors">Voorwaarden</a>
+                <a href="#" class="hover:text-white transition-colors">Privacy</a>
+                <a href="#" class="hover:text-white transition-colors">Security</a>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>
