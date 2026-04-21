@@ -619,9 +619,10 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
         if (!suggestionState.sectionId || !suggestionState.active) return;
 
         const sectionId = suggestionState.sectionId;
-        const activeEl = document.activeElement as HTMLDivElement;
-        if (!activeEl || !activeEl.isContentEditable) return;
+        const activeEl = document.querySelector(`[data-section-id="${sectionId}"]`) as HTMLDivElement;
+        if (!activeEl) return;
 
+        // Reconstruct content accurately
         let content = "";
         activeEl.childNodes.forEach(node => {
             if (node.nodeType === Node.TEXT_NODE) {
@@ -629,18 +630,34 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
             } else if (node.nodeType === Node.ELEMENT_NODE) {
                 const el = node as HTMLElement;
                 const phId = el.getAttribute('data-placeholder-id') || el.querySelector('[data-placeholder-id]')?.getAttribute('data-placeholder-id');
-                if (phId) content += `[placeholder:${phId}]`;
-                else if (el.tagName === 'BR') content += '\n';
-                else content += el.innerText;
+                if (phId) {
+                    content += `[placeholder:${phId}]`;
+                } else if (el.tagName === 'BR') {
+                    content += '\n';
+                } else {
+                    content += el.innerText;
+                }
             }
         });
 
-        // We replace "[[query" with "[[placeholderId]]"
+        // We only want to replace the SPECIFIC [[trigger near the cursor
         const trigger = `[[${suggestionState.query}`;
         const lastIdx = content.lastIndexOf(trigger);
+        
         if (lastIdx !== -1) {
-            const newContent = content.slice(0, lastIdx) + `[[${placeholderId}]]` + content.slice(lastIdx + trigger.length);
+            // Check if we aren't accidentally cutting off a placeholder tag
+            const before = content.slice(0, lastIdx);
+            const after = content.slice(lastIdx + trigger.length);
+            
+            const newContent = before + `[placeholder:${placeholderId}]` + after;
             handleContentEdit(sectionId, newContent);
+        } else {
+            // Minimal fallback: only replace if we see a clear [[
+            const bracketIdx = content.lastIndexOf('[[');
+            if (bracketIdx !== -1) {
+                const newContent = content.slice(0, bracketIdx) + `[placeholder:${placeholderId}]` + content.slice(bracketIdx + 2 + suggestionState.query.length);
+                handleContentEdit(sectionId, newContent);
+            }
         }
 
         setSuggestionState({ active: false, query: '', sectionId: null });
@@ -1023,7 +1040,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                             {/* Trash button — only visible on rejected (non-approved) placeholders */}
                             {!isReadOnly && !p.isApproved && (
                                 <button
-                                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); removePlaceholder(section.id, p.id); }}
+                                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); removePlaceholder(section.id, p.id, partIndex); }}
                                     className="p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                                     title="Placeholder verwijderen"
                                 >
@@ -1059,16 +1076,34 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
     };
 
     // Removes a rejected placeholder from a section's placeholder list and strips its tag from the content
-    const removePlaceholder = (sectionId: string, placeholderId: string) => {
+    const removePlaceholder = (sectionId: string, placeholderId: string, partIndex?: number) => {
         if (isReadOnly) return;
         contentRenderKeys.current[sectionId] = (contentRenderKeys.current[sectionId] || 0) + 1;
         updateSections(prev => prev.map(s => {
             if (s.id !== sectionId) return s;
-            const newPlaceholders = s.placeholders.filter(p => p.id !== placeholderId);
-            // Also strip the placeholder tag from the content so it doesn't reappear on re-render
-            const newContent = (s.content || '')
-                .replace(new RegExp(`\\[\\[${placeholderId}\\]\\]`, 'g'), '')
-                .replace(new RegExp(`\\[placeholder:${placeholderId}\\]`, 'g'), '');
+
+            let newContent = s.content || '';
+            
+            if (partIndex !== undefined) {
+                // Precise removal: split the content, remove ONLY the part at the index, then rejoin
+                const parts = newContent.split(/(\[\[[A-Za-z0-9_]+\]\]|\[placeholder:[A-Za-z0-9_]+\])/g);
+                if (partIndex >= 0 && partIndex < parts.length) {
+                    parts.splice(partIndex, 1);
+                    newContent = parts.join('');
+                }
+            } else {
+                // Fallback to old behavior if no index (rare) but without global flag to be safer
+                newContent = newContent
+                    .replace(new RegExp(`\\[\\[${placeholderId}\\]\\]`), '')
+                    .replace(new RegExp(`\\[placeholder:${placeholderId}\\]`), '');
+            }
+
+            // Only remove from the metadata list if it's no longer present ANYWHERE in the content
+            const remainsInContent = newContent.includes(`[[${placeholderId}]]`) || newContent.includes(`[placeholder:${placeholderId}]`);
+            const newPlaceholders = remainsInContent 
+                ? s.placeholders 
+                : s.placeholders.filter(p => p.id !== placeholderId);
+
             const allApproved = newPlaceholders.length > 0 && newPlaceholders.every(p => p.isApproved);
             return { ...s, content: newContent, placeholders: newPlaceholders, isApproved: allApproved };
         }));
@@ -1264,6 +1299,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                                 <div className="relative">
                                                     <div
                                                         key={`${section.id}-v${contentRenderKeys.current[section.id] || 0}`}
+                                                        data-section-id={section.id}
                                                         className={`text-base text-justify text-slate-700 outline-none rounded p-1 -ml-1 min-h-[1.5em] whitespace-pre-wrap ${!isReadOnly ? 'focus:ring-2 focus:ring-blue-100' : ''}`}
                                                         contentEditable={!editingPlaceholder && !isReadOnly}
                                                         suppressContentEditableWarning

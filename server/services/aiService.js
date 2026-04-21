@@ -299,11 +299,18 @@ const _analyzeDocumentRecursive = async (text, fieldNames, customPrompt = null, 
             require('fs').appendFileSync('/tmp/dossier_debug.log', logMsg); 
         } catch(e){}
 
-        if (error.status === 404) {
-            console.error('ERROR 404: The model was not found.');
+        // Detect non-recoverable errors — do NOT recursively split for these
+        const errMsg = error.message || '';
+        const isAuthError = errMsg.includes('API_KEY_INVALID') || errMsg.includes('API key expired') || errMsg.includes('API key not valid');
+        const isModelNotFound = error.status === 404 || errMsg.includes('not found');
+        const isPermissionError = error.status === 403 || errMsg.includes('PERMISSION_DENIED');
+
+        if (isAuthError || isModelNotFound || isPermissionError) {
+            console.error(`[FATAL] Non-recoverable Gemini error (${isAuthError ? 'AUTH' : isModelNotFound ? '404' : 'PERMISSION'}). Aborting — will NOT split.`);
+            return {};
         }
         
-        // Recursive splitting validation logic
+        // Recursive splitting validation logic (only for potentially recoverable errors like token limits)
         if (fieldNames.length > 5) {
             console.warn(`[RECURSIVE SPLIT] Gemini call failed for ${fieldNames.length} fields. Splitting in half...`);
             const half = Math.floor(fieldNames.length / 2);
