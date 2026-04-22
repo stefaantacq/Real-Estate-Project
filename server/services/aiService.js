@@ -212,6 +212,7 @@ CRITICAL RULES:
 6. For addresses: include street, number, bus (if any), postcode, and city as one complete string.
 7. For names: include first name AND last name in full.
 8. All keys must be present in the output JSON, even if the value is "".
+9. For "contract_special_conditions": Extract ALL special conditions, clauses, and agreements found in the documents VERBATIM and in their entirety. Do NOT summarize them.
 
 CRITICAL — WHAT TO EXTRACT:
 - You MUST extract the ACTUAL DATA from the source documents (real names, real dates, real addresses, real amounts).
@@ -398,19 +399,22 @@ const analyzeTemplate = async (text, libraryPlaceholders, customPrompt = null) =
            - Specific personal data in a filled document that should be generic (names, dates, etc.)
         8. REPLACE WITH TAGS: ALWAYS remove the dotted lines (".......") or underscores and replace them with the exact matching tag from the library in the format [placeholder:sleutel]. 
         9. SUGGEST NEW KEYS: If you find a dotted line (".......") for a data spot NOT in the library (e.g., "BIV-Nr: ........"), INVENT a descriptive English key for it (e.g., "agent_biv_number"). ALWAYS use lowercase snake_case and use [placeholder:agent_biv_number].
-        10. POPULATE METADATA: For every [placeholder:sleutel] tag you insert into the content, you MUST include a corresponding object in the "placeholders" array for that section.
-        10. STRUCTURE: Return a JSON array of sections. Each section must have "title", "content" (full text of section with tags), and "placeholders" array.
-        11. OUTPUT FORMAT:
+        10. SPECIAL RULE — FACULTATIEVE BEPALINGEN: If you encounter a section titled 'FACULTATIEVE BEPALINGEN' or similar (e.g. 'FACULTATIEVE BEPALINGEN (TE SCHRAPPEN INDIEN NIET VAN TOEPASSING)'), you MUST place the [placeholder:contract_special_conditions] tag inside it, even if the section appears empty or has no dotted lines. This is where special conditions and clauses from uploaded documents will be inserted.
+        11. POPULATE METADATA: For every [placeholder:sleutel] tag you insert into the content, you MUST include a corresponding object in the "placeholders" array for that section.
+        12. STRUCTURE: Return a JSON array of sections. Each section must have "title", "content" (full text of section with tags), and "placeholders" array.
+
+        13. OUTPUT FORMAT:
+           Return a JSON array of objects. Each object represents a section:
            [
              {
-               "title": "Exact Title from PDF",
+               "title": "Exact Title of the section",
                "content": "Full section text with [placeholder:sleutel] tags",
                "placeholders": [
                  { "id": "sleutel", "label": "Descriptive Label", "type": "text" }
                ]
              }
            ]
-        12. Only return the JSON object, nothing else.
+        14. Only return the JSON object, nothing else. No markdown headers.
  
         ${userInstruction}
     `;
@@ -469,8 +473,6 @@ const analyzeTemplate = async (text, libraryPlaceholders, customPrompt = null) =
             const batch = chunks.slice(i, i + CONCURRENCY_LIMIT);
             const batchPromises = batch.map(async (chunkText, index) => {
                 const chunkId = i + index;
-                console.log(`Analyzing chunk ${chunkId + 1}/${chunks.length}... (${chunkText.length} chars)`);
-                
                 try {
                     const prompt = getPrompt(chunkText);
                     const result = await callGeminiWithRetry(prompt);
@@ -520,6 +522,22 @@ const analyzeTemplate = async (text, libraryPlaceholders, customPrompt = null) =
                 title: 'Geïmporteerde Inhoud',
                 content: text.trim(),
                 placeholders: []
+            });
+        }
+
+        // Post-processing: Ensure "BIJZONDERE VOORWAARDEN EN CLAUSULES" exists at the end
+        const hasSpecialConditions = allSections.some(s => 
+            s.title && s.title.toUpperCase().includes('BIJZONDERE VOORWAARDEN')
+        );
+
+        if (!hasSpecialConditions) {
+            console.log('Adding mandatory BIJZONDERE VOORWAARDEN section via post-processing.');
+            allSections.push({
+                title: "BIJZONDERE VOORWAARDEN EN CLAUSULES",
+                content: "[placeholder:contract_special_conditions]",
+                placeholders: [
+                    { id: "contract_special_conditions", label: "Bijzondere voorwaarden en clausules", type: "textarea" }
+                ]
             });
         }
 

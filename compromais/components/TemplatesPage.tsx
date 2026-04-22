@@ -188,7 +188,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
 
         // Helper to extract placeholders from content
         const syncPlaceholders = (section: DocumentSection): DocumentSection => {
-            const matches = Array.from(section.content.matchAll(/\[placeholder:([a-zA-Z0-9_]+)\]/g));
+            const matches = Array.from(section.content.matchAll(/\[placeholder:([A-Za-z0-9_]+)(?::[A-Za-z0-9_]+)?\]/g));
             const foundIds = new Set(matches.map(m => m[1]));
 
             const currentPlaceholders = section.placeholders || [];
@@ -730,8 +730,8 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ lang }) => {
                                                         </div>
                                                     ) : (
                                                         <div className="font-serif text-sm leading-relaxed text-justify whitespace-pre-wrap text-slate-800 antialiased" style={{ textAlign: 'justify' }}>
-                                                            {(section.content || '').split(/(\[placeholder:[a-zA-Z0-9_]+\])/g).map((part, i) => {
-                                                                const match = part.match(/\[placeholder:([a-zA-Z0-9_]+)\]/);
+                                                            {(section.content || '').split(/(\[placeholder:[A-Za-z0-9_]+(?::[A-Za-z0-9_]+)?\])/g).map((part, i) => {
+                                                                const match = part.match(/\[placeholder:([A-Za-z0-9_]+)(?::[A-Za-z0-9_]+)?\]/);
                                                                 if (match) {
                                                                     const placeholderId = match[1];
                                                                     const p = section.placeholders?.find(ph => ph.id.toLowerCase() === placeholderId.toLowerCase());

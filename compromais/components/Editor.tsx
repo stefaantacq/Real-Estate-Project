@@ -76,9 +76,10 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
         });
     };
 
-    const [sidebarMode, setSidebarMode] = useState<'none' | 'ai' | 'checklist'>('none');
+    const [sidebarMode, setSidebarMode] = useState<'none' | 'ai' | 'checklist' | 'confidence'>('none');
     const [splitScreen, setSplitScreen] = useState<boolean>(false);
     const [activePlaceholderId, setActivePlaceholderId] = useState<string | null>(null);
+    const [inspectingPlaceholder, setInspectingPlaceholder] = useState<{ sectionId: string, p: PlaceholderSuggestion, partIndex: number } | null>(null);
     const [selectedSourceDoc, setSelectedSourceDoc] = useState<{ 
         name: string, 
         path?: string, 
@@ -501,7 +502,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
         if (isReadOnly) return;
 
         // Scan the new content for [[sleutel]] or [placeholder:sleutel] patterns
-        const tagPattern = /\[\[([A-Za-z0-9_]+)\]\]|\[placeholder:([A-Za-z0-9_]+)\]/g;
+        const tagPattern = /\[\[([A-Za-z0-9_]+)\]\]|\[placeholder:([A-Za-z0-9_]+)(?::[A-Za-z0-9_]+)?\]/g;
         const referencedIds = new Set<string>();
         let m: RegExpExecArray | null;
         while ((m = tagPattern.exec(newContent)) !== null) {
@@ -965,6 +966,61 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
         }
     };
 
+    const getAllPlaceholders = () => {
+        const list: { sectionId: string, p: PlaceholderSuggestion, partIndex: number }[] = [];
+        
+        sections.forEach(s => {
+            const parts = (s.content || '').split(/(\[\[[A-Za-z0-9_]+\]\]|\[placeholder:[A-Za-z0-9_]+(?::[A-Za-z0-9_]+)?\])/g);
+            parts.forEach((part, i) => {
+                const match = part.match(/\[\[([A-Za-z0-9_]+)\]\]|\[placeholder:([A-Za-z0-9_]+)(?::[A-Za-z0-9_]+)?\]/);
+                if (match) {
+                    const pid = match[1] || match[2];
+                    const p = s.placeholders.find(ph => ph.id.toLowerCase() === pid.toLowerCase());
+                    if (p) {
+                        list.push({ sectionId: s.id, p, partIndex: i });
+                    }
+                }
+            });
+        });
+        
+        return list;
+    };
+
+    const navigatePlaceholder = (direction: 'next' | 'prev') => {
+        const all = getAllPlaceholders();
+        if (!inspectingPlaceholder || all.length === 0) return;
+        
+        const currentIndex = all.findIndex(item => 
+            item.sectionId === inspectingPlaceholder.sectionId && 
+            item.p.id === inspectingPlaceholder.p.id && 
+            item.partIndex === inspectingPlaceholder.partIndex
+        );
+        
+        // If we can't find current, default to first or stay put
+        if (currentIndex === -1) return;
+        
+        let nextIndex;
+        if (direction === 'next') {
+            nextIndex = (currentIndex + 1) % all.length;
+        } else {
+            nextIndex = (currentIndex - 1 + all.length) % all.length;
+        }
+        
+        const nextItem = all[nextIndex];
+        setInspectingPlaceholder(nextItem);
+        setActivePlaceholderId(nextItem.p.id);
+        
+        // Scroll and highlight
+        setTimeout(() => {
+            const el = document.querySelector(`[data-placeholder-id="${nextItem.p.id}"]`);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.classList.add('animate-pulse');
+                setTimeout(() => el.classList.remove('animate-pulse'), 1500);
+            }
+        }, 100);
+    };
+
     // Render a placeholder chip within text
     const renderPlaceholder = (section: DocumentSection, p: PlaceholderSuggestion, partIndex: number) => {
         const isEditing = editingPlaceholder?.sectionId === section.id && editingPlaceholder?.placeholderId === p.id && editingPlaceholder?.partIndex === partIndex;
@@ -997,167 +1053,42 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
             );
         }
 
-        const isHighConfidence = p.confidenceScore !== undefined && p.confidenceScore >= 0.9;
-        const displayScore = p.confidenceScore !== undefined ? Math.round(p.confidenceScore * 100) : null;
+        const score = p.confidenceScore !== undefined ? p.confidenceScore * 100 : 0;
+        let statusClasses = 'border-l-gray-300 bg-gray-50';
+        
+        if (p.confidenceScore !== undefined) {
+             if (score > 85) statusClasses = 'border-l-green-500 bg-green-50/50';
+             else if (score >= 60) statusClasses = 'border-l-orange-500 bg-orange-50/50';
+             else statusClasses = 'border-l-red-500 bg-red-50/50';
+        }
+
+        if (p.isApproved) {
+            statusClasses = 'border-l-blue-500 bg-blue-50/80';
+        }
+
+        const isActive = sidebarMode === 'confidence' && inspectingPlaceholder?.sectionId === section.id && inspectingPlaceholder?.p.id === p.id && inspectingPlaceholder?.partIndex === partIndex;
 
         return (
             <span
                 key={`${p.id}-${partIndex}`}
                 data-placeholder-id={p.id}
                 className={`
-                    inline-block align-baseline relative group/placeholder mx-1 px-2 py-0.5 rounded-md border-2 transition-all duration-300
-                    ${p.isApproved 
-                        ? 'bg-blue-50 border-blue-400 text-blue-800 cursor-default shadow-sm' 
-                        : isHighConfidence
-                            ? 'bg-green-50 border-green-300 border-dashed hover:border-green-500 text-green-700 animate-pulse-subtle cursor-pointer hover:scale-[1.02] active:scale-[0.98]'
-                            : 'bg-orange-50 border-orange-300 border-dashed hover:border-orange-500 text-orange-700 animate-pulse-subtle cursor-pointer hover:scale-[1.02] active:scale-[0.98]'
-                    }
+                    inline-block align-baseline relative mx-1 px-2 py-1 rounded-sm border-l-4 transition-all duration-200 cursor-pointer 
+                    hover:brightness-95 active:scale-95
+                    ${statusClasses}
+                    ${isActive ? 'ring-2 ring-blue-500 bg-blue-50 shadow-md shadow-blue-100 z-10' : ''}
                 `}
                 contentEditable={false}
                 onClick={(e) => {
-                    // Don't enter edit mode if we just interacted with the reasoning panel or tooltip buttons
-                    if (reasoningOpenFor === p.id) return;
-                    if ((e.target as HTMLElement).closest('button')) return;
-                    if ((e.target as HTMLElement).closest('[data-reasoning-panel]')) return;
-                    !isReadOnly && !p.isApproved && setEditingPlaceholder({ sectionId: section.id, placeholderId: p.id, partIndex });
+                    e.stopPropagation();
+                    setInspectingPlaceholder({ sectionId: section.id, p, partIndex });
+                    setSidebarMode('confidence');
+                    setActivePlaceholderId(p.id);
                 }}
             >
-                {/* The Value */}
-                <span className="text-sm font-bold flex items-center">
-                    {p.currentValue || <span className="italic opacity-50">{p.label}</span>}
-                    {p.isApproved && <Check className="w-3 h-3 ml-1 text-blue-600" />}
+                <span className={`text-sm font-bold flex items-center gap-1.5 ${p.isApproved ? 'text-blue-700' : 'text-slate-700'}`}>
+                    {p.currentValue || <span className="italic opacity-40 font-medium">{p.label}</span>}
                 </span>
-
-                {/* Tooltip / Controls */}
-                <div className="hidden group-hover/placeholder:flex absolute bottom-full left-1/2 -translate-x-1/2 w-80 pb-2 z-[100] flex-col items-center animate-in fade-in zoom-in-95 duration-150">
-                    <div className="w-full bg-white rounded-xl shadow-2xl border border-gray-100 p-2 flex flex-col gap-2 relative ring-1 ring-black/5">
-                        <div className="flex items-center justify-between px-1 gap-2 min-h-[22px]">
-                            <div className="flex items-center gap-2 overflow-hidden flex-1">
-                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-tight truncate min-w-0 flex-1">
-                                    {p.label}
-                                </span>
-                                {displayScore !== null && (
-                                    <div className="flex items-center gap-1.5 shrink-0">
-                                        <div className={`px-2 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap shadow-sm ${isHighConfidence ? 'bg-green-100 text-green-700 border-green-200' : 'bg-orange-50 text-orange-700 border-orange-200'} border`}>
-                                            {displayScore}% {t.confidence || 'zekerheid'}
-                                        </div>
-                                        {p.confidenceReasoning && (
-                                            <button
-                                                onMouseDown={(e) => {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    setReasoningOpenFor(reasoningOpenFor === p.id ? null : p.id);
-                                                }}
-                                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                                                className={`p-0.5 rounded-full transition-all hover:scale-110 ${isHighConfidence ? 'text-green-500 hover:bg-green-100' : 'text-orange-500 hover:bg-orange-100'}`}
-                                                title="Bekijk AI redenering"
-                                            >
-                                                {isHighConfidence ? <Info className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                            {/* Trash button */}
-                            {!isReadOnly && !p.isApproved && (
-                                <button
-                                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); removePlaceholder(section.id, p.id); }}
-                                    onClick={(e) => { e.stopPropagation(); }}
-                                    className="p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors shrink-0"
-                                    title="Placeholder verwijderen"
-                                >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                            )}
-                        </div>
-                        
-                        <div className="flex gap-2 items-center">
-                            <button
-                                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleSourceClick(p.id); }}
-                                onClick={(e) => { e.stopPropagation(); }}
-                                className="flex-1 flex items-center justify-center px-3 py-1.5 bg-slate-100 rounded-lg text-xs font-semibold hover:bg-slate-200 transition-all text-slate-600"
-                            >
-                                <Eye className="w-3.5 h-3.5 mr-1.5" /> {t.source}
-                            </button>
-                            {!isReadOnly && (
-                                <button
-                                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); toggleApprovePlaceholder(section.id, p.id); }}
-                                    onClick={(e) => { e.stopPropagation(); }}
-                                    className={`flex-1 flex items-center justify-center px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-all shadow-md active:scale-95
-                                        ${p.isApproved ? 'bg-red-500 hover:bg-red-600 shadow-red-500/10' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/10'}
-                                    `}
-                                >
-                                    {p.isApproved ? <X className="w-3.5 h-3.5 mr-1.5" /> : <Check className="w-3.5 h-3.5 mr-1.5" />}
-                                    {p.isApproved ? t.reject : t.approve}
-                                </button>
-                            )}
-                        </div>
-                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-white"></div>
-                    </div>
-                </div>
-
-                {/* AI Reasoning Overlay — rendered OUTSIDE the hover tooltip, as a fixed card */}
-                {reasoningOpenFor === p.id && p.confidenceReasoning && (
-                    <>
-                        {/* Backdrop to close on outside click */}
-                        <div 
-                            className="fixed inset-0 z-[200]"
-                            onClick={(e) => { e.stopPropagation(); setReasoningOpenFor(null); }}
-                        />
-                        <div 
-                            data-reasoning-panel
-                            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 w-72 z-[201] animate-in fade-in zoom-in-95 duration-200"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <div className="bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden ring-1 ring-black/5">
-                                {/* Header */}
-                                <div className="flex items-center justify-between px-3 py-2 bg-slate-50 border-b border-gray-100">
-                                    <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
-                                        <Wand2 className="w-3.5 h-3.5 text-blue-500" />
-                                        {t.ai_reasoning || 'AI Redenering'}
-                                    </div>
-                                    <button 
-                                        onClick={(e) => { e.stopPropagation(); setReasoningOpenFor(null); }}
-                                        className="p-0.5 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
-                                    >
-                                        <X className="w-3.5 h-3.5" />
-                                    </button>
-                                </div>
-                                {/* Body */}
-                                <div className="px-3 py-2.5 text-xs text-slate-600 leading-relaxed">
-                                    {p.confidenceReasoning}
-                                </div>
-                                {/* Conflict Warning */}
-                                {p.conflictingSources && p.conflictingSources.length > 0 && (
-                                    <div className="px-3 py-2 bg-orange-50 border-t border-orange-100 flex items-start gap-2">
-                                        <AlertCircle className="w-3.5 h-3.5 text-orange-500 shrink-0 mt-0.5" />
-                                        <div className="text-[11px] text-orange-700 font-medium">
-                                            {p.conflictingSources.length} tegenstrijdige {p.conflictingSources.length > 1 ? 'bronnen' : 'bron'} gevonden
-                                            {p.conflictingSources.map((c, i) => (
-                                                <div key={i} className="mt-1 text-orange-600 font-normal">
-                                                    → Andere waarde: <strong>{c.value}</strong>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                                {/* Score Bar */}
-                                <div className="px-3 py-2 bg-gray-50 border-t border-gray-100">
-                                    <div className="flex items-center justify-between text-[10px] text-slate-500 mb-1">
-                                        <span>Zekerheidsgraad</span>
-                                        <span className={`font-bold ${isHighConfidence ? 'text-green-600' : 'text-orange-600'}`}>{displayScore}%</span>
-                                    </div>
-                                    <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                                        <div 
-                                            className={`h-full rounded-full transition-all duration-500 ${isHighConfidence ? 'bg-green-500' : 'bg-orange-500'}`}
-                                            style={{ width: `${displayScore}%` }}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </>
-                )}
             </span>
         );
     };
@@ -1172,7 +1103,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
             // Also strip the placeholder tag from the content so it doesn't reappear on re-render
             const newContent = (s.content || '')
                 .replace(new RegExp(`\\[\\[${placeholderId}\\]\\]`, 'g'), '')
-                .replace(new RegExp(`\\[placeholder:${placeholderId}\\]`, 'g'), '');
+                .replace(new RegExp(`\\[placeholder:${placeholderId}(?::[A-Za-z0-9_]+)?\\]`, 'g'), '');
             const allApproved = newPlaceholders.length > 0 && newPlaceholders.every(p => p.isApproved);
             return { ...s, content: newContent, placeholders: newPlaceholders, isApproved: allApproved };
         }));
@@ -1284,24 +1215,22 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                         </div>
                     </div>
 
-                    <button
-                        onClick={() => {
-                            const newMode = sidebarMode === 'checklist' ? 'none' : 'checklist';
-                            setSidebarMode(newMode);
-                            if (newMode !== 'none') setSplitScreen(false);
-                        }}
+                            <button
+                                onClick={() => {
+                                    const newMode = sidebarMode === 'checklist' ? 'none' : 'checklist';
+                                    setSidebarMode(newMode);
+                                }}
                         className={`p-2 rounded-lg transition-colors border ${sidebarMode === 'checklist' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'border-transparent hover:bg-gray-100 text-slate-600'}`}
                         title={t.validationChecklist}
                     >
                         <ListChecks className="w-5 h-5" />
                     </button>
 
-                    <button
-                        onClick={() => {
-                            const newMode = sidebarMode === 'ai' ? 'none' : 'ai';
-                            setSidebarMode(newMode);
-                            if (newMode !== 'none') setSplitScreen(false);
-                        }}
+                            <button
+                                onClick={() => {
+                                    const newMode = sidebarMode === 'ai' ? 'none' : 'ai';
+                                    setSidebarMode(newMode);
+                                }}
                         className={`p-2 rounded-lg transition-colors border ${sidebarMode === 'ai' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'border-transparent hover:bg-gray-100 text-slate-600'}`}
                         title={t.aiAssistant}
                     >
@@ -1369,15 +1298,15 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                                     <div
                                                         key={`${section.id}-v${contentRenderKeys.current[section.id] || 0}`}
                                                         className={`text-base text-justify text-slate-700 outline-none rounded p-1 -ml-1 min-h-[1.5em] whitespace-pre-wrap ${!isReadOnly ? 'focus:ring-2 focus:ring-blue-100' : ''}`}
-                                                        contentEditable={!editingPlaceholder && !isReadOnly}
+                                                        contentEditable={!isReadOnly}
                                                         suppressContentEditableWarning
                                                         onBlur={(e) => handleContentBlur(section.id, e)}
                                                         onKeyDown={(e) => handleContentKeyDown(e, section.id)}
                                                         onBeforeInput={handleContentBeforeInput}
                                                         onInput={(e) => handlePlaceholderInput(e, section.id)}
                                                     >
-                                                        {(section.content || '').split(/(\[\[[A-Za-z0-9_]+\]\]|\[placeholder:[A-Za-z0-9_]+\])/g).map((part, i) => {
-                                                            const match = part.match(/\[\[([A-Za-z0-9_]+)\]\]|\[placeholder:([A-Za-z0-9_]+)\]/);
+                                                        {(section.content || '').split(/(\[\[[A-Za-z0-9_]+\]\]|\[placeholder:[A-Za-z0-9_]+(?::[A-Za-z0-9_]+)?\])/g).map((part, i) => {
+                                                            const match = part.match(/\[\[([A-Za-z0-9_]+)\]\]|\[placeholder:([A-Za-z0-9_]+)(?::[A-Za-z0-9_]+)?\]/);
                                                             if (match) {
                                                                 const placeholderId = match[1] || match[2];
                                                                 const p = section.placeholders.find(ph => ph.id.toLowerCase() === placeholderId.toLowerCase());
@@ -1625,11 +1554,32 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                 {sidebarMode !== 'none' && (
                     <div className="shrink-0 w-80 bg-white border-l border-gray-200 shadow-2xl z-30 flex flex-col animate-in slide-in-from-right duration-300 relative">
                         <div className="h-14 flex items-center justify-between px-4 border-b border-gray-200 shrink-0">
-                            <h3 className="font-bold text-slate-900 flex items-center">
-                                {sidebarMode === 'ai' ? <Wand2 className="w-4 h-4 mr-2 text-blue-600" /> : <ListChecks className="w-4 h-4 mr-2 text-blue-600" />}
-                                {sidebarMode === 'ai' ? t.aiAssistant : t.validationChecklist}
+                            <h3 className="font-bold text-slate-900 flex items-center flex-1">
+                                {sidebarMode === 'ai' && <Wand2 className="w-4 h-4 mr-2 text-blue-600" />}
+                                {sidebarMode === 'checklist' && <ListChecks className="w-4 h-4 mr-2 text-blue-600" />}
+                                {sidebarMode === 'confidence' && <AlertCircle className="w-4 h-4 mr-2 text-blue-600" />}
+                                {sidebarMode === 'ai' ? t.aiAssistant : sidebarMode === 'checklist' ? t.validationChecklist : 'Zekerheidsscore'}
+                                
+                                {sidebarMode === 'confidence' && inspectingPlaceholder && (
+                                    <div className="flex items-center gap-1 ml-auto mr-2">
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); navigatePlaceholder('prev'); }}
+                                            className="p-1 hover:bg-gray-100 rounded text-slate-400 hover:text-blue-600 transition-colors"
+                                            title="Vorige placeholder"
+                                        >
+                                            <ChevronRight className="w-4 h-4 rotate-180" />
+                                        </button>
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); navigatePlaceholder('next'); }}
+                                            className="p-1 hover:bg-gray-100 rounded text-slate-400 hover:text-blue-600 transition-colors"
+                                            title="Volgende placeholder"
+                                        >
+                                            <ChevronRight className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                )}
                             </h3>
-                            <button onClick={() => setSidebarMode('none')} className="text-slate-400 hover:text-slate-900 p-1 hover:bg-gray-100 rounded">
+                            <button onClick={() => { setSidebarMode('none'); setInspectingPlaceholder(null); }} className="text-slate-400 hover:text-slate-900 p-1 hover:bg-gray-100 rounded">
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
@@ -1656,10 +1606,13 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                                     .map(p => {
                                                         const group = s.placeholders.filter(t => t.label === p.label);
                                                         const isAllApproved = group.every(t => t.isApproved);
-                                                        const isHighConfidence = p.confidenceScore !== undefined && p.confidenceScore >= 0.9;
+                                                        const isHighConfidence = p.confidenceScore !== undefined && p.confidenceScore >= 0.85;
                                                         
                                                         return (
-                                                            <div key={p.label} className="flex items-center justify-between text-xs py-1 hover:bg-gray-50 px-2 rounded cursor-pointer" onClick={() => handleSourceClick(p.id)}>
+                                                            <div key={p.label} className="flex items-center justify-between text-xs py-1 hover:bg-gray-50 px-2 rounded cursor-pointer" onClick={() => {
+                                                                setInspectingPlaceholder({ sectionId: s.id, p });
+                                                                setSidebarMode('confidence');
+                                                            }}>
                                                                 <div className="flex items-center gap-2 overflow-hidden">
                                                                     <div className={`w-2 h-2 rounded-full shrink-0 ${isAllApproved ? 'bg-blue-500' : (isHighConfidence ? 'bg-green-500' : 'bg-orange-500 animate-pulse')}`} />
                                                                     <span className={`truncate ${isAllApproved ? "text-slate-500 line-through decoration-blue-500" : "text-slate-600 font-medium"}`}>{p.label}</span>
@@ -1677,6 +1630,116 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                             </div>
                                         </div>
                                     ))}
+                                </div>
+                            ) : sidebarMode === 'confidence' && inspectingPlaceholder ? (
+                                <div className="flex flex-col h-full bg-white">
+                                    <div className="flex-1 overflow-y-auto scrollbar-hide">
+                                        <div className="mb-6">
+                                            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">{inspectingPlaceholder.p.label}</h4>
+                                            <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 shadow-sm transition-all hover:shadow-md">
+                                                <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">Huidige waarde</div>
+                                                <div className="text-lg font-bold text-slate-800 break-words leading-tight">
+                                                    {inspectingPlaceholder.p.currentValue || <span className="italic text-slate-300 font-normal">Geen waarde gevonden...</span>}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="mb-8">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Zekerheid</h4>
+                                                <span className={`text-sm font-bold ${
+                                                    (inspectingPlaceholder.p.confidenceScore || 0) > 0.85 ? 'text-green-600' :
+                                                    (inspectingPlaceholder.p.confidenceScore || 0) >= 0.6 ? 'text-orange-600' : 'text-red-600'
+                                                }`}>
+                                                    {Math.round((inspectingPlaceholder.p.confidenceScore || 0) * 100)}%
+                                                </span>
+                                            </div>
+                                            <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden shadow-inner border border-slate-200/50">
+                                                <div 
+                                                    className={`h-full transition-all duration-1000 ease-out rounded-full ${
+                                                        (inspectingPlaceholder.p.confidenceScore || 0) > 0.85 ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' :
+                                                        (inspectingPlaceholder.p.confidenceScore || 0) >= 0.6 ? 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.4)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]'
+                                                    }`}
+                                                    style={{ width: `${(inspectingPlaceholder.p.confidenceScore || 0) * 100}%` }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {inspectingPlaceholder.p.confidenceReasoning && (
+                                            <div className="mb-8">
+                                                <h4 className="flex items-center text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                                                    <Wand2 className="w-3 h-3 mr-1.5 text-blue-500" />
+                                                    AI Redenering
+                                                </h4>
+                                                <div className="text-sm text-slate-600 leading-relaxed p-4 bg-white rounded-xl border border-slate-200 shadow-sm italic">
+                                                    “{inspectingPlaceholder.p.confidenceReasoning}”
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {inspectingPlaceholder.p.conflictingSources && inspectingPlaceholder.p.conflictingSources.length > 0 && (
+                                            <div className="mb-8">
+                                                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Mogelijke Conflicten</h4>
+                                                <div className="space-y-3">
+                                                    {inspectingPlaceholder.p.conflictingSources.map((conflict, idx) => (
+                                                        <div key={idx} className="p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3 shadow-sm animate-pulse-subtle">
+                                                            <div className="p-1.5 bg-red-100 rounded-lg">
+                                                                <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                                                            </div>
+                                                            <div>
+                                                                <div className="text-[10px] font-bold text-red-800 uppercase tracking-wider mb-0.5">Tegenstrijdige waarde</div>
+                                                                <div className="text-sm font-bold text-red-700">“{conflict.value}”</div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <button
+                                            onClick={() => handleSourceClick(inspectingPlaceholder.p.id)}
+                                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-500 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50/30 transition-all shadow-sm"
+                                        >
+                                            <Eye className="w-4 h-4" />
+                                            Bekijk Bronbestand
+                                        </button>
+                                    </div>
+
+                                    <div className="mt-auto pt-6 border-t border-slate-200 flex flex-col gap-3 bg-white shrink-0">
+                                        <button 
+                                            onClick={() => {
+                                                setEditingPlaceholder({ 
+                                                    sectionId: inspectingPlaceholder.sectionId, 
+                                                    placeholderId: inspectingPlaceholder.p.id,
+                                                    partIndex: inspectingPlaceholder.partIndex
+                                                });
+                                            }}
+                                            className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all"
+                                        >
+                                            <Edit2 className="w-4 h-4 text-slate-400" />
+                                            {t.edit || 'Bewerken'}
+                                        </button>
+                                        <button 
+                                            onClick={() => {
+                                                const wasApproved = inspectingPlaceholder.p.isApproved;
+                                                toggleApprovePlaceholder(inspectingPlaceholder.sectionId, inspectingPlaceholder.p.id);
+                                                
+                                                // Auto-advance if we just approved it
+                                                if (!wasApproved) {
+                                                    setTimeout(() => navigatePlaceholder('next'), 100);
+                                                } else {
+                                                    // Just update the local state for current view if rejecting
+                                                    setInspectingPlaceholder(prev => prev ? { ...prev, p: { ...prev.p, isApproved: false } } : null);
+                                                }
+                                            }}
+                                            className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold text-white shadow-lg transition-all active:scale-95 ${
+                                                inspectingPlaceholder.p.isApproved ? 'bg-red-500 hover:bg-red-600 shadow-red-200' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'
+                                            }`}
+                                        >
+                                            {inspectingPlaceholder.p.isApproved ? <X className="w-4 h-4" /> : <Check className="w-4 h-4" />}
+                                            {inspectingPlaceholder.p.isApproved ? (t.reject || 'Markeer als Onzeker') : (t.approve || 'Goedkeuren')}
+                                        </button>
+                                    </div>
                                 </div>
                             ) : (
                                 // AI Chat Interface

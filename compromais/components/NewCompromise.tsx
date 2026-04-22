@@ -27,9 +27,7 @@ export const NewCompromise: React.FC<NewCompromiseProps> = ({ lang, onCancel, on
   // Get translated document checklist
   const requiredDocs = getDocumentChecklist(lang);
 
-  // Get the translated "Mandatory certificates" category name for default expansion
-  const mandatoryCertsCategoryName = requiredDocs.find(doc => doc.id === 'epc')?.category || '';
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set([mandatoryCertsCategoryName]));
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
