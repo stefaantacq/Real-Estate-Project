@@ -26,6 +26,8 @@ server/debug_*
 server/test_*
 server/*.txt
 server/*.json
+!server/package.json
+!server/package-lock.json
 server/*.docx
 server/schema_dump.txt
 
