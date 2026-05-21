@@ -195,15 +195,17 @@ async function createTableIfMissing(pool, tableName, createSql) {
 
 async function fixPlaceholderPasswords(pool) {
     try {
+        // Fix accounts where password_hash is a known placeholder ('hash', empty)
+        // OR where it is not a valid bcrypt hash (doesn't start with $2)
         const [rows] = await pool.query(
-            `SELECT account_id FROM Account WHERE password_hash = 'hash' OR password_hash = '' LIMIT 10`
+            `SELECT account_id FROM Account WHERE password_hash NOT LIKE '$2%' OR password_hash = '' LIMIT 10`
         );
         if (rows.length === 0) return;
         const hash = await bcrypt.hash('admin', 10);
         for (const row of rows) {
             await pool.query('UPDATE Account SET password_hash = ? WHERE account_id = ?', [hash, row.account_id]);
         }
-        console.log(`[Migration] Fixed placeholder password for ${rows.length} account(s). Default password: admin`);
+        console.log(`[Migration] Fixed invalid password hash for ${rows.length} account(s). Default password: admin`);
     } catch (err) {
         console.warn('[Migration] Could not fix placeholder passwords:', err.message);
     }
