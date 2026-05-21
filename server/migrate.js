@@ -67,6 +67,9 @@ async function runMigrations() {
     // 6. AangepasteSectie → VersieSectie
     await renameTableIfExists(p, 'AangepasteSectie', 'VersieSectie');
 
+    // 6b. SectiePlaceholder → Placeholder (renamed in codebase)
+    await renameTableIfExists(p, 'SectiePlaceholder', 'Placeholder');
+
     // 7. AangepastePlaceholder → Aangepaste_Placeholder
     await renameTableIfExists(p, 'AangepastePlaceholder', 'Aangepaste_Placeholder');
 
@@ -113,7 +116,11 @@ async function runMigrations() {
     await addColumnIfMissing(p, 'Versie', 'is_bookmarked',
         'ALTER TABLE Versie ADD COLUMN is_bookmarked BOOLEAN DEFAULT FALSE');
 
-    // 13. VersiePlaceholder: new table for per-version placeholder snapshots
+    // 13. Template: add account_id for custom (per-account) templates
+    await addColumnIfMissing(p, 'Template', 'account_id',
+        'ALTER TABLE Template ADD COLUMN account_id INT DEFAULT NULL');
+
+    // 14. VersiePlaceholder: new table for per-version placeholder snapshots
     await createTableIfMissing(p, 'VersiePlaceholder', `
         CREATE TABLE VersiePlaceholder (
             id INT NOT NULL AUTO_INCREMENT,
