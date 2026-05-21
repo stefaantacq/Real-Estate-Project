@@ -149,10 +149,11 @@ const initializeVersionFromTemplate = async (versie_id, template_id, dossier_id,
         `, [ts.sectie_id]);
 
         for (const tp of templatePlaceholders) {
-            const [existing] = await pool.query('SELECT 1 FROM Aangepaste_Placeholder WHERE verkoopsovereenkomst_id = ? AND placeholder_id = ?', [verkoopsovereenkomstId, tp.placeholder_id]);
+            const [existing] = await pool.query('SELECT 1 FROM Aangepaste_Placeholder WHERE dossier_id = ? AND placeholder_id = ?', [dossier_id, tp.placeholder_id]);
             if (existing.length > 0) {
                 await pool.query(
-                    'UPDATE Aangepaste_Placeholder SET aangepaste_sectie_id = ? WHERE verkoopsovereenkomst_id = ? AND placeholder_id = ?', [aangepasteSectieId, verkoopsovereenkomstId, tp.placeholder_id]
+                    'UPDATE Aangepaste_Placeholder SET aangepaste_sectie_id = ?, verkoopsovereenkomst_id = ? WHERE dossier_id = ? AND placeholder_id = ?',
+                    [aangepasteSectieId, verkoopsovereenkomstId, dossier_id, tp.placeholder_id]
                 );
             } else {
                 await pool.query(
@@ -373,13 +374,15 @@ const processDossierDocuments = async (dossierId, files, customPrompt = null, te
             f.mimetype === 'application/msword'
         );
 
-        // Process ALL documents in parallel with targeted fields per document
-        const filePromises = supportedFiles.map(file => {
+        // Process documents sequentially to stay within Railway memory limits
+        const results = [];
+        for (const file of supportedFiles) {
             const { tags, contexts } = getTargetedFieldsForDocument(file.originalname, allTags, allContexts);
-            return processSingleFile(file, tags, contexts, customPrompt, dossierId);
-        });
-
-        const results = await Promise.allSettled(filePromises);
+            const result = await processSingleFile(file, tags, contexts, customPrompt, dossierId)
+                .then(value => ({ status: 'fulfilled', value }))
+                .catch(reason => ({ status: 'rejected', reason }));
+            results.push(result);
+        }
 
         // Merge results: combine extracted data, preferring first non-empty value per key
         // NEW: Also track multiple findings for consistency calculation
