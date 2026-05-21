@@ -101,9 +101,13 @@ async function runMigrations() {
     await addColumnIfMissing(p, 'Documenten', 'bestandsnaam',
         'ALTER TABLE Documenten ADD COLUMN bestandsnaam VARCHAR(512) DEFAULT NULL');
 
-    // 12. Dossier: add display_order for manual sort
+    // 12. Dossier: missing columns
     await addColumnIfMissing(p, 'Dossier', 'display_order',
         'ALTER TABLE Dossier ADD COLUMN display_order INT DEFAULT NULL');
+    await addColumnIfMissing(p, 'Dossier', 'last_opened',
+        'ALTER TABLE Dossier ADD COLUMN last_opened TIMESTAMP NULL DEFAULT NULL');
+    await addColumnIfMissing(p, 'Dossier', 'created_at',
+        'ALTER TABLE Dossier ADD COLUMN created_at TIMESTAMP NULL DEFAULT NULL');
 
     // 12. Versie: add is_bookmarked
     await addColumnIfMissing(p, 'Versie', 'is_bookmarked',
