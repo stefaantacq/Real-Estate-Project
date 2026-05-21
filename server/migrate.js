@@ -103,6 +103,10 @@ async function runMigrations() {
     // 11. Documenten: add bestandsnaam column used by upload code
     await addColumnIfMissing(p, 'Documenten', 'bestandsnaam',
         'ALTER TABLE Documenten ADD COLUMN bestandsnaam VARCHAR(512) DEFAULT NULL');
+    // bestandstype VARCHAR(50) is too short for DOCX MIME types (71 chars)
+    await pool.query(
+        `ALTER TABLE Documenten MODIFY COLUMN bestandstype VARCHAR(255) DEFAULT NULL`
+    ).catch(() => {});
 
     // 12. Dossier: missing columns
     await addColumnIfMissing(p, 'Dossier', 'display_order',
