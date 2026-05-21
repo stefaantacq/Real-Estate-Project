@@ -177,9 +177,11 @@ app.get('/api/documents/preview/:filename', async (req, res, next) => {
         
         const ext = path.extname(filePath).toLowerCase();
         if (ext === '.docx' || ext === '.doc') {
-            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-            res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
-            return res.sendFile(filePath);
+            const mammoth = require('mammoth');
+            const result = await mammoth.convertToHtml({ path: filePath });
+            const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;padding:2rem;max-width:800px;margin:0 auto;line-height:1.6;}table{border-collapse:collapse;width:100%;}td,th{border:1px solid #ccc;padding:6px 10px;}</style></head><body>${result.value}</body></html>`;
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            return res.send(html);
         }
         
         // Map extensions to content types

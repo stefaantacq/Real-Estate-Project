@@ -11,7 +11,6 @@ import { api } from '../services/api';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
-import { renderAsync } from 'docx-preview';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
@@ -23,23 +22,6 @@ interface DossierOverviewProps {
    onCompare: (id: string) => void;
 }
 
-const DocxPreview: React.FC<{ url: string }> = ({ url }) => {
-   const containerRef = React.useRef<HTMLDivElement>(null);
-   const [error, setError] = React.useState<string | null>(null);
-
-   React.useEffect(() => {
-      if (!containerRef.current) return;
-      containerRef.current.innerHTML = '';
-      setError(null);
-      fetch(url)
-         .then(r => r.arrayBuffer())
-         .then(buf => renderAsync(buf, containerRef.current!, undefined, { className: 'docx-preview-body' }))
-         .catch(() => setError('Fout bij het laden van het document.'));
-   }, [url]);
-
-   if (error) return <div className="p-4 text-red-500 font-medium">{error}</div>;
-   return <div ref={containerRef} className="w-full bg-white px-8 py-6" />;
-};
 
 export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, onOpenEditor, onOpenCollabora, onCompare }) => {
    const t = TRANSLATIONS[lang];
@@ -1201,7 +1183,12 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                                />
                             </div>
                          ) : /\.(docx|doc)($|\?|#)/i.test(selectedDocument.path || '') ? (
-                            <DocxPreview url={selectedDocument.path} />
+                            <iframe
+                               src={selectedDocument.path}
+                               className="w-full h-full border-0 min-h-[600px]"
+                               title={selectedDocument?.name}
+                               sandbox="allow-same-origin"
+                            />
                          ) : (
                             <Document
                                file={selectedDocument.path}
