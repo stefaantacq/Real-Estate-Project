@@ -237,6 +237,17 @@ async function startServer() {
         process.exit(1);
     }
 
+    // ── 1b. Migrations ────────────────────────────────────────────────────────
+    console.log('[Startup] Step 1b — Running database migrations…');
+    try {
+        const { runMigrations } = require('./migrate');
+        await runMigrations();
+    } catch (err) {
+        console.error('[Startup] Migration failed:', err.message);
+        console.error(err.stack);
+        process.exit(1);
+    }
+
     // ── 2. Route / middleware sanity check ────────────────────────────────────
     // Any synchronous require() errors in route files would have already thrown
     // at the top of this file, but we log a checkpoint here for clarity.
