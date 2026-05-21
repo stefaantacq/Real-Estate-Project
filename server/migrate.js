@@ -124,7 +124,16 @@ async function runMigrations() {
     await addColumnIfMissing(p, 'Versie', 'is_bookmarked',
         'ALTER TABLE Versie ADD COLUMN is_bookmarked BOOLEAN DEFAULT FALSE');
 
-    // 13. Template: rename English column names to Dutch + add account_id
+    // 13. Sectie.tekst_content: TEXT (64KB) is too small for full contract sections
+    await pool.query(
+        `ALTER TABLE Sectie MODIFY COLUMN tekst_content MEDIUMTEXT`
+    ).catch(() => {});
+    // VersieSectie.tekst_inhoud: same issue
+    await pool.query(
+        `ALTER TABLE VersieSectie MODIFY COLUMN tekst_inhoud MEDIUMTEXT`
+    ).catch(() => {});
+
+    // 14. Template: rename English column names to Dutch + add account_id
     await renameColumnIfExists(p, 'Template', 'title', 'titel');
     await renameColumnIfExists(p, 'Template', 'description', 'beschrijving');
     await addColumnIfMissing(p, 'Template', 'account_id',
