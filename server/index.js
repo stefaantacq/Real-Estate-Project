@@ -32,6 +32,11 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 app.set('upload', upload); // Make it accessible in routes
 
+// Health check
+app.get('/', (req, res) => {
+    res.status(200).json({ status: 'ok' });
+});
+
 // Routes
 const authRoutes = require('./routes/authRoutes');
 const dossierRoutes = require('./routes/dossierRoutes');
