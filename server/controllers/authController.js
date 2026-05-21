@@ -28,6 +28,12 @@ const authController = {
                 [name, email, hashedPassword]
             );
 
+            // Seed demo data from dev account — fire-and-forget
+            const { seedDemoData } = require('../services/seedService');
+            seedDemoData(result.insertId).catch(err =>
+                console.error('[Seed] Error seeding demo data:', err.message)
+            );
+
             res.status(201).json({
                 message: 'Account succesvol aangemaakt',
                 userId: result.insertId

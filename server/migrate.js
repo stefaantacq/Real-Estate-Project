@@ -97,7 +97,11 @@ async function runMigrations() {
     // 10. Versie.overeenkomst_id → verkoopsovereenkomst_id (the FK column itself)
     await renameColumnIfExists(p, 'Versie', 'overeenkomst_id', 'verkoopsovereenkomst_id');
 
-    // 11. Dossier: add display_order for manual sort
+    // 11. Documenten: add bestandsnaam column used by upload code
+    await addColumnIfMissing(p, 'Documenten', 'bestandsnaam',
+        'ALTER TABLE Documenten ADD COLUMN bestandsnaam VARCHAR(512) DEFAULT NULL');
+
+    // 12. Dossier: add display_order for manual sort
     await addColumnIfMissing(p, 'Dossier', 'display_order',
         'ALTER TABLE Dossier ADD COLUMN display_order INT DEFAULT NULL');
 
