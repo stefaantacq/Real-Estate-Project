@@ -7,6 +7,36 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 
+// ─── Process-level safety nets ────────────────────────────────────────────────
+// These must be registered as early as possible so nothing slips through.
+
+process.on('uncaughtException', (err) => {
+    console.error('[FATAL] Uncaught Exception — the process will exit.');
+    console.error('[FATAL] Error name   :', err.name);
+    console.error('[FATAL] Error message:', err.message);
+    console.error('[FATAL] Stack trace  :\n', err.stack);
+    try {
+        fs.appendFileSync(
+            path.join(__dirname, 'error.log'),
+            `[${new Date().toISOString()}] UNCAUGHT EXCEPTION\n${err.stack}\n`
+        );
+    } catch (_) { /* best-effort */ }
+    process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    const message = reason instanceof Error ? reason.stack : String(reason);
+    console.error('[FATAL] Unhandled Promise Rejection.');
+    console.error('[FATAL] Reason:', message);
+    try {
+        fs.appendFileSync(
+            path.join(__dirname, 'error.log'),
+            `[${new Date().toISOString()}] UNHANDLED REJECTION\n${message}\n`
+        );
+    } catch (_) { /* best-effort */ }
+    // Do NOT exit here — log and keep running so the startup sequence can finish.
+});
+
 // Ensure uploads directory exists
 const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) {
@@ -179,20 +209,71 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3000;
 
 async function startServer() {
+    console.log('[Startup] startServer() called — beginning initialisation sequence.');
+
+    // ── 1. Database ────────────────────────────────────────────────────────────
+    console.log('[Startup] Step 1/3 — Testing database connection…');
     try {
         await testConnection();
+        console.log('[Startup] Step 1/3 — Database connection OK.');
     } catch (err) {
-        console.error('[Startup] Database connection failed — server will not start.');
-        console.error('[Startup]', err.message);
+        console.error('[Startup] Step 1/3 — Database connection FAILED. Server will not start.');
+        console.error('[Startup] Error name   :', err.name);
+        console.error('[Startup] Error message:', err.message);
+        console.error('[Startup] Stack trace  :\n', err.stack);
         process.exit(1);
     }
 
-    app.listen(PORT, '0.0.0.0', () => {
+    // ── 2. Route / middleware sanity check ────────────────────────────────────
+    // Any synchronous require() errors in route files would have already thrown
+    // at the top of this file, but we log a checkpoint here for clarity.
+    console.log('[Startup] Step 2/3 — Routes and middleware loaded successfully.');
+
+    // ── 3. HTTP server ────────────────────────────────────────────────────────
+    console.log(`[Startup] Step 3/3 — Calling app.listen() on 0.0.0.0:${PORT}…`);
+
+    const server = app.listen(PORT, '0.0.0.0', () => {
+        console.log(`[Startup] ✓ app.listen() callback fired — server is accepting connections on port ${PORT}.`);
         console.log(`Server running on port ${PORT}`);
     });
+
+    server.on('error', (err) => {
+        console.error('[Startup] HTTP server emitted an error event:');
+        console.error('[Startup] Error name   :', err.name);
+        console.error('[Startup] Error message:', err.message);
+        console.error('[Startup] Stack trace  :\n', err.stack);
+        process.exit(1);
+    });
+
+    // ── 4. Liveness timeout ───────────────────────────────────────────────────
+    // If the listen callback has not fired within 5 seconds something is wrong.
+    const LIVENESS_TIMEOUT_MS = 5000;
+    let listenCallbackFired = false;
+
+    server.once('listening', () => {
+        listenCallbackFired = true;
+    });
+
+    setTimeout(() => {
+        if (!listenCallbackFired) {
+            console.warn(
+                `[Startup] WARNING — app.listen() callback has NOT fired after ${LIVENESS_TIMEOUT_MS / 1000}s. ` +
+                'The server may be stuck or the port may already be in use.'
+            );
+        }
+    }, LIVENESS_TIMEOUT_MS);
 }
 
 startServer().catch((err) => {
-    console.error('[Startup] Unexpected error during startup:', err);
+    console.error('[Startup] Unexpected top-level error during startup:');
+    console.error('[Startup] Error name   :', err.name);
+    console.error('[Startup] Error message:', err.message);
+    console.error('[Startup] Stack trace  :\n', err.stack);
+    try {
+        fs.appendFileSync(
+            path.join(__dirname, 'error.log'),
+            `[${new Date().toISOString()}] STARTUP ERROR\n${err.stack}\n`
+        );
+    } catch (_) { /* best-effort */ }
     process.exit(1);
 });
