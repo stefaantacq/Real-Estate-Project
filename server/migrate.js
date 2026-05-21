@@ -108,7 +108,11 @@ async function runMigrations() {
         `ALTER TABLE Documenten MODIFY COLUMN bestandstype VARCHAR(255) DEFAULT NULL`
     ).catch(() => {});
 
-    // 12. Dossier: missing columns
+    // 12. TimelineEvent: title→titel, description→beschrijving
+    await renameColumnIfExists(p, 'TimelineEvent', 'title', 'titel');
+    await renameColumnIfExists(p, 'TimelineEvent', 'description', 'beschrijving');
+
+    // 12b. Dossier: missing columns
     await addColumnIfMissing(p, 'Dossier', 'display_order',
         'ALTER TABLE Dossier ADD COLUMN display_order INT DEFAULT NULL');
     await addColumnIfMissing(p, 'Dossier', 'last_opened',
