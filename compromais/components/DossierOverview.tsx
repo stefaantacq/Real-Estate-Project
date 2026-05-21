@@ -11,6 +11,7 @@ import { api } from '../services/api';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
+import { renderAsync } from 'docx-preview';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
@@ -21,6 +22,24 @@ interface DossierOverviewProps {
    onOpenCollabora: (id: string) => void;
    onCompare: (id: string) => void;
 }
+
+const DocxPreview: React.FC<{ url: string }> = ({ url }) => {
+   const containerRef = React.useRef<HTMLDivElement>(null);
+   const [error, setError] = React.useState<string | null>(null);
+
+   React.useEffect(() => {
+      if (!containerRef.current) return;
+      containerRef.current.innerHTML = '';
+      setError(null);
+      fetch(url)
+         .then(r => r.arrayBuffer())
+         .then(buf => renderAsync(buf, containerRef.current!, undefined, { className: 'docx-preview-body' }))
+         .catch(() => setError('Fout bij het laden van het document.'));
+   }, [url]);
+
+   if (error) return <div className="p-4 text-red-500 font-medium">{error}</div>;
+   return <div ref={containerRef} className="w-full bg-white px-8 py-6" />;
+};
 
 export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, onOpenEditor, onOpenCollabora, onCompare }) => {
    const t = TRANSLATIONS[lang];
@@ -369,10 +388,6 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
       if (relativeUrl) {
          const filename = relativeUrl.split('/').pop() || relativeUrl;
          relativeUrl = relativeUrl.startsWith('http') ? relativeUrl : `/api/documents/preview/${filename}`;
-         const isWordDoc = (doc.path || '').toLowerCase().endsWith('.docx') || (doc.path || '').toLowerCase().endsWith('.doc');
-         if (isWordDoc && !relativeUrl.startsWith('http')) {
-             relativeUrl += '.pdf';
-         }
       }
 
       setSelectedDocument({ name: doc.name, path: relativeUrl });
@@ -978,9 +993,6 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                                  if (relativeUrl) {
                                     const filename = relativeUrl.split('/').pop() || relativeUrl;
                                     relativeUrl = relativeUrl.startsWith('http') ? relativeUrl : `/api/documents/preview/${filename}`;
-                                    if (!relativeUrl.toLowerCase().endsWith('.pdf') && !relativeUrl.startsWith('http')) {
-                                       relativeUrl += '.pdf';
-                                    }
                                  }
                                  if (relativeUrl) window.open(relativeUrl, '_blank');
                               }}
@@ -1180,14 +1192,16 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                <div className="max-w-4xl mx-auto w-full h-full bg-white shadow-2xl border border-gray-200 rounded-sm overflow-hidden relative group">
                   {selectedDocument?.path ? (
                       <div className="w-full h-full overflow-y-auto bg-slate-200 flex flex-col items-center py-6">
-                         {/\.(jpg|jpeg|png|gif|webp)(\.pdf)?($|\?|#)/i.test(selectedDocument.path || '') ? (
+                         {/\.(jpg|jpeg|png|gif|webp)($|\?|#)/i.test(selectedDocument.path || '') ? (
                             <div className="max-w-[90%] bg-white shadow-2xl rounded-lg p-2">
-                               <img 
-                                  src={selectedDocument.path} 
+                               <img
+                                  src={selectedDocument.path}
                                   alt={selectedDocument.name}
                                   className="w-full h-auto object-contain"
                                />
                             </div>
+                         ) : /\.(docx|doc)($|\?|#)/i.test(selectedDocument.path || '') ? (
+                            <DocxPreview url={selectedDocument.path} />
                          ) : (
                             <Document
                                file={selectedDocument.path}
@@ -1197,8 +1211,8 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                             >
                                {Array.from(new Array(numPages || 0), (el, index) => (
                                    <div key={`page_${index + 1}`} className="mb-6 shadow-2xl bg-white">
-                                       <Page 
-                                           pageNumber={index + 1} 
+                                       <Page
+                                           pageNumber={index + 1}
                                            width={Math.min(window.innerWidth * 0.45, 800)}
                                            renderTextLayer={true}
                                            renderAnnotationLayer={true}

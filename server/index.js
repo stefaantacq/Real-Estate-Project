@@ -177,12 +177,9 @@ app.get('/api/documents/preview/:filename', async (req, res, next) => {
         
         const ext = path.extname(filePath).toLowerCase();
         if (ext === '.docx' || ext === '.doc') {
-            const exportService = require('./services/exportService');
-            const fileBuffer = fs.readFileSync(filePath);
-            const pdfBuffer = await exportService.convertToPdf(fileBuffer);
-            res.setHeader('Content-Type', 'application/pdf');
-            res.setHeader('Content-Disposition', 'inline; filename="preview.pdf"');
-            return res.send(pdfBuffer);
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+            res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+            return res.sendFile(filePath);
         }
         
         // Map extensions to content types
