@@ -7,6 +7,57 @@ const uploadDir = path.join(__dirname, '../uploads');
 async function seedDemoData(newAccountId) {
     const { pool } = require('../config/db');
 
+    // ── Templates ──────────────────────────────────────────────────────────────
+    // Copy all Custom templates from the demo account to the new account,
+    // including their sections and placeholders.
+    const templateIdMap = {}; // old template_id → new template_id
+
+    const [demoTemplates] = await pool.query(
+        `SELECT * FROM Template WHERE account_id = ? AND source = 'Custom'`,
+        [DEMO_ACCOUNT_ID]
+    );
+
+    for (const tmpl of demoTemplates) {
+        const [tRes] = await pool.query(
+            `INSERT INTO Template (naam, titel, beschrijving, source, account_id,
+             is_ai_suggested, is_archived, type, created_at)
+             VALUES (?, ?, ?, 'Custom', ?, ?, ?, ?, NOW())`,
+            [tmpl.naam, tmpl.titel, tmpl.beschrijving, newAccountId,
+             tmpl.is_ai_suggested || false, tmpl.is_archived || false, tmpl.type || 'House']
+        );
+        const newTemplateId = tRes.insertId;
+        templateIdMap[tmpl.template_id] = newTemplateId;
+
+        const sectieIdMap = {};
+        const [sections] = await pool.query(
+            'SELECT * FROM Sectie WHERE template_id = ? ORDER BY volgorde ASC',
+            [tmpl.template_id]
+        );
+        for (const sec of sections) {
+            const [sRes] = await pool.query(
+                `INSERT INTO Sectie (template_id, titel, tekst_content, volgorde)
+                 VALUES (?, ?, ?, ?)`,
+                [newTemplateId, sec.titel, sec.tekst_content, sec.volgorde]
+            );
+            sectieIdMap[sec.sectie_id] = sRes.insertId;
+
+            const [placeholders] = await pool.query(
+                'SELECT * FROM Placeholder WHERE sectie_id = ?',
+                [sec.sectie_id]
+            );
+            for (const ph of placeholders) {
+                await pool.query(
+                    `INSERT INTO Placeholder (sectie_id, placeholder_id, pdf_label)
+                     VALUES (?, ?, ?)`,
+                    [sRes.insertId, ph.placeholder_id, ph.pdf_label]
+                );
+            }
+        }
+    }
+
+    console.log(`[Seed] Copied ${demoTemplates.length} template(s) for account ${newAccountId}`);
+
+    // ── Dossiers ───────────────────────────────────────────────────────────────
     const [demoDossiers] = await pool.query(
         'SELECT * FROM Dossier WHERE account_id = ?',
         [DEMO_ACCOUNT_ID]
@@ -18,7 +69,6 @@ async function seedDemoData(newAccountId) {
     }
 
     for (const dos of demoDossiers) {
-        // ── Dossier ────────────────────────────────────────────────────────────
         const [dRes] = await pool.query(
             `INSERT INTO Dossier (ui_id, account_id, titel, verkoper_naam, adres,
              datum_aanmaak, archiefstatus, status, type, remarks, display_order)
@@ -60,27 +110,44 @@ async function seedDemoData(newAccountId) {
             docIdMap[doc.document_id] = docRes.insertId;
         }
 
+        // ── TimelineEvent ──────────────────────────────────────────────────────
+        const [events] = await pool.query(
+            'SELECT * FROM TimelineEvent WHERE dossier_id = ? ORDER BY event_id ASC',
+            [dos.dossier_id]
+        );
+        for (const ev of events) {
+            await pool.query(
+                `INSERT INTO TimelineEvent (dossier_id, titel, beschrijving, user_name)
+                 VALUES (?, ?, ?, ?)`,
+                [newDossierId, ev.titel, ev.beschrijving, ev.user_name]
+            ).catch(() => {});
+        }
+
         // ── Overeenkomsten ─────────────────────────────────────────────────────
         const [agreements] = await pool.query(
             'SELECT * FROM Verkoopsovereenkomst WHERE dossier_id = ?',
             [dos.dossier_id]
         );
         for (const agr of agreements) {
+            // Use the new template copy if one was seeded, otherwise keep original
+            const newTemplateId = templateIdMap[agr.template_id] || agr.template_id;
+
             const [aRes] = await pool.query(
                 `INSERT INTO Verkoopsovereenkomst (ui_id, dossier_id, template_id, created_at)
                  VALUES (?, ?, ?, NOW())`,
-                [uid('agr'), newDossierId, agr.template_id]
+                [uid('agr'), newDossierId, newTemplateId]
             );
             const newAgrId = aRes.insertId;
 
             // ── Aangepaste_Placeholder ──────────────────────────────────────────
+            // INSERT IGNORE: unique constraint is (dossier_id, placeholder_id)
             const [aps] = await pool.query(
                 'SELECT * FROM Aangepaste_Placeholder WHERE verkoopsovereenkomst_id = ?',
                 [agr.verkoopsovereenkomst_id]
             );
             for (const ap of aps) {
                 await pool.query(
-                    `INSERT INTO Aangepaste_Placeholder
+                    `INSERT IGNORE INTO Aangepaste_Placeholder
                      (dossier_id, placeholder_id, verkoopsovereenkomst_id,
                       ingevulde_waarde, validatiestatus, document_id, bron_text,
                       pagina_nummer, coords_json, confidence_score,
@@ -100,7 +167,6 @@ async function seedDemoData(newAccountId) {
                 [agr.verkoopsovereenkomst_id]
             );
             for (const ver of versions) {
-                // Copy version file (DOCX/PDF) if present
                 let newFilePath = null;
                 if (ver.file_path) {
                     const oldFn = path.basename(ver.file_path);
@@ -123,7 +189,7 @@ async function seedDemoData(newAccountId) {
                 const newVerId = vRes.insertId;
 
                 // ── VersieSectie ────────────────────────────────────────────────
-                const sectieIdMap = {};
+                const vSectieIdMap = {};
                 const [vSections] = await pool.query(
                     'SELECT * FROM VersieSectie WHERE versie_id = ?',
                     [ver.versie_id]
@@ -134,7 +200,7 @@ async function seedDemoData(newAccountId) {
                          VALUES (?, ?, ?, ?)`,
                         [newVerId, vs.sectie_id, vs.tekst_inhoud, vs.validatiestatus]
                     );
-                    sectieIdMap[vs.aangepaste_sectie_id] = vsRes.insertId;
+                    vSectieIdMap[vs.aangepaste_sectie_id] = vsRes.insertId;
                 }
 
                 // ── VersiePlaceholder ───────────────────────────────────────────
@@ -151,7 +217,7 @@ async function seedDemoData(newAccountId) {
                           confidence_reasoning, conflicting_sources)
                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                         [newVerId, vp.placeholder_id,
-                         sectieIdMap[vp.aangepaste_sectie_id] || null,
+                         vSectieIdMap[vp.aangepaste_sectie_id] || null,
                          vp.ingevulde_waarde, vp.validatiestatus,
                          vp.document_id ? (docIdMap[vp.document_id] || null) : null,
                          vp.bron_text, vp.pagina_nummer, vp.coords_json,
