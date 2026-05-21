@@ -89,7 +89,7 @@ const extractTextFromImage = async (filePath, mimeType) => {
 /**
  * Helper to call Gemini with exponential backoff retry logic and per-call timeout.
  */
-const GEMINI_CALL_TIMEOUT_MS = 60000; // 60 seconds per call
+const GEMINI_CALL_TIMEOUT_MS = 120000; // 120 seconds per call
 
 const withTimeout = (promise, ms) => {
     let timer;
@@ -148,8 +148,8 @@ const validateExtractedValues = (parsed, fieldNames) => {
         const normValue = normalize(rawValue);
         const normKey = normalize(key);
         
-        // Reject if value matches or contains its own key name
-        if (normValue === normKey || normValue.includes(normKey) || normKey.includes(normValue)) {
+        // Reject if value matches or contains its own key name (min 3 chars to avoid false positives like "A")
+        if (normValue === normKey || (normValue.length >= 3 && (normValue.includes(normKey) || normKey.includes(normValue)))) {
             console.warn(`[VALIDATION] Rejected value for "${key}": "${rawValue}" (matches key name)`);
             parsed[key].waarde = '';
             parsed[key].bron_text = '';
@@ -424,7 +424,7 @@ const analyzeTemplate = async (text, libraryPlaceholders, customPrompt = null) =
         
         // Robust chunking logic to allow massive templates up to 50 pages
         // We split by double newlines, but if a block is still too big, we split further.
-        const CHUNK_SIZE = 18000; // Increased from 12000 to reduce total calls
+        const CHUNK_SIZE = 10000;
         let blocks = (text || '').split(/\n\s*\n/);
         
         // Final chunks array
@@ -466,7 +466,7 @@ const analyzeTemplate = async (text, libraryPlaceholders, customPrompt = null) =
         const startTime = Date.now();
         
         // Use a concurrency limit to avoid hitting rate limits 429, but still much faster than sequential
-        const CONCURRENCY_LIMIT = 3; 
+        const CONCURRENCY_LIMIT = 2;
         let allSections = [];
         
         for (let i = 0; i < chunks.length; i += CONCURRENCY_LIMIT) {
