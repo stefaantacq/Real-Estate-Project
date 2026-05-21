@@ -124,7 +124,12 @@ async function runMigrations() {
     await addColumnIfMissing(p, 'Versie', 'is_bookmarked',
         'ALTER TABLE Versie ADD COLUMN is_bookmarked BOOLEAN DEFAULT FALSE');
 
-    // 13. Sectie.tekst_content: TEXT (64KB) is too small for full contract sections
+    // 13. Placeholder.pdf_label: VARCHAR(255) too short for long AI-generated labels
+    await pool.query(
+        `ALTER TABLE Placeholder MODIFY COLUMN pdf_label TEXT DEFAULT NULL`
+    ).catch(() => {});
+
+    // 13b. Sectie.tekst_content: TEXT (64KB) is too small for full contract sections
     await pool.query(
         `ALTER TABLE Sectie MODIFY COLUMN tekst_content MEDIUMTEXT`
     ).catch(() => {});

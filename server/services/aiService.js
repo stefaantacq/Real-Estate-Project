@@ -7,16 +7,20 @@ require('dotenv').config();
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({
     model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
-    generationConfig: { 
-        maxOutputTokens: 16000,
-        responseMimeType: "application/json"
+    generationConfig: {
+        maxOutputTokens: 32000,
+        responseMimeType: "application/json",
+        thinkingConfig: { thinkingBudget: 0 }
     }
 });
 
 // A separate model instance for text-only/fallback without JSON enforcement if needed
 const textModel = genAI.getGenerativeModel({
     model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
-    generationConfig: { maxOutputTokens: 16000 }
+    generationConfig: {
+        maxOutputTokens: 16000,
+        thinkingConfig: { thinkingBudget: 0 }
+    }
 });
 
 /**
