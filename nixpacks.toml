@@ -1,0 +1,13 @@
+providers = ["node"]
+
+[phases.install]
+cmds = [
+  "npm --prefix server install",
+  "npm --prefix compromais install"
+]
+
+[phases.build]
+cmds = ["npm --prefix compromais run build"]
+
+[start]
+cmd = "node server/index.js"
