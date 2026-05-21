@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { pool } = require('./config/db');
+const { pool, testConnection } = require('./config/db');
 require('dotenv').config();
 
 const path = require('path');
@@ -172,6 +172,22 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+
+async function startServer() {
+    try {
+        await testConnection();
+    } catch (err) {
+        console.error('[Startup] Database connection failed — server will not start.');
+        console.error('[Startup]', err.message);
+        process.exit(1);
+    }
+
+    app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+    });
+}
+
+startServer().catch((err) => {
+    console.error('[Startup] Unexpected error during startup:', err);
+    process.exit(1);
 });
