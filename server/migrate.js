@@ -132,6 +132,10 @@ async function runMigrations() {
     await pool.query(
         `ALTER TABLE VersieSectie MODIFY COLUMN tekst_inhoud MEDIUMTEXT`
     ).catch(() => {});
+    // Versie.source: ENUM only had AI/Upload/Manual but code also inserts 'Save'
+    await pool.query(
+        `ALTER TABLE Versie MODIFY COLUMN source VARCHAR(50) DEFAULT 'Manual'`
+    ).catch(() => {});
 
     // 14. Template: rename English column names to Dutch + add account_id
     await renameColumnIfExists(p, 'Template', 'title', 'titel');
