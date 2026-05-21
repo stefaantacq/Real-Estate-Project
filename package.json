@@ -2,6 +2,8 @@
   "name": "real-estate-project",
   "version": "1.0.0",
   "scripts": {
+    "postinstall": "npm install --prefix server && npm install --prefix compromais",
+    "build": "npm run build --prefix compromais",
     "start": "node server/index.js"
   },
   "engines": {
