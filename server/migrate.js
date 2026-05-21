@@ -124,7 +124,9 @@ async function runMigrations() {
     await addColumnIfMissing(p, 'Versie', 'is_bookmarked',
         'ALTER TABLE Versie ADD COLUMN is_bookmarked BOOLEAN DEFAULT FALSE');
 
-    // 13. Template: add account_id for custom (per-account) templates
+    // 13. Template: rename English column names to Dutch + add account_id
+    await renameColumnIfExists(p, 'Template', 'title', 'titel');
+    await renameColumnIfExists(p, 'Template', 'description', 'beschrijving');
     await addColumnIfMissing(p, 'Template', 'account_id',
         'ALTER TABLE Template ADD COLUMN account_id INT DEFAULT NULL');
 
