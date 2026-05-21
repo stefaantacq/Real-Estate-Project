@@ -649,9 +649,9 @@ const dossierController = {
                 return { id: agg.ui_id, templateId: agg.template_id, templateName: agg.template_name, versions };
             }));
             res.json({
-                id: row.ui_id, name: row.titel, address: row.adres, verkoper_naam: row.verkoper_naam, date: formatDateBE(row.last_modified), creationDate: formatDateBE(row.created_at), status: row.status, type: row.type, remarks: row.remarks,
-                agreements, timeline: timelineRows.map(t => ({ id: t.ui_id, date: formatDateBE(t.event_date), title: t.titel, description: t.beschrijving, user: t.user_name })),
-                documents: docRows.map(d => ({ id: d.ui_id, name: d.naam, type: d.bestandstype, category: d.document_type, path: d.bestand_pad }))
+                id: row.ui_id, name: row.titel || '', address: row.adres || '', verkoper_naam: row.verkoper_naam || '', date: formatDateBE(row.last_modified), creationDate: formatDateBE(row.created_at), status: row.status || 'draft', type: row.type || '', remarks: row.remarks || '',
+                agreements, timeline: timelineRows.map(t => ({ id: t.ui_id, date: formatDateBE(t.event_date), title: t.titel || '', description: t.beschrijving || '', user: t.user_name || '' })),
+                documents: docRows.map(d => ({ id: d.ui_id, name: d.naam || '', type: d.bestandstype || '', category: d.document_type || '', path: d.bestand_pad || '' }))
             });
         } catch (error) { console.error(error); res.status(500).json({ error: error.message }); }
     },
