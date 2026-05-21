@@ -198,6 +198,15 @@ app.get('/api/documents/preview/:filename', async (req, res, next) => {
     }
 });
 
+// Serve frontend (must come after all API routes)
+const frontendDist = path.join(__dirname, '../compromais/dist');
+if (fs.existsSync(frontendDist)) {
+    app.use(express.static(frontendDist));
+    app.get('*', (req, res) => {
+        res.sendFile(path.join(frontendDist, 'index.html'));
+    });
+}
+
 // Global Error Logger
 app.use((err, req, res, next) => {
     const errorLog = `[${new Date().toISOString()}] ${err.stack}\n`;
