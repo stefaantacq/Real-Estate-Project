@@ -31,7 +31,7 @@ const authController = {
             // Seed demo data from dev account — fire-and-forget
             const { seedDemoData } = require('../services/seedService');
             seedDemoData(result.insertId).catch(err =>
-                console.error('[Seed] Error seeding demo data:', err.message)
+                console.error('[Seed] Error seeding demo data:', err.stack || err.message)
             );
 
             res.status(201).json({
