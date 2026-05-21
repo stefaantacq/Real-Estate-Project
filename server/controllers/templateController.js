@@ -271,6 +271,13 @@ const templateController = {
             if (check[0].source === 'CIB') return res.status(403).json({ error: 'System templates kunnen niet worden verwijderd' });
             if (check[0].account_id !== req.user.id) return res.status(403).json({ error: 'Geen toegang' });
 
+            const [sections] = await pool.query('SELECT sectie_id FROM Sectie WHERE template_id = ?', [id]);
+            if (sections.length > 0) {
+                const sectieIds = sections.map(s => s.sectie_id);
+                await pool.query('DELETE FROM VersieSectie WHERE sectie_id IN (?)', [sectieIds]);
+                await pool.query('DELETE FROM Placeholder WHERE sectie_id IN (?)', [sectieIds]);
+                await pool.query('DELETE FROM Sectie WHERE template_id = ?', [id]);
+            }
             await pool.query('DELETE FROM Template WHERE template_id = ?', [id]);
             res.json({ message: 'Template verwijderd' });
         } catch (error) {
