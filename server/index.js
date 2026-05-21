@@ -62,8 +62,14 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 app.set('upload', upload); // Make it accessible in routes
 
-// Health check
-app.get('/', (req, res) => {
+// Serve frontend static files (before API routes so '/' serves index.html)
+const frontendDist = path.join(__dirname, '../compromais/dist');
+if (fs.existsSync(frontendDist)) {
+    app.use(express.static(frontendDist));
+}
+
+// Health check (only used when frontend dist is not present)
+app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok' });
 });
 
@@ -198,10 +204,8 @@ app.get('/api/documents/preview/:filename', async (req, res, next) => {
     }
 });
 
-// Serve frontend (must come after all API routes)
-const frontendDist = path.join(__dirname, '../compromais/dist');
+// SPA catch-all: after all API routes, serve index.html for React Router
 if (fs.existsSync(frontendDist)) {
-    app.use(express.static(frontendDist));
     app.get('*', (req, res) => {
         res.sendFile(path.join(frontendDist, 'index.html'));
     });
