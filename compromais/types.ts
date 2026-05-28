@@ -103,7 +103,7 @@ export interface PlaceholderSuggestion {
   confidence?: 'High' | 'Medium' | 'Low'; // Made optional
   confidenceScore?: number;
   confidenceReasoning?: string;
-  conflictingSources?: { value: string; docId: number }[];
+  conflictingSources?: { value: string; docId: number; documentPad?: string; documentNaam?: string }[];
   isApproved: boolean;
   type?: string;
   coords?: [number, number, number, number] | null;

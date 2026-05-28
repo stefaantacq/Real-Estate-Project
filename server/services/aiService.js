@@ -414,11 +414,12 @@ const analyzeTemplate = async (text, libraryPlaceholders, customPrompt = null) =
                "title": "Exact Title of the section",
                "content": "Full section text with [placeholder:sleutel] tags",
                "placeholders": [
-                 { "id": "sleutel", "label": "Descriptive Label", "type": "text" }
+                 { "id": "sleutel", "label": "Descriptive Label", "type": "text", "original_text": "the exact original text that was replaced, e.g. '............' or '__________'" }
                ]
              }
            ]
         14. Only return the JSON object, nothing else. No markdown headers.
+        15. ORIGINAL TEXT (CRITICAL for DOCX patching): For every placeholder, set "original_text" to the EXACT string that appeared in the source text before replacement. This must be copy-pasteable from the original — do NOT paraphrase or shorten it.
  
         ${userInstruction}
     `;

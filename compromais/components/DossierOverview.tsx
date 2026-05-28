@@ -1187,7 +1187,6 @@ export const DossierOverview: React.FC<DossierOverviewProps> = ({ lang, onBack, 
                                src={selectedDocument.path}
                                className="w-full h-full border-0 min-h-[600px]"
                                title={selectedDocument?.name}
-                               sandbox="allow-same-origin"
                             />
                          ) : (
                             <Document

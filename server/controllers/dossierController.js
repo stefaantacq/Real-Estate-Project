@@ -121,10 +121,39 @@ const fetchFullVersionContent = async (versie_id) => {
 
         section.id = section.aangepaste_sectie_id.toString();
         section.content = section.tekst_inhoud;
-        
+
         // Bugfix: ensure that a section is only considered approved if all of its evaluated placeholders are also approved.
         const allPlaceholdersApproved = section.placeholders.length === 0 || section.placeholders.every(p => p.isApproved);
         section.isApproved = (section.validatiestatus === 'approved') && allPlaceholdersApproved;
+    }
+
+    // Enrich conflictingSources with documentPad + documentNaam so the frontend can navigate to them
+    const allDocIds = new Set();
+    for (const section of sections) {
+        for (const p of (section.placeholders || [])) {
+            if (Array.isArray(p.conflictingSources)) {
+                p.conflictingSources.forEach(c => c.docId && allDocIds.add(c.docId));
+            }
+        }
+    }
+    if (allDocIds.size > 0) {
+        const [docRows] = await pool.query(
+            'SELECT document_id, bestandsnaam, bestand_pad FROM Documenten WHERE document_id IN (?)',
+            [[...allDocIds]]
+        );
+        const docMap = {};
+        docRows.forEach(d => { docMap[d.document_id] = d; });
+        for (const section of sections) {
+            for (const p of (section.placeholders || [])) {
+                if (Array.isArray(p.conflictingSources)) {
+                    p.conflictingSources = p.conflictingSources.map(c => ({
+                        ...c,
+                        documentPad: docMap[c.docId]?.bestand_pad || null,
+                        documentNaam: docMap[c.docId]?.bestandsnaam || null,
+                    }));
+                }
+            }
+        }
     }
 
     return sections;
@@ -1008,11 +1037,35 @@ const dossierController = {
 
     exportVersion: async (req, res) => {
         try {
-            const [vRows] = await pool.query('SELECT versie_id, versie_nummer FROM Versie WHERE ui_id = ?', [req.params.id]);
+            const [vRows] = await pool.query(`
+                SELECT v.versie_id, v.versie_nummer, t.file_path as template_file_path
+                FROM Versie v
+                JOIN Verkoopsovereenkomst vo ON v.verkoopsovereenkomst_id = vo.verkoopsovereenkomst_id
+                LEFT JOIN Template t ON vo.template_id = t.template_id
+                WHERE v.ui_id = ?
+            `, [req.params.id]);
             if (vRows.length === 0) return res.status(404).json({ error: 'Versie niet gevonden' });
-            const sections = await fetchFullVersionContent(vRows[0].versie_id);
+
+            const { versie_id, versie_nummer, template_file_path } = vRows[0];
+            const sections = await fetchFullVersionContent(versie_id);
             const exportService = require('../services/exportService');
-            const docxBuffer = await exportService.generateDocx(sections, `Verkoopsovereenkomst v${vRows[0].versie_nummer}`);
+
+            let docxBuffer;
+            if (template_file_path && require('fs').existsSync(template_file_path)) {
+                // Build flat key→value map from all placeholders across all sections
+                const values = {};
+                for (const section of sections) {
+                    if (Array.isArray(section.placeholders)) {
+                        for (const p of section.placeholders) {
+                            values[p.id] = p.currentValue || '';
+                        }
+                    }
+                }
+                docxBuffer = await exportService.fillDocxTemplate(template_file_path, values);
+            } else {
+                docxBuffer = await exportService.generateDocx(sections, `Verkoopsovereenkomst v${versie_nummer}`);
+            }
+
             if (req.query.format === 'pdf') {
                 const pdfBuffer = await exportService.convertToPdf(docxBuffer);
                 res.setHeader('Content-Type', 'application/pdf'); res.setHeader('Content-Disposition', `attachment; filename="verkoop_${req.params.id}.pdf"`); res.send(pdfBuffer);

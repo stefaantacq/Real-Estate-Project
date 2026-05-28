@@ -492,9 +492,9 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
             await api.updateVersion(id, sections);
 
             await api.exportVersion(id, format);
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            alert('Export failed. Please check backend logs.');
+            alert('Export mislukt: ' + (error?.message || String(error)));
         }
     };
 
@@ -1481,7 +1481,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                                         Herkend Tekstfragment
                                                     </h4>
                                                     <div className="border-l-4 border-blue-400 pl-3 text-sm text-slate-700 italic whitespace-pre-wrap leading-relaxed">
-                                                        “{(() => {
+                                                        "{(() => {
                                                             const sourceText = selectedSourceDoc.bronText || selectedSourceDoc.currentValue || '';
                                                             const valToHighlight = selectedSourceDoc.currentValue?.trim();
                                                             if (!valToHighlight || valToHighlight.length < 2) return sourceText;
@@ -1496,7 +1496,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                                                 }
                                                                 return part;
                                                             });
-                                                        })()}”
+                                                        })()}"
                                                     </div>
                                                 </div>
                                             )}
@@ -1533,7 +1533,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                             {selectedSourceDoc?.bronText ? (
                                                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                                                     <div className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1">Brontekst</div>
-                                                    <div className="border-l-4 border-blue-400 pl-3 text-sm text-slate-700 italic">“{selectedSourceDoc.bronText}”</div>
+                                                    <div className="border-l-4 border-blue-400 pl-3 text-sm text-slate-700 italic">"{selectedSourceDoc.bronText}"</div>
                                                 </div>
                                             ) : null}
                                             <div className="flex items-start gap-2 text-slate-400">
@@ -1672,7 +1672,7 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                                     AI Redenering
                                                 </h4>
                                                 <div className="text-sm text-slate-600 leading-relaxed p-4 bg-white rounded-xl border border-slate-200 shadow-sm italic">
-                                                    “{inspectingPlaceholder.p.confidenceReasoning}”
+                                                    "{inspectingPlaceholder.p.confidenceReasoning}"
                                                 </div>
                                             </div>
                                         )}
@@ -1682,13 +1682,40 @@ export const Editor: React.FC<EditorProps> = ({ lang, onBack }) => {
                                                 <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Mogelijke Conflicten</h4>
                                                 <div className="space-y-3">
                                                     {inspectingPlaceholder.p.conflictingSources.map((conflict, idx) => (
-                                                        <div key={idx} className="p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3 shadow-sm animate-pulse-subtle">
+                                                        <div
+                                                            key={idx}
+                                                            onClick={() => {
+                                                                if (!conflict.documentPad) return;
+                                                                const pathStr = conflict.documentPad;
+                                                                const filename = pathStr.split('/').pop() || pathStr;
+                                                                let relativeUrl = `/api/documents/preview/${filename}`;
+                                                                const isWordDoc = pathStr.toLowerCase().endsWith('.docx') || pathStr.toLowerCase().endsWith('.doc');
+                                                                if (isWordDoc) relativeUrl += '.pdf';
+                                                                const searchParam = encodeURIComponent('"' + conflict.value + '"');
+                                                                relativeUrl += `#search=${searchParam}`;
+                                                                setSelectedSourceDoc({
+                                                                    name: conflict.documentNaam || 'Brondocument',
+                                                                    path: relativeUrl,
+                                                                    bronText: conflict.value,
+                                                                    placeholderLabel: inspectingPlaceholder.p.label,
+                                                                    currentValue: conflict.value,
+                                                                });
+                                                                setSplitScreen(true);
+                                                                setSidebarMode('none');
+                                                            }}
+                                                            className={`p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3 shadow-sm animate-pulse-subtle transition-all ${conflict.documentPad ? 'cursor-pointer hover:bg-red-100 hover:border-red-300' : ''}`}
+                                                        >
                                                             <div className="p-1.5 bg-red-100 rounded-lg">
                                                                 <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
                                                             </div>
-                                                            <div>
+                                                            <div className="flex-1">
                                                                 <div className="text-[10px] font-bold text-red-800 uppercase tracking-wider mb-0.5">Tegenstrijdige waarde</div>
-                                                                <div className="text-sm font-bold text-red-700">“{conflict.value}”</div>
+                                                                <div className="text-sm font-bold text-red-700">&ldquo;{conflict.value}&rdquo;</div>
+                                                                {conflict.documentNaam && (
+                                                                    <div className="text-[10px] text-red-400 mt-1 flex items-center gap-1">
+                                                                        <Eye className="w-3 h-3" /> {conflict.documentNaam}
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     ))}

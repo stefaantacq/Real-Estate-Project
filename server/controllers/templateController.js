@@ -208,9 +208,22 @@ const templateController = {
                 }
             }
             const defaultName = req.file ? req.file.originalname.replace('.pdf', '') : 'Unnamed Template';
+            const uploadedFilePath = req.file ? path.join(__dirname, '..', 'uploads', req.file.filename) : null;
+            const uploadedFileExt = req.file ? path.extname(req.file.originalname).toLowerCase() : null;
+            const docxFilePath = (uploadedFilePath && uploadedFileExt === '.docx') ? uploadedFilePath : null;
+
+            // Patch the DOCX with {sleutel} tags based on AI-identified original_text per placeholder
+            if (docxFilePath && sections && Array.isArray(sections)) {
+                const { patchDocxWithPlaceholders } = require('../services/exportService');
+                try {
+                    await patchDocxWithPlaceholders(docxFilePath, sections);
+                } catch (patchErr) {
+                    console.warn('[DOCX PATCH] Mislukt, doorgaan zonder patch:', patchErr.message);
+                }
+            }
             const [result] = await pool.query(
-                'INSERT INTO Template (naam, titel, beschrijving, source, account_id) VALUES (?, ?, ?, ?, ?)',
-                [name || defaultName, title || name || defaultName, description || '', source || 'Custom', req.user.id]
+                'INSERT INTO Template (naam, titel, beschrijving, source, account_id, file_path) VALUES (?, ?, ?, ?, ?, ?)',
+                [name || defaultName, title || name || defaultName, description || '', source || 'Custom', req.user.id, docxFilePath]
             );
             const templateId = result.insertId;
             if (sections && Array.isArray(sections)) {
